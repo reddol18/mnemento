@@ -1,0 +1,60 @@
+{
+ "model": "haiku",
+ "overhead_input_tokens": {
+  "plain": 2526,
+  "tools": 6698
+ },
+ "overhead_ms": {
+  "plain": 2189.0,
+  "tools": 1911.8
+ },
+ "chars_per_token": 1.72,
+ "raw": [
+  {
+   "stage": "cal",
+   "model": "claude-haiku-4-5-20251001",
+   "input_tokens": 2526,
+   "output_tokens": 348,
+   "thinking_tokens": 153,
+   "cache_read_input_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cost_usd": 0.004266,
+   "wall_ms": 6500.0,
+   "model_ms": 4311.0,
+   "overhead_ms": 2189.0,
+   "attempt": 1,
+   "turns": 3
+  },
+  {
+   "stage": "cal",
+   "model": "claude-haiku-4-5-20251001",
+   "input_tokens": 10,
+   "output_tokens": 331,
+   "thinking_tokens": 181,
+   "cache_read_input_tokens": 0,
+   "cache_creation_input_tokens": 14147,
+   "cost_usd": 0.029959,
+   "wall_ms": 6301.3,
+   "model_ms": 4223.0,
+   "overhead_ms": 2078.3,
+   "attempt": 1,
+   "turns": 2
+  },
+  {
+   "stage": "cal",
+   "model": "claude-haiku-4-5-20251001",
+   "input_tokens": 6698,
+   "output_tokens": 519,
+   "thinking_tokens": 455,
+   "cache_read_input_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cost_usd": 0.009293,
+   "wall_ms": 7814.8,
+   "model_ms": 5903.0,
+   "overhead_ms": 1911.8,
+   "attempt": 1,
+   "turns": 3
+  }
+ ],
+ "note": "recomputed from raw incl. cache_creation tokens"
+}
