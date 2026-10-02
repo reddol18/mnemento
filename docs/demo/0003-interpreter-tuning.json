@@ -1,0 +1,286 @@
+[
+  {
+    "config": "haiku / default thinking",
+    "q": "Q2",
+    "correct": true,
+    "status": "answered",
+    "spec": {
+      "entity_type": "application",
+      "mode": "count",
+      "filters": [
+        {
+          "field": "company_id",
+          "op": "in",
+          "value": [
+            "co_gasangtech"
+          ]
+        }
+      ],
+      "interpretation": "가상테크(Gasang Tech)에 지원한 지원 건수"
+    },
+    "input_tokens": 3834,
+    "output_tokens": 697,
+    "thinking_tokens": 531,
+    "cost_usd": 0.007319,
+    "total_ms": 9140.4,
+    "llm_overhead_ms": 1891.4,
+    "llm_model_ms": 7216.0
+  },
+  {
+    "config": "haiku / default thinking",
+    "q": "Q3",
+    "correct": true,
+    "status": "answered",
+    "spec": {
+      "entity_type": "application",
+      "mode": "list",
+      "filters": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "viewed"
+        }
+      ],
+      "list_fields": [
+        "company_id",
+        "posting_id",
+        "platform",
+        "applied_at",
+        "viewed_at",
+        "expected_rate",
+        "reason"
+      ],
+      "interpretation": "열람되었지만 아직 최종 결과(합격/불합격)가 없는 지원서들"
+    },
+    "input_tokens": 3834,
+    "output_tokens": 729,
+    "thinking_tokens": 521,
+    "cost_usd": 0.007479,
+    "total_ms": 9187.7,
+    "llm_overhead_ms": 1870.0,
+    "llm_model_ms": 7298.0
+  },
+  {
+    "config": "haiku / default thinking",
+    "q": "Q4",
+    "correct": true,
+    "status": "answered",
+    "spec": {
+      "entity_type": "application",
+      "mode": "aggregate",
+      "group_by": [
+        {
+          "field": "expected_rate"
+        },
+        {
+          "field": "applied_at",
+          "bucket": "month"
+        }
+      ],
+      "measures": [
+        {
+          "name": "total_applications",
+          "agg": "count"
+        },
+        {
+          "name": "viewed_applications",
+          "agg": "count_if",
+          "where": [
+            {
+              "field": "viewed_at",
+              "op": "exists"
+            }
+          ]
+        },
+        {
+          "name": "avg_days_to_view",
+          "agg": "avg_days_between",
+          "field": "applied_at",
+          "field_end": "viewed_at"
+        }
+      ],
+      "order_by": "applied_at",
+      "interpretation": "월별, expected_rate(상위 10% vs 30%)별로 평균 열람 대기 시간과 열람 지원 수를 비교하여 상위 10%가 더 빨리 열람되는지, 그리고 이 패턴이 시간에 따라 일관되는지 확인한다."
+    },
+    "input_tokens": 3854,
+    "output_tokens": 6267,
+    "thinking_tokens": 5633,
+    "cost_usd": 0.035189,
+    "total_ms": 57723.8,
+    "llm_overhead_ms": 1712.7,
+    "llm_model_ms": 55991.0
+  },
+  {
+    "config": "haiku / thinking off",
+    "q": "Q2",
+    "correct": false,
+    "status": "clarify",
+    "spec": null,
+    "input_tokens": 3665,
+    "output_tokens": 505,
+    "thinking_tokens": 0,
+    "cost_usd": 0.0152,
+    "total_ms": 7366.1,
+    "llm_overhead_ms": 1852.7,
+    "llm_model_ms": 5498.0
+  },
+  {
+    "config": "haiku / thinking off",
+    "q": "Q3",
+    "correct": false,
+    "status": "clarify",
+    "spec": null,
+    "input_tokens": 7457,
+    "output_tokens": 323,
+    "thinking_tokens": 0,
+    "cost_usd": 0.009072,
+    "total_ms": 6457.7,
+    "llm_overhead_ms": 2128.2,
+    "llm_model_ms": 4314.0
+  },
+  {
+    "config": "haiku / thinking off",
+    "q": "Q4",
+    "correct": false,
+    "status": "clarify",
+    "spec": null,
+    "input_tokens": 3679,
+    "output_tokens": 780,
+    "thinking_tokens": 0,
+    "cost_usd": 0.007579,
+    "total_ms": 9501.0,
+    "llm_overhead_ms": 1875.7,
+    "llm_model_ms": 7610.0
+  },
+  {
+    "config": "sonnet / thinking off",
+    "q": "Q2",
+    "correct": true,
+    "status": "answered",
+    "spec": {
+      "entity_type": "application",
+      "mode": "list",
+      "filters": [
+        {
+          "field": "company_id",
+          "op": "in",
+          "value": [
+            "co_gasangtech"
+          ]
+        }
+      ],
+      "list_fields": [
+        "company_id",
+        "posting_id",
+        "platform",
+        "status",
+        "applied_at",
+        "viewed_at"
+      ],
+      "order_by": "applied_at",
+      "descending": true,
+      "interpretation": "Gasang Tech(가상테크)에 지원한 모든 이력을 최신순으로 나열합니다."
+    },
+    "input_tokens": 2,
+    "output_tokens": 314,
+    "thinking_tokens": 90,
+    "cost_usd": 0.020728,
+    "total_ms": 4529.0,
+    "llm_overhead_ms": 2102.5,
+    "llm_model_ms": 2399.0
+  },
+  {
+    "config": "sonnet / thinking off",
+    "q": "Q3",
+    "correct": true,
+    "status": "answered",
+    "spec": {
+      "entity_type": "application",
+      "mode": "list",
+      "filters": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "viewed"
+        }
+      ],
+      "list_fields": [
+        "company_id",
+        "posting_id",
+        "platform",
+        "applied_at",
+        "viewed_at",
+        "status"
+      ],
+      "order_by": "viewed_at",
+      "interpretation": "열람됨 상태(아직 합격/불합격 결과가 나오지 않음)인 지원 건의 회사와 공고를 나열합니다."
+    },
+    "input_tokens": 2,
+    "output_tokens": 230,
+    "thinking_tokens": 0,
+    "cost_usd": 0.009563,
+    "total_ms": 4889.4,
+    "llm_overhead_ms": 2094.4,
+    "llm_model_ms": 2776.0
+  },
+  {
+    "config": "sonnet / thinking off",
+    "q": "Q4",
+    "correct": true,
+    "status": "answered",
+    "spec": {
+      "entity_type": "application",
+      "mode": "aggregate",
+      "filters": [
+        {
+          "field": "expected_rate",
+          "op": "in",
+          "value": [
+            "top10",
+            "top30"
+          ]
+        }
+      ],
+      "group_by": [
+        {
+          "field": "applied_at",
+          "bucket": "month"
+        },
+        {
+          "field": "expected_rate"
+        }
+      ],
+      "measures": [
+        {
+          "name": "applications",
+          "agg": "count"
+        },
+        {
+          "name": "viewed",
+          "agg": "count_if",
+          "where": [
+            {
+              "field": "viewed_at",
+              "op": "exists"
+            }
+          ]
+        },
+        {
+          "name": "avg_days_to_view",
+          "agg": "avg_days_between",
+          "field": "applied_at",
+          "field_end": "viewed_at"
+        }
+      ],
+      "order_by": "applied_at",
+      "interpretation": "예상 합격률 top10과 top30 지원건을 지원월별로 나누어, 열람된 비율(열람 건수)과 지원~열람 평균 소요일을 비교합니다 (지난번과 비교하도록 월별 전체 표시)."
+    },
+    "input_tokens": 2,
+    "output_tokens": 385,
+    "thinking_tokens": 0,
+    "cost_usd": 0.011201,
+    "total_ms": 4978.0,
+    "llm_overhead_ms": 2145.8,
+    "llm_model_ms": 2812.0
+  }
+]
