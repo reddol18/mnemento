@@ -1,0 +1,57 @@
+{
+  "name": "company",
+  "version": 1,
+  "description": "A company (employer or search firm). One entity per real-world company; postings and applications refer to it by id (e.g. co_gasangtech).",
+  "keywords": [
+    "회사",
+    "기업",
+    "company",
+    "employer"
+  ],
+  "fields": {
+    "name": {
+      "type": "string",
+      "description": "Display name as most commonly written, e.g. '(주)가상테크'.",
+      "required": true
+    },
+    "normalized_name": {
+      "type": "string",
+      "description": "Normalized name key for identity matching: legal-form markers such as (주)/주식회사/Inc removed, spaces removed, lower-cased. e.g. '가상테크'.",
+      "required": true,
+      "indexed": true
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Other names the same company is known by (Korean/English names, old names), e.g. ['Gasang Tech']."
+    },
+    "business_number": {
+      "type": "string",
+      "description": "Korean business registration number (사업자등록번호) 'NNN-NN-NNNNN', if known. Strongest identity key.",
+      "indexed": true
+    }
+  },
+  "examples": [
+    {
+      "id": "co_gasangtech",
+      "doc": {
+        "name": "(주)가상테크",
+        "normalized_name": "가상테크",
+        "aliases": [
+          "Gasang Tech",
+          "가상테크놀로지"
+        ],
+        "business_number": "000-00-00001"
+      }
+    },
+    {
+      "id": "co_examplelabs",
+      "doc": {
+        "name": "Example Labs Inc.",
+        "normalized_name": "examplelabs"
+      }
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "name": "application",
+  "version": 1,
+  "description": "One job application the user submitted to one posting (e.g. id app_saramin_10000001). Status moves applied -> viewed -> passed/rejected, or withdrawn.",
+  "keywords": [
+    "지원",
+    "지원서",
+    "application"
+  ],
+  "default_date_field": "applied_at",
+  "fields": {
+    "company_id": {
+      "type": "string",
+      "description": "Entity id of the company applied to, e.g. 'co_gasangtech'.",
+      "required": true,
+      "indexed": true,
+      "ref": "company"
+    },
+    "posting_id": {
+      "type": "string",
+      "description": "Entity id of the posting applied to, e.g. 'posting_saramin_10000001'.",
+      "indexed": true,
+      "ref": "posting"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "saramin",
+        "wanted",
+        "groupby",
+        "jobkorea",
+        "other"
+      ],
+      "description": "Platform the application was submitted through.",
+      "required": true,
+      "indexed": true,
+      "labels": {
+        "saramin": [
+          "사람인"
+        ],
+        "wanted": [
+          "원티드"
+        ],
+        "groupby": [
+          "그룹바이"
+        ],
+        "jobkorea": [
+          "잡코리아"
+        ],
+        "other": [
+          "기타"
+        ]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "viewed",
+        "passed",
+        "rejected",
+        "withdrawn"
+      ],
+      "description": "Current status. applied: submitted; viewed: the company opened the application; passed: passed document screening; rejected: rejected; withdrawn: the user withdrew.",
+      "required": true,
+      "indexed": true,
+      "labels": {
+        "applied": [
+          "지원완료",
+          "지원함"
+        ],
+        "viewed": [
+          "열람",
+          "열람됨"
+        ],
+        "passed": [
+          "합격",
+          "서류합격",
+          "통과"
+        ],
+        "rejected": [
+          "불합격",
+          "탈락"
+        ],
+        "withdrawn": [
+          "철회",
+          "지원취소"
+        ]
+      }
+    },
+    "applied_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the application was submitted, YYYY-MM-DD in the user's time zone.",
+      "required": true,
+      "indexed": true
+    },
+    "viewed_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the company first viewed the application, YYYY-MM-DD in the user's time zone.",
+      "indexed": true
+    },
+    "expected_rate": {
+      "type": "string",
+      "description": "Free-form expected pass likelihood noted when applying, e.g. 'top10' or 'low'."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why the user applied (short note)."
+    }
+  },
+  "examples": [
+    {
+      "id": "app_saramin_10000001",
+      "doc": {
+        "company_id": "co_gasangtech",
+        "posting_id": "posting_saramin_10000001",
+        "platform": "saramin",
+        "status": "viewed",
+        "applied_at": "2026-10-01",
+        "viewed_at": "2026-10-02",
+        "expected_rate": "top10",
+        "reason": "Python 백엔드 경력 일치"
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# 개인 실데이터 — 절대 커밋 금지
+data/private/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+dist/
+build/
+
+# 기타
+.env
+.DS_Store
+
+# 로컬 도구 상태 (훅 로그에 로컬 경로 포함)
+.claude/
+
+# benchmark inputs are regenerated from the seed
+bench/data/

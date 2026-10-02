@@ -1,0 +1,84 @@
+{
+  "name": "posting",
+  "version": 1,
+  "description": "A job posting on a hiring platform. The platform + posting_id pair identifies it (e.g. id posting_saramin_10000001).",
+  "keywords": [
+    "공고",
+    "채용공고",
+    "posting",
+    "job posting"
+  ],
+  "default_date_field": "deadline",
+  "fields": {
+    "platform": {
+      "type": "string",
+      "enum": [
+        "saramin",
+        "wanted",
+        "groupby",
+        "jobkorea",
+        "other"
+      ],
+      "description": "Hiring platform the posting is listed on.",
+      "required": true,
+      "indexed": true,
+      "labels": {
+        "saramin": [
+          "사람인"
+        ],
+        "wanted": [
+          "원티드"
+        ],
+        "groupby": [
+          "그룹바이"
+        ],
+        "jobkorea": [
+          "잡코리아"
+        ],
+        "other": [
+          "기타"
+        ]
+      }
+    },
+    "posting_id": {
+      "type": "string",
+      "description": "The platform's own posting number, as a string, e.g. '10000001'.",
+      "required": true,
+      "indexed": true
+    },
+    "company_id": {
+      "type": "string",
+      "description": "Entity id of the hiring company (a company entity), e.g. 'co_gasangtech'.",
+      "indexed": true,
+      "ref": "company"
+    },
+    "title": {
+      "type": "string",
+      "description": "Posting title as shown on the platform.",
+      "required": true
+    },
+    "location": {
+      "type": "string",
+      "description": "Actual work location (city/district), e.g. '서울 강남구'. Prefer the real workplace over the listed one when they differ."
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date",
+      "description": "Application deadline, YYYY-MM-DD in the user's time zone. Absent when the posting is open until filled.",
+      "indexed": true
+    }
+  },
+  "examples": [
+    {
+      "id": "posting_saramin_10000001",
+      "doc": {
+        "platform": "saramin",
+        "posting_id": "10000001",
+        "company_id": "co_gasangtech",
+        "title": "백엔드 개발자 (Python)",
+        "location": "서울 강남구",
+        "deadline": "2026-10-31"
+      }
+    }
+  ]
+}
