@@ -167,3 +167,75 @@ def test_report_summary_and_overhead_exclusion():
     assert next(x for x in s if x["system"] == "B0").get("not_measurable")
     md = render(s, {"model": "haiku", "run": "t", "frozen_hash": "x"})
     assert "not measurable" in md and "1/1 (100%)" in md
+
+
+# ---- run loop with a fake CLI (no LLM) ----------------------------------------------------------
+
+class FakeCLI:
+    """Stands in for ClaudeCLIAdapter: B0/B1 answers, M interpretations and narrations."""
+
+    fail = False
+    calls: list = []
+
+    def __init__(self, **kw):
+        self.kw = kw
+        self.model = kw.get("model", "fake")
+
+    def complete_json(self, *, system, prompt, schema, stage):
+        from mnemento.keeper.llm import LLMError, LLMResult
+        from mnemento.keeper.trace import LLMUsage
+
+        FakeCLI.calls.append((stage, bool(self.kw.get("tools"))))
+        if FakeCLI.fail:
+            raise LLMError("usage limit reached")
+        if stage == "interpret":
+            data = {"kind": "query", "spec": {"entity_type": "application", "mode": "count"}}
+        elif stage == "narrate":
+            data = {"answer": "prose"}
+        else:
+            data = {"number": 1, "ids": [], "groups": [], "flags": {"small_sample": False,
+                                                                    "incomplete_period": False}, "text": "t"}
+        usage = LLMUsage(stage=stage, model="fake", input_tokens=100, output_tokens=10, wall_ms=1.0,
+                         model_ms=0.5, overhead_ms=0.5)
+        return LLMResult(data, usage)
+
+
+def test_plan_runs_resumes_and_derives_mn(tmp_path, monkeypatch):
+    import bench.run as br
+
+    monkeypatch.setattr(br, "DATA", tmp_path / "data")
+    monkeypatch.setattr(br, "RESULTS", tmp_path / "results")
+    monkeypatch.setattr(br, "ClaudeCLIAdapter", FakeCLI)
+    monkeypatch.setitem(br.PLANS, "t", {"description": "tiny", "reps": 2, "questions": ["D1", "D3", "U1"],
+                                        "steps": [(60, ["B0", "B1", "M", "Mn"])]})
+    FakeCLI.calls, FakeCLI.fail = [], True
+    with pytest.raises(br.TooManyFailures):
+        br.run_plan("t", "r1", "fake", None, 5)
+    rows = br._load_rows(tmp_path / "results" / "r1" / "results.jsonl")
+    assert len(rows) == 3 and all(r["error"] for r in rows.values())  # stopped after 3 failures
+
+    FakeCLI.fail = False
+    br.run_plan("t", "r1", "fake", None, 5)  # resume: failed rows retried, nothing else repeated
+    rows = br._load_rows(tmp_path / "results" / "r1" / "results.jsonl")
+    assert len(rows) == 4 * 3 * 2 and not any(r.get("error") for r in rows.values())
+    mn = rows[(60, "Mn", "D3", 0)]
+    m = rows[(60, "M", "D3", 0)]
+    assert mn["answer"] == m["answer"] and mn["narration"] == "prose"
+    assert len(mn["llm"]) == len(m["llm"]) + 1  # same interpretation + one narration call
+    assert rows[(60, "Mn", "D1", 0)]["narration"] == "prose"  # fast path answers are narrated too
+    n_calls = len(FakeCLI.calls)
+    br.run_plan("t", "r1", "fake", None, 5)  # complete run: nothing left to do
+    assert len(FakeCLI.calls) == n_calls
+    assert any(tools for _, tools in FakeCLI.calls)  # B1 got its tools
+    meta = json.loads((tmp_path / "results" / "r1" / "meta.json").read_text())
+    assert meta["plan_description"] == "tiny" and meta["frozen_hash"] == br.frozen_hash()
+
+
+def test_run_refuses_changed_frozen_files(tmp_path, monkeypatch):
+    import bench.run as br
+
+    monkeypatch.setattr(br, "RESULTS", tmp_path)
+    (tmp_path / "r").mkdir()
+    (tmp_path / "r" / "meta.json").write_text(json.dumps({"frozen_hash": "old", "model": "haiku"}))
+    with pytest.raises(SystemExit, match="frozen files changed"):
+        br._open_run("r", "haiku", None, 1, None)

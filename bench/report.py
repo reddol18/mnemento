@@ -66,7 +66,10 @@ def summarize(rows: list[dict], calib: dict) -> list[dict]:
 
 def render(summary: list[dict], meta: dict) -> str:
     lines = [f"Model `{meta['model']}` via Claude Code CLI · run `{meta['run']}` · frozen `{meta['frozen_hash']}`"
-             f" · git `{meta.get('git')}`", "",
+             f" · git `{meta.get('git')}`", ""]
+    if meta.get("plan_description"):
+        lines += [f"**{meta['plan_description']}.**", ""]
+    lines += [
              "| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | "
              "LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) |",
              "|---|---|---|---|---|---|---|---|---|---|"]
@@ -90,7 +93,11 @@ def main() -> None:
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
     d = RESULTS / args.run
-    rows = [json.loads(line) for line in (d / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+    latest: dict[tuple, dict] = {}  # failed calls may have been retried: keep the last row per key
+    for line in (d / "results.jsonl").read_text(encoding="utf-8").splitlines():
+        r = json.loads(line)
+        latest[(r["scale"], r["system"], r["q"], r["rep"])] = r
+    rows = list(latest.values())
     calib_path = RESULTS / "calibration.json"
     calib = json.loads(calib_path.read_text()) if calib_path.exists() else {}
     summary = summarize(rows, calib)

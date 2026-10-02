@@ -1,0 +1,10 @@
+{
+ "run": "pilot-b1-100",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20261120,
+ "frozen_hash": "10ab64d449a3c402",
+ "git": "28d607b077f221a9a36b502a9f94657ec2c16a0c",
+ "started": "2026-10-03T01:30:35.908096+09:00",
+ "adapter": "claude-cli"
+}

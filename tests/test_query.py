@@ -407,3 +407,20 @@ def test_free_text_filter_suggests_structured_field(demo):
             "filters": [{"field": "reason", "op": "contains", "value": "서치펌"}]}
     ans = keeper(demo)[0].ask("서치펌이라 패스한 곳?", spec=spec, now=NOW)
     assert any("free text in 'reason'" in w and "structured field" in w for w in ans.warnings)
+
+
+# ---- narration (optional, off by default) ----------------------------------------------------
+
+def test_narration_sees_only_aggregates(demo):
+    k, llm = keeper(demo, {"answer": "9월엔 30%가, 10월엔 10%가 더 많이 열람됐어요."})
+    ans = k.ask("Q4 narrated", spec=Q4_SPEC, now=NOW, narrate=True)
+    assert ans.text.startswith("9월엔") and ans.trace["totals"]["llm_calls"] == 1
+    payload = llm.calls[0]["prompt"]
+    assert '"n": 9' in payload and "Small sample" in payload
+    assert "app_o0" not in payload and "co_" not in payload  # no evidence ids or documents
+
+
+def test_narration_off_by_default(demo):
+    k, llm = keeper(demo)
+    ans = k.ask("Q4 plain", spec=Q4_SPEC, now=NOW)
+    assert llm.calls == [] and ans.text.startswith("Interpretation:")

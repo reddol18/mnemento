@@ -61,7 +61,12 @@ def run_b1(q: Question, llm: ClaudeCLIAdapter, memdir: Path, today: str, tz: str
 
 def run_m(q: Question, keeper: Keeper, now, narrate: bool = False) -> dict[str, Any]:
     ans = keeper.ask(q.text, now=now, narrate=narrate)
+    stored = ans.to_dict()  # kept so narration (Mn) can be added later without re-interpreting
+    if stored.get("result") and stored["result"].get("rows"):
+        stored["result"] = {**stored["result"], "rows": stored["result"]["rows"][:MAX_LISTED_IDS]}
+    stored["evidence"] = stored["evidence"][:1000]
     return {"answer": to_answer(ans, q), "status": ans.status, "spec": ans.spec, "sql": ans.sql,
+            "keeper_answer": stored,
             "llm": ans.trace["llm"],
             "wall_ms": ans.trace["totals"]["total_ms"], "trace": ans.trace, "text": ans.text}
 

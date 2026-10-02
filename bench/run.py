@@ -18,12 +18,14 @@ import shutil
 import subprocess
 import sys
 import time
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
 from mnemento import Ledger
-from mnemento.keeper import Keeper
+from mnemento.keeper import Keeper, KeeperAnswer
 from mnemento.keeper.llm import ClaudeCLIAdapter
+from mnemento.keeper.query.pipeline import QueryPipeline
 
 from . import questions as qmod
 from .generate import BENCH_NOW, TZ, generate
@@ -156,67 +158,160 @@ def estimate(scales: list[int], reps: int, seed: int, systems: list[str], calib:
 
 # ---- run ------------------------------------------------------------------------------------
 
-def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id: str,
-        thinking: int | None, sets: list[str], only: list[str] | None = None) -> Path:
-    d = prepare(scale, seed)
+class TooManyFailures(RuntimeError):
+    """Several CLI calls failed in a row (subscription limit, network...). Resume later with the same --run."""
+
+
+NOT_MEASURABLE = "context limit exceeded (not measurable)"
+MAX_CONSECUTIVE_FAILURES = 3
+CLI_TIMEOUT_S = 600
+
+PLANS = {
+    # Reduced measurement (decided 2026-10-03): 12 of 20 questions picked mechanically (first four ids of
+    # each set), 3 repetitions, narration (Mn) only at 100 records. Same run layout, so the remaining
+    # questions/repetitions can be added later to the same run.
+    "v0-reduced": {
+        "description": "Reduced measurement: 12/20 questions (D1-D4, U1-U4, H1-H4), 3 repetitions, Mn at 100 only",
+        "reps": 3,
+        "questions": ["D1", "D2", "D3", "D4", "U1", "U2", "U3", "U4", "H1", "H2", "H3", "H4"],
+        "steps": [(100, ["B0", "B1", "M", "Mn"]), (1000, ["B1", "M"]), (10000, ["B1", "M"])],
+    },
+}
+
+
+def _open_run(run_id: str, model: str, thinking: int | None, seed: int, plan: str | None) -> Path:
     out_dir = RESULTS / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
     meta_path = out_dir / "meta.json"
     meta = {"run": run_id, "model": model, "thinking_tokens": thinking, "seed": seed,
             "frozen_hash": frozen_hash(), "git": git_head(), "started": datetime.now().astimezone().isoformat(),
-            "adapter": "claude-cli"}
+            "adapter": "claude-cli", "plan": plan, "plan_description": PLANS.get(plan or "", {}).get("description")}
     if meta_path.exists():
         old = json.loads(meta_path.read_text())
         if old["frozen_hash"] != meta["frozen_hash"]:
             sys.exit(f"frozen files changed since this run started ({old['frozen_hash']} -> {meta['frozen_hash']}); "
                      "start a new --run")
+        if (old["model"], old.get("thinking_tokens")) != (model, thinking):
+            sys.exit(f"run {run_id} was started with model={old['model']} thinking={old.get('thinking_tokens')}")
     else:
         meta_path.write_text(json.dumps(meta, indent=1))
-    results_path = out_dir / "results.jsonl"
-    done = set()
+    return out_dir
+
+
+def _load_rows(results_path: Path) -> dict[tuple, dict]:
+    """Latest row per (scale, system, question, repetition)."""
+    rows: dict[tuple, dict] = {}
     if results_path.exists():
         for line in results_path.read_text(encoding="utf-8").splitlines():
             r = json.loads(line)
-            done.add((r["scale"], r["system"], r["q"], r["rep"]))
+            rows[(r["scale"], r["system"], r["q"], r["rep"])] = r
+    return rows
+
+
+def _finished(row: dict | None) -> bool:
+    # failed calls (timeouts, limits) are retried on resume; "not measurable" is a final result
+    return row is not None and (not row.get("error") or row.get("error") == NOT_MEASURABLE)
+
+
+def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id: str,
+        thinking: int | None, sets: list[str], only: list[str] | None = None, plan: str | None = None) -> Path:
+    d = prepare(scale, seed)
+    out_dir = _open_run(run_id, model, thinking, seed, plan)
+    results_path = out_dir / "results.jsonl"
+    rows = _load_rows(results_path)
     qs = [q for q in load_questions(scale, seed) if q.set in sets and (not only or q.id in only)]
     context = (d / "context.md").read_text(encoding="utf-8")
     stats = json.loads((d / "stats.json").read_text())
     today, tz = BENCH_NOW.date().isoformat(), str(TZ)
-    kw = {"model": model, "max_thinking_tokens": thinking}
+    kw = {"model": model, "max_thinking_tokens": thinking, "timeout_s": CLI_TIMEOUT_S}
+    failures = 0
+
+    def write(q, system, rep, res):
+        nonlocal failures
+        ok, why = grade(q, res.get("answer"))
+        row = {"scale": scale, "system": system, "q": q.id, "set": q.set, "rep": rep, "correct": ok,
+               "why": why, **res}
+        with results_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+        rows[(scale, system, q.id, rep)] = row
+        tok = sum(u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0)
+                  + u.get("cache_creation_input_tokens", 0) for u in res.get("llm", []))
+        print(f"n={scale} {system:2} {q.id} rep{rep}: {'OK ' if ok else 'BAD'} {why[:46]:46} "
+              f"{res.get('wall_ms', 0) / 1000:6.1f}s in={tok}", flush=True)
+        failures = failures + 1 if res.get("error") and res.get("error") != NOT_MEASURABLE else 0
+        if failures >= MAX_CONSECUTIVE_FAILURES:
+            raise TooManyFailures(f"{failures} CLI calls failed in a row (last: {res.get('error')}). "
+                                  f"Resume later with --run {run_id}.")
+
     for system in systems:
+        if system == "Mn":
+            continue  # derived from M below
         for rep in range(reps):
+            todo = [q for q in qs if not _finished(rows.get((scale, system, q.id, rep)))]
+            if not todo:
+                continue
             keeper = None
-            if system in ("M", "Mn"):
+            if system == "M":
                 # fresh copy of the DB per repetition: a cold plan cache, like a first-time question
-                db = out_dir / f"tmp_{scale}_{system}.db"
+                db = out_dir / f"tmp_{scale}_M.db"
                 for suffix in ("", "-wal", "-shm"):
                     Path(f"{db}{suffix}").unlink(missing_ok=True)
                 shutil.copy(d / "mnemento.db", db)
                 keeper = Keeper(Ledger.open(db), ClaudeCLIAdapter(**kw))
-            for q in qs:
-                key = (scale, system, q.id, rep)
-                if key in done:
-                    continue
-                if system == "B0" and stats["context_chars"] / CHARS_PER_TOKEN > CONTEXT_LIMIT_TOKENS:
-                    res = {"answer": None, "error": "context limit exceeded (not measurable)", "llm": [], "wall_ms": 0}
-                elif system == "B0":
-                    res = run_b0(q, ClaudeCLIAdapter(**kw), context, today, tz)
-                elif system == "B1":
-                    res = run_b1(q, ClaudeCLIAdapter(**kw, tools=["Read", "Grep", "Glob"],
-                                                     workdir=str(d / "memory")), d / "memory", today, tz)
-                else:
-                    res = run_m(q, keeper, BENCH_NOW, narrate=(system == "Mn"))
-                ok, why = grade(q, res.get("answer"))
-                row = {"scale": scale, "system": system, "q": q.id, "set": q.set, "rep": rep, "correct": ok,
-                       "why": why, **res}
-                with results_path.open("a", encoding="utf-8") as f:
-                    f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
-                tok = sum(u.get("input_tokens", 0) for u in res.get("llm", []))
-                print(f"n={scale} {system} {q.id} rep{rep}: {'OK ' if ok else 'BAD'} {why[:50]:50} "
-                      f"{res.get('wall_ms', 0) / 1000:6.1f}s in={tok}", flush=True)
-            if keeper:
-                keeper.ledger.close()
+            try:
+                for q in todo:
+                    if system == "B0" and stats["context_chars"] / CHARS_PER_TOKEN > CONTEXT_LIMIT_TOKENS:
+                        res = {"answer": None, "error": NOT_MEASURABLE, "llm": [], "wall_ms": 0}
+                    elif system == "B0":
+                        res = run_b0(q, ClaudeCLIAdapter(**kw), context, today, tz)
+                    elif system == "B1":
+                        res = run_b1(q, ClaudeCLIAdapter(**kw, tools=["Read", "Grep", "Glob"],
+                                                         workdir=str(d / "memory")), d / "memory", today, tz)
+                    else:
+                        res = run_m(q, keeper, BENCH_NOW)
+                    write(q, system, rep, res)
+            finally:
+                if keeper:
+                    keeper.ledger.close()
+
+    if "Mn" in systems:
+        # Mn = the very same M answer + one narration call (reuses M's interpretation)
+        pipeline = QueryPipeline(Ledger.open(":memory:"), ClaudeCLIAdapter(**kw), use_cache=False)
+        try:
+            for rep in range(reps):
+                for q in qs:
+                    m_row = rows.get((scale, "M", q.id, rep))
+                    if _finished(rows.get((scale, "Mn", q.id, rep))) or not _finished(m_row):
+                        continue
+                    write(q, "Mn", rep, narrate_m_row(m_row, pipeline))
+        finally:
+            pipeline.ledger.close()
     return results_path
+
+
+def narrate_m_row(m_row: dict, pipeline: QueryPipeline) -> dict:
+    """Mn row: M's graded answer and cost, plus one narration call on M's stored answer."""
+    ka = m_row.get("keeper_answer")
+    res = {k: m_row.get(k) for k in ("answer", "status", "spec", "sql", "text")}
+    res["llm"] = list(m_row.get("llm", []))
+    res["wall_ms"] = m_row.get("wall_ms", 0)
+    res["narration"] = None
+    if ka:
+        t0 = time.perf_counter()
+        prose, usage = pipeline.narrate(KeeperAnswer(**ka))
+        res["wall_ms"] += (time.perf_counter() - t0) * 1000
+        if usage is not None:
+            res["llm"].append(asdict(usage))
+        res["narration"] = prose
+    return res
+
+
+def run_plan(plan: str, run_id: str, model: str, thinking: int | None, seed: int) -> None:
+    p = PLANS[plan]
+    for scale, systems in p["steps"]:
+        print(f"== {plan}: n={scale} systems={','.join(systems)} reps={p['reps']}", flush=True)
+        run(scale, seed, systems, p["reps"], model, run_id, thinking, ["dev", "unseen"], p["questions"], plan)
+    print(f"== {plan} complete. Report: uv run python -m bench.report --run {run_id}", flush=True)
 
 
 def calibrate(model: str, out: Path) -> dict:
@@ -257,6 +352,12 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--sets", default="dev,unseen")
     r.add_argument("--questions", default="", help="comma-separated question ids (pilot runs)")
     c = sub.add_parser("calibrate"); c.add_argument("--model", default="haiku")  # noqa: E702
+    pl = sub.add_parser("plan", help="run a predefined plan, all scales in order, resumable")
+    pl.add_argument("--plan", default="v0-reduced", choices=sorted(PLANS))
+    pl.add_argument("--run", required=True)
+    pl.add_argument("--model", default="haiku")
+    pl.add_argument("--thinking", type=int, default=None)
+    pl.add_argument("--seed", type=int, default=DEFAULT_SEED)
     args = ap.parse_args(argv)
     if args.cmd == "prepare":
         d = prepare(args.scale, args.seed)
@@ -268,8 +369,16 @@ def main(argv: list[str] | None = None) -> None:
         print(json.dumps(est, indent=1))
     elif args.cmd == "run":
         run_id = args.run or datetime.now().strftime("%Y%m%d-%H%M%S")
-        run(args.scale, args.seed, args.systems.split(","), args.reps, args.model, run_id, args.thinking,
-            args.sets.split(","), [q for q in args.questions.split(",") if q])
+        try:
+            run(args.scale, args.seed, args.systems.split(","), args.reps, args.model, run_id, args.thinking,
+                args.sets.split(","), [q for q in args.questions.split(",") if q])
+        except TooManyFailures as exc:
+            sys.exit(str(exc))
+    elif args.cmd == "plan":
+        try:
+            run_plan(args.plan, args.run, args.model, args.thinking, args.seed)
+        except TooManyFailures as exc:
+            sys.exit(str(exc))
     elif args.cmd == "calibrate":
         RESULTS.mkdir(parents=True, exist_ok=True)
         print(json.dumps(calibrate(args.model, RESULTS / "calibration.json"), indent=1))

@@ -154,15 +154,17 @@ def render_text(spec: QuerySpec, result: QueryResult, notes: list[str]) -> str:
     return "\n".join(lines)
 
 
-def narration_payload(question: str, spec: QuerySpec, result: QueryResult, notes: list[str]) -> dict[str, Any]:
-    """What an LLM narrator may see: the question, the interpretation and aggregates. No documents."""
-    payload: dict[str, Any] = {"question": question, "interpretation": spec.interpretation,
-                               "mode": result.mode, "total": result.total, "warnings": notes}
-    if result.mode == "aggregate":
+def narration_payload(question: str, interpretation: str, result: dict[str, Any], warnings: list[str],
+                      list_fields: list[str]) -> dict[str, Any]:
+    """What an LLM narrator may see: the question, the interpretation and aggregates. No documents.
+    `result` is the answer's result dict (mode, total, groups, rows)."""
+    payload: dict[str, Any] = {"question": question, "interpretation": interpretation,
+                               "mode": result.get("mode"), "total": result.get("total"), "warnings": warnings}
+    if result.get("mode") == "aggregate":
         payload["groups"] = [{"group": g["group"], "n": g["n"], "measures": g["measures"]}
-                             for g in result.groups]
-    elif result.mode == "list":
-        payload["records"] = [{k: r.get(k) for k in ["id", *spec.list_fields]} for r in result.rows[:50]]
+                             for g in result.get("groups") or []]
+    elif result.get("mode") == "list":
+        payload["records"] = [{k: r.get(k) for k in ["id", *list_fields]} for r in (result.get("rows") or [])[:50]]
     return payload
 
 

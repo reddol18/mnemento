@@ -128,26 +128,38 @@ class QueryPipeline:
                 else:
                     notes.append(f"'{name}' matches no recorded entity (exact name, alias or identifier).")
             text = render_text(spec, result, notes)
-        if narrate and self.llm is not None:
-            with trace.stage("narrate"):
-                try:
-                    r = self.llm.complete_json(
-                        system=NARRATE_SYSTEM,
-                        prompt=_json(narration_payload(question, spec, result, notes)),
-                        schema=NARRATE_SCHEMA, stage="narrate")
-                    trace.add_llm(r.usage)
-                    text = r.data["answer"] + "\n\n" + text
-                except LLMError as exc:
-                    notes.append(f"narration failed: {exc}")
-
-        return self._done(KeeperAnswer(
+        ans = KeeperAnswer(
             "answered", question, text, spec=dump_spec(spec), sql=compiled.sql, params=compiled.params,
             result={"mode": result.mode, "total": result.total,
                     "groups": result.groups if result.mode != "list" else [],
                     "rows": result.rows},
             evidence=result.evidence, warnings=notes,
             resolved={"dates": compiled.resolved_dates, "names": resolved_names, "now": now.isoformat()},
-        ), trace)
+        )
+        if narrate:
+            with trace.stage("narrate"):
+                prose, usage = self.narrate(ans)
+                if usage is not None:
+                    trace.add_llm(usage)
+                if prose:
+                    ans.text = prose + "\n\n" + ans.text
+        return self._done(ans, trace)
+
+    def narrate(self, ans: KeeperAnswer) -> tuple[str | None, Any]:
+        """Optional prose answer written by the LLM from the aggregates of an existing answer.
+        Returns (prose or None, LLMUsage or None). Used by ask(narrate=True) and by the benchmark,
+        which adds narration on top of an already interpreted answer."""
+        if self.llm is None or ans.status != "answered" or not ans.result or "entity" in ans.result:
+            return None, None
+        payload = narration_payload(ans.question, (ans.spec or {}).get("interpretation", ""), ans.result,
+                                    ans.warnings, (ans.spec or {}).get("list_fields", []))
+        try:
+            r = self.llm.complete_json(system=NARRATE_SYSTEM, prompt=_json(payload), schema=NARRATE_SCHEMA,
+                                       stage="narrate")
+        except LLMError as exc:
+            ans.warnings.append(f"narration failed: {exc}")
+            return None, None
+        return r.data["answer"], r.usage
 
     def _certain_name(self, ref_type: str, text: str) -> bool:
         if ref_type not in self.ledger.schemas.names() or len(text) < 2:
