@@ -25,6 +25,13 @@ def p95(xs: list[float]) -> float:
     return xs[min(len(xs) - 1, int(round(0.95 * (len(xs) - 1))))] if xs else 0.0
 
 
+def _no_answer(r: dict) -> bool:
+    if r.get("status") in ("clarify", "error"):
+        return True
+    a = r.get("answer") or {}
+    return a.get("number") is None and not a.get("ids") and not a.get("groups")
+
+
 def summarize(rows: list[dict], calib: dict) -> list[dict]:
     over_in = calib.get("overhead_input_tokens", {"plain": 0, "tools": 0})
     groups: dict[tuple, list[dict]] = defaultdict(list)
@@ -50,6 +57,8 @@ def summarize(rows: list[dict], calib: dict) -> list[dict]:
         tout = sum(u["output_tokens"] for u in llm)
         fixed = over_in["tools" if system == "B1" else "plain"] * len(llm)
         n = len(measurable)
+        # answered "cannot express" / asked back (clarify) / no usable answer: wrong, but counted apart
+        no_answer = sum(1 for r in measurable if _no_answer(r))
         out.append({
             "scale": scale, "system": system, "n": n,
             "dev": acc("dev"), "unseen": acc("unseen"),
@@ -60,6 +69,7 @@ def summarize(rows: list[dict], calib: dict) -> list[dict]:
             "cache_read_per_q": sum(u.get("cache_read_input_tokens", 0) for u in llm) / n,
             "out_per_q": tout / n,
             "cost_per_q": sum(u.get("cost_usd") or 0 for u in llm) / n,
+            "no_answer": no_answer,
         })
     return out
 
@@ -71,19 +81,20 @@ def render(summary: list[dict], meta: dict) -> str:
         lines += [f"**{meta['plan_description']}.**", ""]
     lines += [
              "| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | "
-             "LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) |",
-             "|---|---|---|---|---|---|---|---|---|---|"]
+             "LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) | no answer / clarify |",
+             "|---|---|---|---|---|---|---|---|---|---|---|"]
     for s in summary:
         name = SYSTEM_NAMES.get(s["system"], s["system"])
         if s.get("not_measurable"):
-            lines.append(f"| {s['scale']:,} | {name} | not measurable (context limit) | | | | | | | |")
+            lines.append(f"| {s['scale']:,} | {name} | not measurable (context limit) | | | | | | | | |")
             continue
         pct = lambda a: f"{a[0]}/{a[1]} ({a[0] / a[1]:.0%})" if a[1] else "—"  # noqa: E731
         lines.append(
             f"| {s['scale']:,} | {name} | {pct(s['dev'])} | {pct(s['unseen'])} | "
             f"{s['time_mean']:.1f} / {s['time_p95']:.1f} | {s['time_mean_no_overhead']:.1f} / "
             f"{s['time_p95_no_overhead']:.1f} | {s['llm_calls_per_q']:.2f} | {s['in_per_q']:,.0f} "
-            f"({s['in_per_q_no_overhead']:,.0f}) | {s['out_per_q']:,.0f} | {s['cost_per_q']:.4f} |")
+            f"({s['in_per_q_no_overhead']:,.0f}) | {s['out_per_q']:,.0f} | {s['cost_per_q']:.4f} | "
+            f"{s.get('no_answer', 0)} |")
     return "\n".join(lines) + "\n"
 
 

@@ -5,6 +5,7 @@ correct against the generator's answer key — this catches bugs on either side.
 """
 
 import json
+from datetime import timedelta
 
 import pytest
 
@@ -96,9 +97,42 @@ REF["H2"] = lambda q: {"entity_type": "application", "mode": "aggregate", "group
                                      "where": [{"field": "status", "op": "eq", "value": "passed"}]}]}
 NOT_EXPRESSIBLE: set[str] = set()
 
+# evaluation set v3 unseen questions (docs/eval/unseen-v3.md): hand-written references only. W5 (a filter on the
+# time between two events / two dates) is NOT expressible in QuerySpec v1.1 and is left that way on purpose
+# (no feature added before the measurement); its answer key is checked against the ground truth only.
+V3_NOT_EXPRESSIBLE = {"W5"}
+
 # evaluation set v2 unseen questions (docs/eval/unseen-v2.md), hand-written references only — no system is
 # run on these questions before the measurement
 REF.update({
+    "W1": lambda q: {"entity_type": "application", "mode": "count", "filters": [
+        {"field": "platform", "op": "in", "value": ["saramin", "wanted"]},
+        {"field": "applied_at", "op": "gte", "value": "@month_start(2026-12)"},
+        {"field": "applied_at", "op": "lte", "value": "@month_end(2026-12)"}]},
+    "W2": lambda q: {"entity_type": "application", "mode": "list", "limit": 1000, "filters": [
+        {"field": "status", "op": "eq", "value": "viewed"},
+        {"field": "viewed_at", "op": "gte", "value": "@this_week_start-1w"},
+        {"field": "viewed_at", "op": "lte", "value": "@today-1d"}]},
+    "W3": lambda q: {"entity_type": "application", "mode": "list", "filters": [
+        {"field": "status", "op": "eq", "value": "passed"},
+        {"field": "applied_at", "op": "gte", "value": "2026-12-24"},
+        {"field": "applied_at", "op": "lte", "value": "2027-01-03"}]},
+    "W4": lambda q: {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "platform"}],
+                     "measures": [{"name": "passed", "agg": "count_if",
+                                   "where": [{"field": "status", "op": "eq", "value": "passed"}]}]},
+    "W6": lambda q: {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "company_id"}],
+                     "measures": [{"name": "wanted", "agg": "count_if",
+                                   "where": [{"field": "platform", "op": "eq", "value": "wanted"}]},
+                                  {"name": "saramin", "agg": "count_if",
+                                   "where": [{"field": "platform", "op": "eq", "value": "saramin"}]}],
+                     "having": [{"measure": "wanted", "op": "gte", "value": 1},
+                                {"measure": "saramin", "op": "gte", "value": 1}]},
+    "W7": lambda q: {"entity_type": "application", "mode": "count", "filters": [
+        {"field": "applied_at", "op": "eq", "value": "@today-1d"}]},
+    "W8": lambda q: {"entity_type": "application", "mode": "list", "filters": [
+        {"field": "viewed_at", "op": "gte", "value": "@this_month_start"}]},
+    "W9": lambda q: {"entity_type": "application", "mode": "count", "filters": [
+        {"field": "status", "op": "ne", "value": "withdrawn"}]},
     "V1": lambda q: {"entity_type": "application", "mode": "count", "filters": [
         {"field": "platform", "op": "eq", "value": "groupby"},
         {"field": "applied_at", "op": "gte", "value": "@last_month_start"},
@@ -502,8 +536,10 @@ def test_eval_set_v3(tmp_path):
     aliases = [a for c in ds.companies for a in c.aliases]
     assert len(aliases) == len(set(aliases)) and any(a.company_label for a in ds.apps)
     qs = build(ds)
-    assert {q.set for q in qs} == {"dev"}  # v0 + v2 questions are all dev; v3 unseen not delivered yet
+    assert {q.id for q in qs if q.set == "unseen"} == {f"W{i}" for i in range(1, 10)}
+    assert all(q.set == "dev" for q in qs if not q.id.startswith("W"))  # v0 + v2 questions are dev
     assert "V6" not in {q.id for q in qs}  # names fixed November 2026 dates
+    qs = [q for q in qs if q.id not in V3_NOT_EXPRESSIBLE]
     _REF_NOW[0] = ds.now
     led = to_ledger(ds, tmp_path / "v3.db")
     keeper = Keeper(led, ScriptedLLM())
@@ -511,3 +547,30 @@ def test_eval_set_v3(tmp_path):
         ok, why = grade(q, to_answer(keeper.ask(q.text, spec=REF[q.id](q), now=ds.now), q))
         assert ok, f"{q.id}: {why}"
     led.close()
+
+
+
+def test_v3_w5_answer_key_from_ground_truth():
+    """W5 has no reference spec (not expressible); check its key against a direct count instead."""
+    ds = generate(1000, 20270201, version="v3")
+    w5 = next(q for q in build(ds) if q.id == "W5")
+    viewed = [a for a in ds.live if a.viewed_at]
+    over = [a for a in viewed if a.viewed_at - a.applied > timedelta(hours=72)]
+    assert w5.expected["number"] == len(over) > 0
+    day_gt = [a for a in viewed if (a.viewed_at.date() - a.applied_date).days > 3]
+    day_ge = [a for a in viewed if (a.viewed_at.date() - a.applied_date).days >= 3]
+    assert w5.expected["alternatives"] == [len(day_gt), len(day_ge)]
+
+
+def test_report_counts_no_answer_apart():
+    from bench.report import render, summarize
+
+    rows = [
+        {"scale": 100, "system": "M-opus", "set": "unseen", "correct": False, "status": "clarify", "wall_ms": 10,
+         "llm": [], "answer": {"number": None, "ids": [], "groups": []}},
+        {"scale": 100, "system": "M-opus", "set": "unseen", "correct": False, "status": "answered", "wall_ms": 10,
+         "llm": [], "answer": {"number": 3, "ids": [], "groups": []}},
+    ]
+    s = summarize(rows, {})
+    assert s[0]["no_answer"] == 1
+    assert "no answer / clarify" in render(s, {"model": "x", "run": "r", "frozen_hash": "h"})

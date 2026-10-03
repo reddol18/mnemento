@@ -57,8 +57,73 @@ def build(ds: Dataset) -> list[Question]:
 
 
 def build_unseen_v3(ds: Dataset) -> list[Question]:
-    """Unseen questions of evaluation set v3 — empty until the directing agent delivers them."""
-    return []
+    """Unseen questions of evaluation set v3, written by the directing agent (docs/eval/unseen-v3.md).
+    Wording is kept verbatim; only the answer keys are computed here, from the generator's ground truth.
+    Dates are those of the v3 reference date (2027-02-01, a Monday) and are derived from `today`."""
+    live = ds.live
+    today = ds.now.date()
+    ids = lambda apps: sorted(a.id for a in apps)  # noqa: E731
+    qs: list[Question] = []
+
+    last_dec = date(today.year - 1, 12, 1)
+    hit = [a for a in live if a.platform in ("saramin", "wanted") and _ym(a.applied_date) == _ym(last_dec)]
+    qs.append(Question("W1", "unseen", "작년 12월에 사람인이랑 원티드 합쳐서 몇 군데 넣었어?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(hit), "ids": ids(hit)}))
+
+    this_monday = today - timedelta(days=today.weekday())
+    week_start, yesterday = this_monday - timedelta(days=7), today - timedelta(days=1)
+    hit = [a for a in live if a.status == "viewed" and week_start <= a.viewed_at.date() <= yesterday]
+    qs.append(Question("W2", "unseen", "지난주에 열람됐는데 아직 결과 안 나온 지원 목록 줘",
+                       "number = how many; ids = those applications", "ids",
+                       {"number": len(hit), "ids": ids(hit)}))
+
+    start, end = date(today.year - 1, 12, 24), date(today.year, 1, 3)
+    hit = [a for a in live if a.status == "passed" and start <= a.applied_date <= end]
+    qs.append(Question("W3", "unseen", "연말연시(12월 24일부터 1월 3일까지)에 지원한 것 중에 서류 합격한 거 있어?",
+                       "number = how many; ids = those applications", "ids",
+                       {"number": len(hit), "ids": ids(hit)}))
+
+    groups, small = {}, False
+    for p in ("saramin", "wanted", "groupby", "jobkorea"):
+        g = [a for a in live if a.platform == p]
+        groups[(None, p)] = (len(g), sum(1 for a in g if a.status == "passed") / len(g) if g else None)
+        small |= len(g) < 5
+    qs.append(Question("W4", "unseen", "서류 합격률이 제일 높은 플랫폼이 어디야?",
+                       "groups = one per platform with category=platform, n = applications, value = share passed "
+                       "(0-1); flags: small_sample if any group has n<5", "rate_groups",
+                       {"groups": groups, "flags": {"small_sample": small}}))
+
+    viewed = [a for a in live if a.viewed_at]
+    by_hours = [a for a in viewed if (a.viewed_at - a.applied).total_seconds() > 72 * 3600]
+    days = lambda a: (a.viewed_at.date() - a.applied_date).days  # noqa: E731
+    qs.append(Question("W5", "unseen", "열람되기까지 사흘 넘게 걸린 지원은 몇 건이야?",
+                       "number = count", "number",
+                       {"number": len(by_hours),
+                        "alternatives": [sum(1 for a in viewed if days(a) > 3), sum(1 for a in viewed if days(a) >= 3)]}))
+
+    plats: dict[str, set] = {}
+    for a in live:
+        plats.setdefault(a.company_id, set()).add(a.platform)
+    both = sorted(cid for cid, ps in plats.items() if {"wanted", "saramin"} <= ps)
+    qs.append(Question("W6", "unseen", "같은 회사에 원티드랑 사람인 둘 다로 지원한 적 있어?",
+                       "number = how many companies; ids = those companies' ids (co_...)", "ids",
+                       {"number": len(both), "ids": both}))
+
+    hit = [a for a in live if a.applied_date == yesterday]
+    qs.append(Question("W7", "unseen", "어제 지원한 거 몇 개야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(hit), "ids": ids(hit)}))
+
+    hit = [a for a in live if a.viewed_at and a.viewed_at.date() >= today.replace(day=1)]
+    qs.append(Question("W8", "unseen", "이번 달 들어서 열람된 거 있어?",
+                       "number = how many; ids = those applications", "ids",
+                       {"number": len(hit), "ids": ids(hit)}))
+
+    hit = [a for a in live if a.status != "withdrawn"]
+    qs.append(Question("W9", "unseen", "내가 취소한 거 빼고 지금까지 지원 총 몇 건이야?",
+                       "number = count", "number", {"number": len(hit)}))
+    return qs
 
 
 def build_unseen_v2(ds: Dataset) -> list[Question]:

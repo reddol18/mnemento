@@ -201,6 +201,16 @@ PLANS = {
         "steps": [(100, ["M:haiku"])],
         "eval_set": "v2", "hint": True, "seed": 20261204,
     },
+    # evaluation set v3 (task 0005): dev 28 (v0 + v2) + unseen 9 (W1-W9); 100 records first, then 1,000-record M,
+    # then 1,000-record B1-opus last (the largest and most variable usage)
+    "v3": {
+        "description": "Eval set v3: dev 28 + unseen 9 questions, same format hint, 3 repetitions; "
+                       "B1-opus, M-opus, M-haiku at 100 and 1,000 records",
+        "reps": 3,
+        "questions": None,
+        "steps": [(100, ["M:haiku", "M:opus", "B1:opus"]), (1000, ["M:haiku", "M:opus"]), (1000, ["B1:opus"])],
+        "eval_set": "v3", "hint": True, "seed": 20270201,
+    },
     # evaluation set v2 (task 0004 ③): own seed and date, dev 20 + unseen 9 questions, the same format
     # hint for every system; steps may carry their own repetition count
     # step 1 of v2 (decided 2026-10-03): 100 records, both systems on both models (2x2)
