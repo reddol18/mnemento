@@ -74,6 +74,32 @@ dev/unseen split and every raw answer: [report](bench/results/v0-reduced-haiku/r
 - Answer keys come from the generator's ground truth, never from Mnemento; prompts and rules were frozen (hash in the
   report) before measuring and not changed during it.
 
+## Benchmark (v2, measured) — haiku vs opus at 100 records
+
+After v1 (history-aware `reached` filter, `having`, ordering by event time), a fairer harness: the **same answer-format
+hint for every system**, a new evaluation set (seed and date different from v0; company aliases unique, ~30% of
+records written under the alias), 20 dev questions + **9 unseen questions written by the directing agent**,
+3 repetitions, 100 records. Claude Code memory (B1) and Mnemento (M) each on `haiku` (claude-haiku-4-5) and
+`opus` (claude-opus-5-5):
+
+| system | dev (20 × 3) | unseen (9 × 3) | total | time / question, mean (p95) | input tokens / question | API-equivalent cost / question |
+|---|---|---|---|---|---|---|
+| M-haiku | 45/60 | 19/27 | 64/87 (74%) | 22.3 s (63 s) | 4.7k | $0.022 |
+| M-opus | 53/60 | 22/27 | 75/87 (86%) | **6.2 s** (11.5 s) | 5.7k | $0.024 |
+| B1-haiku | 36/60 | 18/27 | 54/87 (62%) | 44.8 s (124 s) | 59.3k | $0.051 |
+| B1-opus | **56/60** | **27/27** | **83/87 (95%)** | 15.9 s (28 s) | 34.6k | $0.059 |
+
+- **With opus, Claude Code's own memory was more accurate at 100 records: B1-opus 83/87 > M-opus 75/87.**
+  Mnemento answered 2.6× faster with 1/6 of the input tokens and ~40% of the cost.
+- With haiku, Mnemento was ahead (64 vs 54 of 87) at half the cost.
+- Mnemento's gap is concentrated in five questions where its interpreter fails the same way on both models
+  (event kinds without Korean labels, schema selection missing the referencing record type, ordering by a date field
+  instead of event time, "last week of a month", and a formatter bug for event counts) — being fixed in
+  [task 0005](docs/tasks/0005-v1.1-fixes.md) and re-measured on a fresh evaluation set (v3) with new unseen questions.
+
+Raw data: [report](bench/results/v2-100-2x2/report.md) · [results](bench/results/v2-100-2x2/results.jsonl).
+API-equivalent cost = list price reported by the CLI; the runs used a Claude subscription, not an API key.
+
 ## Install as an MCP server (Claude Code)
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
@@ -115,6 +141,7 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
 - **동일 회사 판정**: 사업자번호 → 정규화 이름·별칭. 비슷한 이름은 후보로만 제시하고 자동 병합하지 않습니다.
 - **계측**: 질문마다 단계별 시간, LLM 호출 수, 입력·출력 토큰, 비용을 기록합니다.
 
+- **벤치마크(v2, 100건, 같은 형식 힌트, haiku·opus 2×2)**: opus 기준으로는 Claude Code 자체 메모리가 더 정확했다(B1-opus 83/87 > M-opus 75/87). Mnemento는 2.6배 빠르고 입력 토큰은 1/6이었다. haiku 기준으로는 Mnemento가 앞섰다(64 대 54/87). Mnemento의 약점 5가지는 [작업 0005](docs/tasks/0005-v1.1-fixes.md)에서 고친 뒤 새 평가셋(v3)으로 다시 잰다.
 - **벤치마크(v0, 축소 측정: 12/20문항·3회 반복·haiku 한 모델)**:
   - 기록 100건에서는 Claude Code 자체 메모리(B1)가 더 정확했다(28 대 23/36). 대신 Mnemento가 3.6배 빠르고 입력 토큰은 약 1/23이었다.
   - 기록이 1,000·10,000건으로 늘어도 Mnemento는 문항당 약 15초·약 4천 토큰으로 일정했다. 반면 파일 검색 방식은 느려지고 비싸지면서 정확도도 떨어졌다(78% → 50% → 42%, 10,000건은 1회 측정).

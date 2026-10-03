@@ -1,0 +1,28 @@
+{
+ "run": "v2-100-2x2",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20261204,
+ "frozen_hash": "b4c05de5f3fff9cf",
+ "git": "832de046718313c1d25dde9ab9074aa5a40cc37b+dirty",
+ "started": "2026-10-04T00:42:01.373829+09:00",
+ "adapter": "claude-cli",
+ "plan": "v2-100-2x2",
+ "plan_description": "Eval set v2 at 100 records: M and B1 each on haiku and opus (2x2), dev 20 + unseen 9, same format hint, 3 repetitions",
+ "eval_set": "v2",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "B1-haiku": [
+   "claude-haiku-4-5-20251001"
+  ],
+  "B1-opus": [
+   "claude-opus-5-5"
+  ],
+  "M-haiku": [
+   "claude-haiku-4-5-20251001"
+  ],
+  "M-opus": [
+   "claude-opus-5-5"
+  ]
+ }
+}
