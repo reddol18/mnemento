@@ -1,0 +1,186 @@
+[
+ {
+  "scale": 100,
+  "system": "B0",
+  "n": 36,
+  "dev": [
+   9,
+   12
+  ],
+  "unseen": [
+   14,
+   24
+  ],
+  "time_mean": 35.70436111111111,
+  "time_p95": 106.075,
+  "time_mean_no_overhead": 33.936277777777775,
+  "time_p95_no_overhead": 104.145,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 24926.25,
+  "in_per_q_no_overhead": 22400.25,
+  "cache_read_per_q": 24010.0,
+  "out_per_q": 4923.388888888889,
+  "cost_per_q": 0.028840444444444453
+ },
+ {
+  "scale": 100,
+  "system": "B1",
+  "n": 36,
+  "dev": [
+   9,
+   12
+  ],
+  "unseen": [
+   19,
+   24
+  ],
+  "time_mean": 55.24901666666667,
+  "time_p95": 151.0076,
+  "time_mean_no_overhead": 53.19525,
+  "time_p95_no_overhead": 148.736,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 84498.33333333333,
+  "in_per_q_no_overhead": 77800.33333333333,
+  "cache_read_per_q": 73487.38888888889,
+  "out_per_q": 6776.416666666667,
+  "cost_per_q": 0.06321115555555555
+ },
+ {
+  "scale": 100,
+  "system": "M",
+  "n": 36,
+  "dev": [
+   9,
+   12
+  ],
+  "unseen": [
+   14,
+   24
+  ],
+  "time_mean": 15.206105555555556,
+  "time_p95": 41.8881,
+  "time_mean_no_overhead": 13.716788888888889,
+  "time_p95_no_overhead": 38.5145,
+  "llm_calls_per_q": 0.8611111111111112,
+  "in_per_q": 3685.5,
+  "in_per_q_no_overhead": 1510.3333333333333,
+  "cache_read_per_q": 0.0,
+  "out_per_q": 1652.2222222222222,
+  "cost_per_q": 0.015623500000000004
+ },
+ {
+  "scale": 100,
+  "system": "Mn",
+  "n": 36,
+  "dev": [
+   9,
+   12
+  ],
+  "unseen": [
+   14,
+   24
+  ],
+  "time_mean": 27.018963208324152,
+  "time_p95": 59.880765699974454,
+  "time_mean_no_overhead": 23.725938208324152,
+  "time_p95_no_overhead": 56.46566569997445,
+  "llm_calls_per_q": 1.8611111111111112,
+  "in_per_q": 5577.833333333333,
+  "in_per_q_no_overhead": 876.6666666666666,
+  "cache_read_per_q": 0.0,
+  "out_per_q": 2895.75,
+  "cost_per_q": 0.023959638888888888
+ },
+ {
+  "scale": 1000,
+  "system": "B1",
+  "n": 36,
+  "dev": [
+   6,
+   12
+  ],
+  "unseen": [
+   12,
+   24
+  ],
+  "time_mean": 82.819725,
+  "time_p95": 224.3406,
+  "time_mean_no_overhead": 79.17722222222223,
+  "time_p95_no_overhead": 214.17,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 509712.44444444444,
+  "in_per_q_no_overhead": 503014.44444444444,
+  "cache_read_per_q": 476577.6388888889,
+  "out_per_q": 9118.25,
+  "cost_per_q": 0.1594187361111111
+ },
+ {
+  "scale": 1000,
+  "system": "M",
+  "n": 36,
+  "dev": [
+   10,
+   12
+  ],
+  "unseen": [
+   14,
+   24
+  ],
+  "time_mean": 16.278861111111112,
+  "time_p95": 40.960699999999996,
+  "time_mean_no_overhead": 14.701169444444444,
+  "time_p95_no_overhead": 39.3882,
+  "llm_calls_per_q": 0.8888888888888888,
+  "in_per_q": 4028.8333333333335,
+  "in_per_q_no_overhead": 1783.5,
+  "cache_read_per_q": 118.77777777777777,
+  "out_per_q": 1831.0,
+  "cost_per_q": 0.016977877777777775
+ },
+ {
+  "scale": 10000,
+  "system": "B1",
+  "n": 12,
+  "dev": [
+   3,
+   4
+  ],
+  "unseen": [
+   2,
+   8
+  ],
+  "time_mean": 83.0325,
+  "time_p95": 194.8123,
+  "time_mean_no_overhead": 66.08016666666667,
+  "time_p95_no_overhead": 169.807,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 342196.25,
+  "in_per_q_no_overhead": 335498.25,
+  "cache_read_per_q": 314003.5833333333,
+  "out_per_q": 7930.666666666667,
+  "cost_per_q": 0.12674502499999998
+ },
+ {
+  "scale": 10000,
+  "system": "M",
+  "n": 36,
+  "dev": [
+   9,
+   12
+  ],
+  "unseen": [
+   13,
+   24
+  ],
+  "time_mean": 14.920908333333333,
+  "time_p95": 39.442800000000005,
+  "time_mean_no_overhead": 13.297727777777778,
+  "time_p95_no_overhead": 37.8355,
+  "llm_calls_per_q": 0.9166666666666666,
+  "in_per_q": 3926.0,
+  "in_per_q_no_overhead": 1610.5,
+  "cache_read_per_q": 0.0,
+  "out_per_q": 1576.75,
+  "cost_per_q": 0.015726583333333332
+ }
+]

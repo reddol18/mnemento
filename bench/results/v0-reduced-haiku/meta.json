@@ -1,0 +1,12 @@
+{
+ "run": "v0-reduced-haiku",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20261120,
+ "frozen_hash": "4be3dfef6c9b8b3b",
+ "git": "d60878a06f48d16537e13679fa9f57cc2266506a+dirty",
+ "started": "2026-10-03T16:00:16.920884+09:00",
+ "adapter": "claude-cli",
+ "plan": "v0-reduced",
+ "plan_description": "Reduced measurement: 12/20 questions (D1-D4, U1-U4, H1-H4), 3 repetitions, Mn at 100 only"
+}

@@ -1,0 +1,288 @@
+== v0-reduced: n=100 systems=B0,B1,M,Mn reps=3
+== start 2026-10-03 16:00:44.60 
+== v0-reduced: n=100 systems=B0,B1,M,Mn reps=3
+n=100 B0 D1 rep0: OK  ok                                                9.9s in=24901
+n=100 B0 D2 rep0: OK  ok                                               12.4s in=24909
+n=100 B0 D3 rep0: OK  ok                                               24.4s in=24909
+n=100 B0 D4 rep0: BAD 2026-10/top10: 0.25 != 0.50                      80.8s in=24985
+n=100 B0 U1 rep0: OK  ok                                               18.4s in=24906
+n=100 B0 U2 rep0: OK  ok                                               11.0s in=24918
+n=100 B0 U3 rep0: BAD number 5 != 6                                     8.6s in=24910
+n=100 B0 U4 rep0: OK  ok                                               57.8s in=24912
+n=100 B0 H1 rep0: BAD number 8 != 10                                   54.6s in=24926
+n=100 B0 H2 rep0: OK  ok                                               60.6s in=24956
+n=100 B0 H3 rep0: OK  ok                                               56.5s in=24935
+n=100 B0 H4 rep0: BAD ids differ (missing 1, extra 1)                  11.6s in=24948
+n=100 B0 D1 rep1: OK  ok                                               11.4s in=24903
+n=100 B0 D2 rep1: OK  ok                                               13.4s in=24909
+n=100 B0 D3 rep1: OK  ok                                               24.5s in=24909
+n=100 B0 D4 rep1: BAD 2026-10/top30: 0.55 != 0.50                     124.4s in=24985
+n=100 B0 U1 rep1: BAD number 4 != 10                                   10.7s in=24906
+n=100 B0 U2 rep1: OK  ok                                               13.1s in=24920
+n=100 B0 U3 rep1: OK  ok                                                9.8s in=24908
+n=100 B0 U4 rep1: OK  ok                                               60.2s in=24910
+n=100 B0 H1 rep1: BAD number 9 != 10                                   29.1s in=24926
+n=100 B0 H2 rep1: OK  ok                                               70.8s in=24956
+n=100 B0 H3 rep1: OK  ok                                               39.0s in=24937
+n=100 B0 H4 rep1: BAD ids differ (missing 1, extra 1)                  16.5s in=24946
+n=100 B0 D1 rep2: OK  ok                                               10.7s in=24903
+n=100 B0 D2 rep2: OK  ok                                               20.9s in=24909
+n=100 B0 D3 rep2: OK  ok                                               16.9s in=24909
+n=100 B0 D4 rep2: BAD 2026-11/top10: 0.58 != 0.45                     110.0s in=24985
+n=100 B0 U1 rep2: BAD number 5 != 10                                    8.4s in=24906
+n=100 B0 U2 rep2: OK  ok                                               11.4s in=24919
+n=100 B0 U3 rep2: OK  ok                                                9.4s in=24910
+n=100 B0 U4 rep2: BAD number 55 != 42                                 106.1s in=24911
+n=100 B0 H1 rep2: BAD number 8 != 10                                   22.6s in=24925
+n=100 B0 H2 rep2: OK  ok                                               91.4s in=24957
+n=100 B0 H3 rep2: OK  ok                                               35.0s in=24935
+n=100 B0 H4 rep2: BAD ids differ (missing 1, extra 1)                  13.0s in=24946
+n=100 B1 D1 rep0: OK  ok                                               19.1s in=44844
+n=100 B1 D2 rep0: OK  ok                                               23.6s in=46198
+n=100 B1 D3 rep0: OK  ok                                               34.7s in=57151
+n=100 B1 D4 rep0: BAD 2026-10/top10: 0.12 != 0.50                     161.1s in=214968
+n=100 B1 U1 rep0: OK  ok                                               23.0s in=35142
+n=100 B1 U2 rep0: OK  ok                                               16.4s in=32740
+n=100 B1 U3 rep0: OK  ok                                               21.1s in=33685
+n=100 B1 U4 rep0: BAD number 57 != 42                                 104.6s in=62216
+n=100 B1 H1 rep0: OK  ok (alternative reading)                         32.6s in=37745
+n=100 B1 H2 rep0: OK  ok                                              148.7s in=253095
+n=100 B1 H3 rep0: OK  ok                                               43.0s in=48233
+n=100 B1 H4 rep0: BAD ids differ (missing 1, extra 1)                  24.6s in=36768
+n=100 B1 D1 rep1: OK  ok                                               16.4s in=32964
+n=100 B1 D2 rep1: OK  ok                                               23.7s in=34617
+n=100 B1 D3 rep1: OK  ok                                               43.5s in=40769
+n=100 B1 D4 rep1: BAD 2026-10/top10: 0.38 != 0.50                     179.8s in=495104
+n=100 B1 U1 rep1: OK  ok                                               37.5s in=41208
+n=100 B1 U2 rep1: OK  ok                                               15.8s in=33134
+n=100 B1 U3 rep1: OK  ok                                               17.0s in=33367
+n=100 B1 U4 rep1: BAD number 55 != 42                                  78.6s in=47984
+n=100 B1 H1 rep1: OK  ok (alternative reading)                         54.8s in=40716
+n=100 B1 H2 rep1: OK  ok                                              118.8s in=293726
+n=100 B1 H3 rep1: OK  ok                                               93.9s in=108361
+n=100 B1 H4 rep1: BAD ids differ (missing 1, extra 1)                  20.3s in=21855
+n=100 B1 D1 rep2: OK  ok                                               19.6s in=32819
+n=100 B1 D2 rep2: OK  ok                                               25.2s in=44702
+n=100 B1 D3 rep2: OK  ok                                               33.1s in=59306
+n=100 B1 D4 rep2: BAD 2026-10/top10: 0.12 != 0.50                     100.1s in=101439
+n=100 B1 U1 rep2: OK  ok                                               26.6s in=36061
+n=100 B1 U2 rep2: OK  ok                                               17.3s in=43181
+n=100 B1 U3 rep2: OK  ok                                               24.9s in=33989
+n=100 B1 U4 rep2: BAD number 15 != 42                                  98.5s in=132683
+n=100 B1 H1 rep2: OK  ok (alternative reading)                         45.0s in=26291
+n=100 B1 H2 rep2: OK  ok                                               79.7s in=221231
+n=100 B1 H3 rep2: OK  ok                                              151.0s in=162491
+n=100 B1 H4 rep2: OK  ok                                               15.5s in=21157
+n=100 M  D1 rep0: OK  ok                                                0.0s in=0
+n=100 M  D2 rep0: OK  ok                                                0.0s in=0
+n=100 M  D3 rep0: OK  ok                                               11.5s in=4263
+n=100 M  D4 rep0: BAD 2026-10/top10: 0.01 != 0.50                      16.9s in=4287
+n=100 M  U1 rep0: OK  ok                                               10.8s in=4267
+n=100 M  U2 rep0: OK  ok                                                8.5s in=4272
+n=100 M  U3 rep0: OK  ok                                                7.9s in=4273
+n=100 M  U4 rep0: OK  ok                                               21.5s in=4278
+n=100 M  H1 rep0: OK  ok (alternative reading)                         13.1s in=4286
+n=100 M  H2 rep0: BAD None/saramin: 0.14 != 0.10                       20.3s in=4288
+n=100 M  H3 rep0: BAD number 4.48 != 24                                23.2s in=4282
+n=100 M  H4 rep0: BAD number 10 != 3                                   13.0s in=4290
+n=100 M  D1 rep1: OK  ok                                                0.0s in=0
+n=100 M  D2 rep1: OK  ok                                                0.0s in=0
+n=100 M  D3 rep1: OK  ok                                               13.1s in=4263
+n=100 M  D4 rep1: BAD 2026-10/top10: 0.01 != 0.50                      48.3s in=4287
+n=100 M  U1 rep1: OK  ok                                                9.8s in=4265
+n=100 M  U2 rep1: OK  ok                                               10.2s in=4271
+n=100 M  U3 rep1: OK  ok                                               23.9s in=4274
+n=100 M  U4 rep1: OK  ok                                               23.6s in=4277
+n=100 M  H1 rep1: OK  ok (alternative reading)                         42.0s in=8610
+n=100 M  H2 rep1: BAD None/saramin: 0.32 != 0.10                       24.8s in=4287
+n=100 M  H3 rep1: BAD number 1.06 != 24                                41.9s in=4283
+n=100 M  H4 rep1: BAD number 10 != 3                                   13.6s in=4290
+n=100 M  D1 rep2: OK  ok                                                0.0s in=0
+n=100 M  D2 rep2: OK  ok                                                0.0s in=0
+n=100 M  D3 rep2: OK  ok                                               12.3s in=4264
+n=100 M  D4 rep2: BAD missing group 2026-10/top10                      15.9s in=4285
+n=100 M  U1 rep2: OK  ok                                               11.9s in=4267
+n=100 M  U2 rep2: OK  ok                                                9.0s in=4273
+n=100 M  U3 rep2: OK  ok                                                8.4s in=4273
+n=100 M  U4 rep2: BAD number 41 != 42                                  10.1s in=4278
+n=100 M  H1 rep2: OK  ok (alternative reading)                         13.0s in=4286
+n=100 M  H2 rep2: BAD None/saramin: 0.20 != 0.10                       18.2s in=4286
+n=100 M  H3 rep2: BAD number 4.48 != 24                                40.0s in=4283
+n=100 M  H4 rep2: BAD number 10 != 3                                   10.6s in=4290
+n=100 Mn D1 rep0: OK  ok                                                4.9s in=1284
+n=100 Mn D2 rep0: OK  ok                                               11.7s in=1669
+n=100 Mn D3 rep0: OK  ok                                               19.4s in=6888
+n=100 Mn D4 rep0: BAD 2026-10/top10: 0.01 != 0.50                      26.1s in=6042
+n=100 Mn U1 rep0: OK  ok                                               16.0s in=5568
+n=100 Mn U2 rep0: OK  ok                                               20.0s in=5810
+n=100 Mn U3 rep0: OK  ok                                               13.2s in=5579
+n=100 Mn U4 rep0: OK  ok                                               31.2s in=5636
+n=100 Mn H1 rep0: OK  ok (alternative reading)                         42.1s in=6320
+n=100 Mn H2 rep0: BAD None/saramin: 0.14 != 0.10                       29.8s in=5836
+n=100 Mn H3 rep0: BAD number 4.48 != 24                                39.7s in=7740
+n=100 Mn H4 rep0: BAD number 10 != 3                                   24.3s in=5791
+n=100 Mn D1 rep1: OK  ok                                                5.3s in=1284
+n=100 Mn D2 rep1: OK  ok                                               14.7s in=1667
+n=100 Mn D3 rep1: OK  ok                                               24.4s in=6889
+n=100 Mn D4 rep1: BAD 2026-10/top10: 0.01 != 0.50                      59.9s in=5912
+n=100 Mn U1 rep1: OK  ok                                               15.5s in=5569
+n=100 Mn U2 rep1: OK  ok                                               35.1s in=5869
+n=100 Mn U3 rep1: OK  ok                                               29.3s in=5588
+n=100 Mn U4 rep1: OK  ok                                               32.9s in=5620
+n=100 Mn H1 rep1: OK  ok (alternative reading)                         65.5s in=10423
+n=100 Mn H2 rep1: BAD None/saramin: 0.32 != 0.10                       34.6s in=5865
+n=100 Mn H3 rep1: BAD number 1.06 != 24                                69.3s in=12435
+n=100 Mn H4 rep1: BAD number 10 != 3                                   24.3s in=5787
+n=100 Mn D1 rep2: OK  ok                                                5.1s in=1286
+n=100 Mn D2 rep2: OK  ok                                                7.9s in=1668
+n=100 Mn D3 rep2: OK  ok                                               27.3s in=6883
+n=100 Mn D4 rep2: BAD missing group 2026-10/top10                      29.5s in=5838
+n=100 Mn U1 rep2: OK  ok                                               17.6s in=5569
+n=100 Mn U2 rep2: OK  ok                                               16.5s in=5848
+n=100 Mn U3 rep2: OK  ok                                               13.0s in=5581
+n=100 Mn U4 rep2: BAD number 41 != 42                                  19.8s in=5625
+n=100 Mn H1 rep2: OK  ok (alternative reading)                         46.7s in=6152
+n=100 Mn H2 rep2: BAD None/saramin: 0.20 != 0.10                       26.2s in=5810
+n=100 Mn H3 rep2: BAD number 4.48 != 24                                55.1s in=7694
+n=100 Mn H4 rep2: BAD number 10 != 3                                   18.7s in=5777
+== v0-reduced: n=1000 systems=B1,M reps=3
+n=1000 B1 D1 rep0: OK  ok                                               70.2s in=79586
+n=1000 B1 D2 rep0: BAD number 7 != 8                                    23.4s in=41555
+n=1000 B1 D3 rep0: OK  ok                                               35.6s in=136978
+n=1000 B1 D4 rep0: BAD 2026-10/top10: 0.33 != 0.53                     187.7s in=1445480
+n=1000 B1 U1 rep0: OK  ok                                               22.1s in=54461
+n=1000 B1 U2 rep0: OK  ok                                               27.1s in=41141
+n=1000 B1 U3 rep0: OK  ok                                               42.5s in=128932
+n=1000 B1 U4 rep0: BAD number 193 != 467                               218.6s in=662561
+n=1000 B1 H1 rep0: BAD number 20 != 40                                  71.0s in=515751
+n=1000 B1 H2 rep0: OK  ok                                              118.4s in=940515
+n=1000 B1 H3 rep0: BAD number 49 != 277                                224.3s in=5046921
+n=1000 B1 H4 rep0: BAD ids differ (missing 3, extra 3)                  42.3s in=189100
+n=1000 B1 D1 rep1: OK  ok                                               24.8s in=100454
+n=1000 B1 D2 rep1: OK  ok                                               17.3s in=40953
+n=1000 B1 D3 rep1: OK  ok                                               27.2s in=65574
+n=1000 B1 D4 rep1: BAD 2026-10/top10: 0.27 != 0.53                     127.3s in=710141
+n=1000 B1 U1 rep1: OK  ok                                               28.6s in=58142
+n=1000 B1 U2 rep1: OK  ok                                               23.0s in=68844
+n=1000 B1 U3 rep1: OK  ok                                               51.3s in=212549
+n=1000 B1 U4 rep1: BAD number 196 != 467                               111.3s in=495638
+n=1000 B1 H1 rep1: BAD number 20 != 40                                  37.7s in=98112
+n=1000 B1 H2 rep1: BAD None/groupby: 0.11 != 0.14                      324.8s in=1494627
+n=1000 B1 H3 rep1: BAD number 50 != 277                                169.8s in=704404
+n=1000 B1 H4 rep1: BAD ids differ (missing 1, extra 1)                  38.7s in=225985
+n=1000 B1 D1 rep2: BAD number 28 != 29                                  43.7s in=89477
+n=1000 B1 D2 rep2: BAD number 2 != 8                                    16.8s in=52691
+n=1000 B1 D3 rep2: OK  ok                                               33.2s in=64988
+n=1000 B1 D4 rep2: BAD 2026-10/top10: 0.33 != 0.53                     147.3s in=1610454
+n=1000 B1 U1 rep2: OK  ok                                               45.0s in=159687
+n=1000 B1 U2 rep2: OK  ok                                               20.2s in=41676
+n=1000 B1 U3 rep2: OK  ok                                               66.5s in=439242
+n=1000 B1 U4 rep2: BAD number 95 != 467                                 59.8s in=208987
+n=1000 B1 H1 rep2: OK  ok (alternative reading)                         49.0s in=181857
+n=1000 B1 H2 rep2: OK  ok                                              111.9s in=516199
+n=1000 B1 H3 rep2: BAD number 306 != 277                               249.8s in=1031467
+n=1000 B1 H4 rep2: BAD ids differ (missing 3, extra 3)                  73.1s in=394519
+n=1000 M  D1 rep0: OK  ok                                                0.0s in=0
+n=1000 M  D2 rep0: OK  ok                                                0.1s in=0
+n=1000 M  D3 rep0: OK  ok                                                9.7s in=4263
+n=1000 M  D4 rep0: OK  ok                                               30.8s in=4285
+n=1000 M  U1 rep0: OK  ok                                                8.8s in=4265
+n=1000 M  U2 rep0: OK  ok                                               10.0s in=4271
+n=1000 M  U3 rep0: OK  ok                                                6.5s in=4275
+n=1000 M  U4 rep0: BAD number 485 != 467                                14.9s in=4278
+n=1000 M  H1 rep0: OK  ok (alternative reading)                         59.5s in=4284
+n=1000 M  H2 rep0: BAD None/saramin: 0.39 != 0.06                       23.2s in=4286
+n=1000 M  H3 rep0: BAD number 3.902 != 277                              42.2s in=4282
+n=1000 M  H4 rep0: BAD number 120 != 3                                  15.0s in=4290
+n=1000 M  D1 rep1: OK  ok                                                0.0s in=0
+n=1000 M  D2 rep1: OK  ok                                                0.1s in=0
+n=1000 M  D3 rep1: OK  ok                                               10.8s in=4262
+n=1000 M  D4 rep1: BAD 2026-10/top10: 0.02 != 0.53                      30.9s in=12351
+n=1000 M  U1 rep1: OK  ok                                                9.7s in=4267
+n=1000 M  U2 rep1: OK  ok                                               15.5s in=8571
+n=1000 M  U3 rep1: OK  ok                                                7.9s in=4276
+n=1000 M  U4 rep1: OK  ok                                               14.2s in=4277
+n=1000 M  H1 rep1: OK  ok (alternative reading)                         14.4s in=4287
+n=1000 M  H2 rep1: BAD None/saramin: 0.39 != 0.06                       30.1s in=8613
+n=1000 M  H3 rep1: BAD number 3.902 != 277                              25.2s in=4284
+n=1000 M  H4 rep1: BAD number 120 != 3                                  13.1s in=4291
+n=1000 M  D1 rep2: OK  ok                                                0.0s in=0
+n=1000 M  D2 rep2: OK  ok                                                0.1s in=0
+n=1000 M  D3 rep2: OK  ok                                                9.2s in=4264
+n=1000 M  D4 rep2: BAD 2026-10/top10: 0.26 != 0.53                      31.0s in=4287
+n=1000 M  U1 rep2: OK  ok                                                8.4s in=4266
+n=1000 M  U2 rep2: OK  ok                                                7.5s in=4271
+n=1000 M  U3 rep2: OK  ok                                               41.0s in=4273
+n=1000 M  U4 rep2: OK  ok                                               14.0s in=4277
+n=1000 M  H1 rep2: OK  ok (alternative reading)                         16.7s in=4283
+n=1000 M  H2 rep2: BAD None/saramin: 0.39 != 0.06                       27.1s in=4287
+n=1000 M  H3 rep2: BAD number 1000 != 277                               27.9s in=4283
+n=1000 M  H4 rep2: BAD number 120 != 3                                  10.4s in=4289
+== v0-reduced: n=10000 systems=B1,M reps=3
+== 10k M only (10k B1 held: awaiting user decision) Sat, Oct  3, 2026  6:11:30 PM
+n=10000 M  D1 rep0: OK  ok                                                0.0s in=0
+n=10000 M  D2 rep0: OK  ok                                                0.5s in=0
+n=10000 M  D3 rep0: OK  ok                                                7.8s in=4263
+n=10000 M  D4 rep0: BAD 2026-10/top10: 0.01 != 0.54                      39.4s in=4287
+n=10000 M  U1 rep0: OK  ok                                               10.3s in=4266
+n=10000 M  U2 rep0: BAD no number                                         6.8s in=4270
+n=10000 M  U3 rep0: OK  ok                                                5.8s in=4277
+n=10000 M  U4 rep0: OK  ok                                               15.9s in=4278
+n=10000 M  H1 rep0: OK  ok                                               13.8s in=4285
+n=10000 M  H2 rep0: BAD None/saramin: 0.41 != 0.15                       39.0s in=8613
+n=10000 M  H3 rep0: BAD number 4.0184 != 2668                            34.7s in=4282
+n=10000 M  H4 rep0: BAD number 1580 != 3                                  8.3s in=4290
+n=10000 M  D1 rep1: OK  ok                                                0.0s in=0
+n=10000 M  D2 rep1: OK  ok                                                0.5s in=0
+n=10000 M  D3 rep1: OK  ok                                               16.8s in=4262
+n=10000 M  D4 rep1: BAD 2026-10/top10: 0.01 != 0.54                      48.6s in=8623
+n=10000 M  U1 rep1: OK  ok                                               15.9s in=4265
+n=10000 M  U2 rep1: BAD no number                                         7.0s in=4272
+n=10000 M  U3 rep1: OK  ok                                                6.2s in=4276
+n=10000 M  U4 rep1: OK  ok                                               17.8s in=4277
+n=10000 M  H1 rep1: OK  ok                                               21.5s in=4284
+n=10000 M  H2 rep1: BAD None/saramin: 0.41 != 0.15                       13.2s in=4286
+n=10000 M  H3 rep1: BAD number 10000 != 2668                             50.7s in=4283
+n=10000 M  H4 rep1: BAD number 1580 != 3                                 12.6s in=4289
+n=10000 M  D1 rep2: OK  ok                                                0.0s in=0
+n=10000 M  D2 rep2: OK  ok                                                0.5s in=0
+n=10000 M  D3 rep2: OK  ok                                                9.4s in=4262
+n=10000 M  D4 rep2: BAD 2026-10/top10: 0.01 != 0.54                      21.5s in=4286
+n=10000 M  U1 rep2: OK  ok                                               10.9s in=4266
+n=10000 M  U2 rep2: BAD no number                                         7.0s in=4271
+n=10000 M  U3 rep2: OK  ok                                                6.9s in=4276
+n=10000 M  U4 rep2: OK  ok                                                8.9s in=4278
+n=10000 M  H1 rep2: OK  ok                                               14.0s in=4286
+n=10000 M  H2 rep2: OK  ok                                               33.7s in=8612
+n=10000 M  H3 rep2: BAD number 4.0184 != 2668                            22.9s in=4281
+n=10000 M  H4 rep2: BAD number 1580 != 3                                  8.2s in=4290
+10k M exit=0
+Model `haiku` via Claude Code CLI · run `v0-reduced-haiku` · frozen `4be3dfef6c9b8b3b` · git `d60878a06f48d16537e13679fa9f57cc2266506a+dirty`
+
+**Reduced measurement: 12/20 questions (D1-D4, U1-U4, H1-H4), 3 repetitions, Mn at 100 only.**
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) |
+|---|---|---|---|---|---|---|---|---|---|
+| 100 | B0 full context | 9/12 (75%) | 14/24 (58%) | 35.7 / 106.1 | 33.9 / 104.1 | 1.00 | 24,926 (22,400) | 4,923 | 0.0288 |
+| 100 | B1 Claude Code memory (MEMORY.md + Grep/Read) | 9/12 (75%) | 19/24 (79%) | 55.2 / 151.0 | 53.2 / 148.7 | 1.00 | 84,498 (77,800) | 6,776 | 0.0632 |
+| 100 | M Mnemento (template answer) | 9/12 (75%) | 14/24 (58%) | 15.2 / 41.9 | 13.7 / 38.5 | 0.86 | 3,686 (1,510) | 1,652 | 0.0156 |
+| 100 | M+ Mnemento + LLM narration | 9/12 (75%) | 14/24 (58%) | 27.0 / 59.9 | 23.7 / 56.5 | 1.86 | 5,578 (877) | 2,896 | 0.0240 |
+| 1,000 | B1 Claude Code memory (MEMORY.md + Grep/Read) | 6/12 (50%) | 12/24 (50%) | 82.8 / 224.3 | 79.2 / 214.2 | 1.00 | 509,712 (503,014) | 9,118 | 0.1594 |
+| 1,000 | M Mnemento (template answer) | 10/12 (83%) | 14/24 (58%) | 16.3 / 41.0 | 14.7 / 39.4 | 0.89 | 4,029 (1,784) | 1,831 | 0.0170 |
+| 10,000 | M Mnemento (template answer) | 9/12 (75%) | 13/24 (54%) | 14.9 / 39.4 | 13.3 / 37.8 | 0.92 | 3,926 (1,610) | 1,577 | 0.0157 |
+
+report exit=0
+== 10k B1 single repetition (approved) Sat, Oct  3, 2026  8:41:42 PM
+n=10000 B1 D1 rep0: BAD number 22 != 73                                  54.4s in=114200
+n=10000 B1 D2 rep0: OK  ok                                              114.5s in=232561
+n=10000 B1 D3 rep0: OK  ok                                               32.3s in=117462
+n=10000 B1 D4 rep0: OK  ok                                              124.0s in=716914
+n=10000 B1 U1 rep0: BAD number 51 != 123                                 18.4s in=40576
+n=10000 B1 U2 rep0: BAD number 12 != 9                                   24.8s in=68929
+n=10000 B1 U3 rep0: OK  ok                                               21.2s in=62386
+n=10000 B1 U4 rep0: BAD number 7024 != 5231                              70.9s in=246922
+n=10000 B1 H1 rep0: BAD number 121 != 110                               108.4s in=81753
+n=10000 B1 H2 rep0: OK  ok                                              194.8s in=959308
+n=10000 B1 H3 rep0: BAD number 17 != 2668                               202.6s in=1354215
+n=10000 B1 H4 rep0: BAD ids differ (missing 3, extra 3)                  30.0s in=111129
+10k B1 exit=0
