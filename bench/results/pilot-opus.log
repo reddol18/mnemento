@@ -1,0 +1,11 @@
+n=100 B1 D1 rep0: OK  ok                                               12.6s in=33003
+n=100 B1 D3 rep0: OK  ok                                               12.4s in=36067
+n=100 B1 H1 rep0: OK  ok (alternative reading)                         16.5s in=32589
+n=100 M  D1 rep0: OK  ok                                                0.0s in=0
+n=100 M  D3 rep0: OK  ok                                                6.1s in=5500
+n=100 M  H1 rep0: OK  ok                                                6.3s in=5518
+100 exit=0
+n=1000 B1 D1 rep0: OK  ok                                               29.0s in=82682
+n=1000 B1 D3 rep0: OK  ok                                               20.7s in=72425
+n=1000 B1 H1 rep0: BAD number 43 != 45                                  25.0s in=65807
+1000 exit=0

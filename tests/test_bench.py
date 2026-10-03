@@ -445,3 +445,31 @@ def test_v2_plan_steps_reps_seed_and_whole_run_budget(tmp_path, monkeypatch):
     monkeypatch.setitem(br.PLANS["t2"], "questions", ["D1", "D3", "U1"])
     with pytest.raises(br.BudgetExceeded):
         br.run_plan("t2", "p", "fake", None, 5, max_cost=0.65)
+
+
+def test_per_system_models_2x2(tmp_path, monkeypatch):
+    import bench.run as br
+
+    monkeypatch.setattr(br, "DATA", tmp_path / "data")
+    monkeypatch.setattr(br, "RESULTS", tmp_path / "results")
+    used = []
+
+    class ModelAware(FakeCLI):
+        def complete_json(self, **kw):
+            used.append((self.kw.get("model"), bool(self.kw.get("tools"))))
+            r = super().complete_json(**kw)
+            r.usage.model = {"opus": "claude-opus-x", "haiku": "claude-haiku-x"}[self.kw["model"]]
+            return r
+
+    monkeypatch.setattr(br, "ClaudeCLIAdapter", ModelAware)
+    FakeCLI.calls, FakeCLI.fail = [], False
+    monkeypatch.setitem(br.PLANS, "x", {"description": "2x2", "reps": 1, "questions": ["D1", "D3"],
+                                        "steps": [(60, ["M:haiku", "M:opus", "B1:haiku", "B1:opus"])],
+                                        "eval_set": "v2", "hint": True, "seed": 4})
+    br.run_plan("x", "x", "haiku", None, 5)
+    rows = br._load_rows(tmp_path / "results" / "x" / "results.jsonl")
+    assert {k[1] for k in rows} == {"M-haiku", "M-opus", "B1-haiku", "B1-opus"}
+    assert ("opus", True) in used and ("haiku", True) in used and ("opus", False) in used
+    meta = json.loads((tmp_path / "results" / "x" / "meta.json").read_text())
+    assert meta["resolved_models"]["B1-opus"] == ["claude-opus-x"]
+    assert meta["resolved_models"]["M-haiku"] == ["claude-haiku-x"]

@@ -1,0 +1,14 @@
+{
+ "run": "pilot-opus",
+ "model": "opus",
+ "thinking_tokens": null,
+ "seed": 20261204,
+ "frozen_hash": "c1505c45f0c48366",
+ "git": "91a7ee2152497696b60370037487ac598171018d+dirty",
+ "started": "2026-10-03T21:51:34.373616+09:00",
+ "adapter": "claude-cli",
+ "plan": null,
+ "plan_description": null,
+ "eval_set": "v2",
+ "hint": "same format hint for every system"
+}

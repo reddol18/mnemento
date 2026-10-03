@@ -192,6 +192,15 @@ PLANS = {
     },
     # evaluation set v2 (task 0004 ③): own seed and date, dev 20 + unseen 9 questions, the same format
     # hint for every system; steps may carry their own repetition count
+    # step 1 of v2 (decided 2026-10-03): 100 records, both systems on both models (2x2)
+    "v2-100-2x2": {
+        "description": "Eval set v2 at 100 records: M and B1 each on haiku and opus (2x2), dev 20 + unseen 9, "
+                       "same format hint, 3 repetitions",
+        "reps": 3,
+        "questions": None,
+        "steps": [(100, ["M:haiku", "M:opus", "B1:haiku", "B1:opus"])],
+        "eval_set": "v2", "hint": True, "seed": 20261204,
+    },
     "v2": {
         "description": "Eval set v2: dev 20 + unseen 9 questions, same format hint for every system, "
                        "3 repetitions (B1 at 10,000: 1)",
@@ -255,7 +264,8 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
     context = (d / "context.md").read_text(encoding="utf-8")
     stats = json.loads((d / "stats.json").read_text())
     today, tz = now.date().isoformat(), str(TZ)
-    kw = {"model": model, "max_thinking_tokens": thinking, "timeout_s": CLI_TIMEOUT_S}
+    kw_default = {"model": model, "max_thinking_tokens": thinking, "timeout_s": CLI_TIMEOUT_S}
+    kw = kw_default
     failures = 0
 
     def write(q, system, rep, res):
@@ -282,17 +292,21 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
             raise TooManyFailures(f"{failures} CLI calls failed in a row (last: {res.get('error')}). "
                                   f"Resume later with --run {run_id}.")
 
-    for system in systems:
-        if system == "Mn":
+    for spec_ in systems:
+        # "B1:opus" -> system B1 on model opus, recorded as "B1-opus"; a bare name uses --model
+        base, _, sys_model = spec_.partition(":")
+        system = f"{base}-{sys_model}" if sys_model else base
+        kw = {**kw_default, "model": sys_model or model}
+        if base == "Mn":
             continue  # derived from M below
         for rep in range(reps):
             todo = [q for q in qs if not _finished(rows.get((scale, system, q.id, rep)))]
             if not todo:
                 continue
             keeper = None
-            if system == "M":
+            if base == "M":
                 # fresh copy of the DB per repetition: a cold plan cache, like a first-time question
-                db = out_dir / f"tmp_{scale}_M.db"
+                db = out_dir / f"tmp_{scale}_{system}.db"
                 for suffix in ("", "-wal", "-shm"):
                     Path(f"{db}{suffix}").unlink(missing_ok=True)
                 shutil.copy(d / "mnemento.db", db)
@@ -301,11 +315,11 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
                 keeper = Keeper(ledger, ClaudeCLIAdapter(**kw))
             try:
                 for q in todo:
-                    if system == "B0" and stats["context_chars"] / CHARS_PER_TOKEN > CONTEXT_LIMIT_TOKENS:
+                    if base == "B0" and stats["context_chars"] / CHARS_PER_TOKEN > CONTEXT_LIMIT_TOKENS:
                         res = {"answer": None, "error": NOT_MEASURABLE, "llm": [], "wall_ms": 0}
-                    elif system == "B0":
+                    elif base == "B0":
                         res = run_b0(q, ClaudeCLIAdapter(**kw), context, today, tz)
-                    elif system == "B1":
+                    elif base == "B1":
                         res = run_b1(q, ClaudeCLIAdapter(**kw, tools=["Read", "Grep", "Glob"],
                                                          workdir=str(d / "memory")), d / "memory", today, tz)
                     else:
@@ -315,7 +329,7 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
                 if keeper:
                     keeper.ledger.close()
 
-    if "Mn" in systems:
+    if "Mn" in systems:  # (Mn always derives from the plain "M" system)
         # Mn = the very same M answer + one narration call (reuses M's interpretation)
         pipeline = QueryPipeline(Ledger.open(":memory:"), ClaudeCLIAdapter(**kw), use_cache=False)
         try:
@@ -327,7 +341,20 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
                     write(q, "Mn", rep, narrate_m_row(m_row, pipeline))
         finally:
             pipeline.ledger.close()
+    _record_models(out_dir, rows)
     return results_path
+
+
+def _record_models(out_dir: Path, rows: dict) -> None:
+    """meta.resolved_models: the model ids the CLI actually used, per system (e.g. opus -> claude-opus-5-5)."""
+    seen: dict[str, set] = {}
+    for r in rows.values():
+        for u in r.get("llm", []):
+            seen.setdefault(r["system"], set()).add(u.get("model"))
+    meta_path = out_dir / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    meta["resolved_models"] = {k: sorted(m for m in v if m) for k, v in sorted(seen.items())}
+    meta_path.write_text(json.dumps(meta, indent=1))
 
 
 def narrate_m_row(m_row: dict, pipeline: QueryPipeline) -> dict:
