@@ -50,7 +50,9 @@ class QueryPipeline:
         return {n: self.ledger.schemas.get(n) for n in self.ledger.schemas.names()}
 
     def ask(self, question: str, *, spec: QuerySpec | dict | None = None, now: datetime | None = None,
-            narrate: bool = False) -> KeeperAnswer:
+            narrate: bool = False, hint: str | None = None) -> KeeperAnswer:
+        """`hint`: how the asker wants the answer shaped (passed to the interpreter only; plans
+        interpreted with a hint are not cached, since the same words may come with another hint)."""
         trace = Trace()
         now = now or tz_now(self.ledger.tz)
         schemas = self._schemas()
@@ -76,7 +78,7 @@ class QueryPipeline:
                 spec = parse_simple(question, schemas, now, resolve_name=self._certain_name)
                 if spec is not None:
                     trace.path = "fast"
-                elif self.cache is not None and (cached := self.cache.lookup(question, schemas, now)):
+                elif hint is None and self.cache is not None and (cached := self.cache.lookup(question, schemas, now)):
                     trace.path = "cache"
                     spec = cached
                 elif self.llm is None:
@@ -90,7 +92,7 @@ class QueryPipeline:
                         observed = observed_values(self.ledger.storage.fetch_all,
                                                    select_schemas(question, schemas))
                         out = interpret(question, llm=self.llm, schemas=schemas, observed=observed,
-                                        now=now, tz=self.ledger.tz, trace=trace)
+                                        now=now, tz=self.ledger.tz, trace=trace, hint=hint)
                     except InterpretError as exc:
                         return self._done(KeeperAnswer(
                             "clarify", question,
@@ -102,7 +104,7 @@ class QueryPipeline:
                         return self._done(KeeperAnswer("clarify", question, out.question,
                                                        options=out.options), trace)
                     spec = out
-                    if self.cache is not None:
+                    if self.cache is not None and hint is None:
                         self.cache.store(question, spec, schemas, now)
 
         # ---- ② query definition -----------------------------------------------------------

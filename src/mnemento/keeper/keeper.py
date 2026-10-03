@@ -22,14 +22,15 @@ class Keeper:
 
     # read
     def ask(self, question: str, *, spec: QuerySpec | dict | None = None, now: datetime | None = None,
-            narrate: bool = False) -> KeeperAnswer:
-        return self.pipeline.ask(question, spec=spec, now=now, narrate=narrate)
+            narrate: bool = False, hint: str | None = None) -> KeeperAnswer:
+        return self.pipeline.ask(question, spec=spec, now=now, narrate=narrate, hint=hint)
 
     def get_entity(self, entity_id: str) -> dict[str, Any] | None:
         e = self.ledger.get_entity(entity_id)
         if e is None:
             return None
         return {"entity": e.as_json(), "schema_version": e.schema_version, "retracted": e.retracted,
+                "reached": e.reached,
                 "created_at": e.created_at, "updated_at": e.updated_at, "applied_events": e.event_ids}
 
     def history(self, entity_id: str) -> list[dict[str, Any]]:

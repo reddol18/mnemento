@@ -28,9 +28,9 @@ from mnemento.keeper.llm import ClaudeCLIAdapter
 from mnemento.keeper.query.pipeline import QueryPipeline
 
 from . import questions as qmod
-from .generate import BENCH_NOW, TZ, generate
+from .generate import BENCH_NOW, BENCH_NOW_V2, TZ, generate
 from .grade import ANSWER_SCHEMA, grade
-from .render import full_context, to_ledger, to_memory_dir
+from .render import SCHEMA_DIR, full_context, to_ledger, to_memory_dir
 from .runners import run_b0, run_b1, run_m
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,8 +50,8 @@ FROZEN_FILES = [  # everything that shapes the systems' behaviour; hashed into e
 ]
 
 
-def data_dir(scale: int, seed: int) -> Path:
-    return DATA / f"s{seed}-n{scale}"
+def data_dir(scale: int, seed: int, eval_set: str = "v0") -> Path:
+    return DATA / (f"s{seed}-n{scale}" if eval_set == "v0" else f"{eval_set}-s{seed}-n{scale}")
 
 
 def frozen_hash() -> str:
@@ -73,10 +73,10 @@ def git_head() -> str | None:
 
 # ---- prepare --------------------------------------------------------------------------------
 
-def prepare(scale: int, seed: int) -> Path:
-    d = data_dir(scale, seed)
+def prepare(scale: int, seed: int, eval_set: str = "v0") -> Path:
+    d = data_dir(scale, seed, eval_set)
     if (d / "done").exists():
-        qs = qmod.build(generate(scale, seed))  # questions may be added after the data was built
+        qs = qmod.build(generate(scale, seed, version=eval_set))  # questions may be added after the data was built
         (d / "questions.json").write_text(json.dumps([_plain(q.__dict__) for q in qs], ensure_ascii=False,
                                                      indent=1, default=_jsonable), encoding="utf-8")
         return d
@@ -84,7 +84,7 @@ def prepare(scale: int, seed: int) -> Path:
         shutil.rmtree(d)
     d.mkdir(parents=True)
     t0 = time.perf_counter()
-    ds = generate(scale, seed)
+    ds = generate(scale, seed, version=eval_set)
     led = to_ledger(ds, d / "mnemento.db")
     led.close()
     to_memory_dir(ds, d / "memory")
@@ -114,8 +114,8 @@ def _jsonable(v):
     return str(v)
 
 
-def load_questions(scale: int, seed: int) -> list[qmod.Question]:
-    ds = generate(scale, seed)  # deterministic; recompute so tuple keys survive
+def load_questions(scale: int, seed: int, eval_set: str = "v0") -> list[qmod.Question]:
+    ds = generate(scale, seed, version=eval_set)  # deterministic; recompute so tuple keys survive
     return qmod.build(ds)
 
 
@@ -158,6 +158,10 @@ def estimate(scales: list[int], reps: int, seed: int, systems: list[str], calib:
 
 # ---- run ------------------------------------------------------------------------------------
 
+class BudgetExceeded(RuntimeError):
+    """The list-price cost spent by this invocation passed --max-cost; stopped cleanly."""
+
+
 class TooManyFailures(RuntimeError):
     """Several CLI calls failed in a row (subscription limit, network...). Resume later with the same --run."""
 
@@ -175,22 +179,37 @@ PLANS = {
         "reps": 3,
         "questions": ["D1", "D2", "D3", "D4", "U1", "U2", "U3", "U4", "H1", "H2", "H3", "H4"],
         "steps": [(100, ["B0", "B1", "M", "Mn"]), (1000, ["B1", "M"]), (10000, ["B1", "M"])],
+        "eval_set": "v0", "hint": False,
+    },
+    # task 0004 ④: after the v1 changes, M alone on the v0 data and the v0 condition (question only),
+    # to confirm that questions M already answered (D1-D3, U1, U3, H1) still pass
+    "v1-regression": {
+        "description": "v1 regression: M only, v0 evaluation set and condition, 12 questions, 1 repetition",
+        "reps": 1,
+        "questions": ["D1", "D2", "D3", "D4", "U1", "U2", "U3", "U4", "H1", "H2", "H3", "H4"],
+        "steps": [(100, ["M"]), (1000, ["M"])],
+        "eval_set": "v0", "hint": False,
     },
 }
 
 
-def _open_run(run_id: str, model: str, thinking: int | None, seed: int, plan: str | None) -> Path:
+def _open_run(run_id: str, model: str, thinking: int | None, seed: int, plan: str | None,
+              eval_set: str = "v0", hint: bool = False) -> Path:
     out_dir = RESULTS / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
     meta_path = out_dir / "meta.json"
     meta = {"run": run_id, "model": model, "thinking_tokens": thinking, "seed": seed,
             "frozen_hash": frozen_hash(), "git": git_head(), "started": datetime.now().astimezone().isoformat(),
-            "adapter": "claude-cli", "plan": plan, "plan_description": PLANS.get(plan or "", {}).get("description")}
+            "adapter": "claude-cli", "plan": plan, "plan_description": PLANS.get(plan or "", {}).get("description"),
+            "eval_set": eval_set,
+            "hint": "same format hint for every system" if hint else "B0/B1 format hint, M question only (v0 condition)"}
     if meta_path.exists():
         old = json.loads(meta_path.read_text())
         if old["frozen_hash"] != meta["frozen_hash"]:
             sys.exit(f"frozen files changed since this run started ({old['frozen_hash']} -> {meta['frozen_hash']}); "
                      "start a new --run")
+        if (old.get("eval_set", "v0"), old.get("hint", meta["hint"])) != (eval_set, meta["hint"]):
+            sys.exit(f"run {run_id} was started with eval_set={old.get('eval_set', 'v0')} hint={old.get('hint')}")
         if (old["model"], old.get("thinking_tokens")) != (model, thinking):
             sys.exit(f"run {run_id} was started with model={old['model']} thinking={old.get('thinking_tokens')}")
     else:
@@ -214,20 +233,23 @@ def _finished(row: dict | None) -> bool:
 
 
 def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id: str,
-        thinking: int | None, sets: list[str], only: list[str] | None = None, plan: str | None = None) -> Path:
-    d = prepare(scale, seed)
-    out_dir = _open_run(run_id, model, thinking, seed, plan)
+        thinking: int | None, sets: list[str], only: list[str] | None = None, plan: str | None = None,
+        eval_set: str = "v0", hint: bool = False, max_cost: float | None = None) -> Path:
+    d = prepare(scale, seed, eval_set)
+    out_dir = _open_run(run_id, model, thinking, seed, plan, eval_set, hint)
+    now = BENCH_NOW if eval_set == "v0" else BENCH_NOW_V2
+    spent = 0.0
     results_path = out_dir / "results.jsonl"
     rows = _load_rows(results_path)
-    qs = [q for q in load_questions(scale, seed) if q.set in sets and (not only or q.id in only)]
+    qs = [q for q in load_questions(scale, seed, eval_set) if q.set in sets and (not only or q.id in only)]
     context = (d / "context.md").read_text(encoding="utf-8")
     stats = json.loads((d / "stats.json").read_text())
-    today, tz = BENCH_NOW.date().isoformat(), str(TZ)
+    today, tz = now.date().isoformat(), str(TZ)
     kw = {"model": model, "max_thinking_tokens": thinking, "timeout_s": CLI_TIMEOUT_S}
     failures = 0
 
     def write(q, system, rep, res):
-        nonlocal failures
+        nonlocal failures, spent
         ok, why = grade(q, res.get("answer"))
         row = {"scale": scale, "system": system, "q": q.id, "set": q.set, "rep": rep, "correct": ok,
                "why": why, **res}
@@ -239,6 +261,13 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
         print(f"n={scale} {system:2} {q.id} rep{rep}: {'OK ' if ok else 'BAD'} {why[:46]:46} "
               f"{res.get('wall_ms', 0) / 1000:6.1f}s in={tok}", flush=True)
         failures = failures + 1 if res.get("error") and res.get("error") != NOT_MEASURABLE else 0
+        new_calls = res.get("llm", [])[-1:] if system == "Mn" else res.get("llm", [])  # Mn repeats M's calls
+        if system == "Mn" and not res.get("narration"):
+            new_calls = []
+        spent += sum((u.get("cost_usd") or 0) for u in new_calls)
+        if max_cost is not None and spent > max_cost:
+            raise BudgetExceeded(f"spent ${spent:.2f} > --max-cost ${max_cost:.2f}; stopped after "
+                                 f"n={scale} {system} {q.id} rep{rep}. Resume with --run {run_id}.")
         if failures >= MAX_CONSECUTIVE_FAILURES:
             raise TooManyFailures(f"{failures} CLI calls failed in a row (last: {res.get('error')}). "
                                   f"Resume later with --run {run_id}.")
@@ -257,7 +286,9 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
                 for suffix in ("", "-wal", "-shm"):
                     Path(f"{db}{suffix}").unlink(missing_ok=True)
                 shutil.copy(d / "mnemento.db", db)
-                keeper = Keeper(Ledger.open(db), ClaudeCLIAdapter(**kw))
+                ledger = Ledger.open(db)
+                ledger.schemas.load_dir(SCHEMA_DIR)  # the current schema dictionary (additive versions)
+                keeper = Keeper(ledger, ClaudeCLIAdapter(**kw))
             try:
                 for q in todo:
                     if system == "B0" and stats["context_chars"] / CHARS_PER_TOKEN > CONTEXT_LIMIT_TOKENS:
@@ -268,7 +299,7 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
                         res = run_b1(q, ClaudeCLIAdapter(**kw, tools=["Read", "Grep", "Glob"],
                                                          workdir=str(d / "memory")), d / "memory", today, tz)
                     else:
-                        res = run_m(q, keeper, BENCH_NOW)
+                        res = run_m(q, keeper, now, hint=hint)
                     write(q, system, rep, res)
             finally:
                 if keeper:
@@ -306,11 +337,13 @@ def narrate_m_row(m_row: dict, pipeline: QueryPipeline) -> dict:
     return res
 
 
-def run_plan(plan: str, run_id: str, model: str, thinking: int | None, seed: int) -> None:
+def run_plan(plan: str, run_id: str, model: str, thinking: int | None, seed: int,
+             max_cost: float | None = None) -> None:
     p = PLANS[plan]
     for scale, systems in p["steps"]:
         print(f"== {plan}: n={scale} systems={','.join(systems)} reps={p['reps']}", flush=True)
-        run(scale, seed, systems, p["reps"], model, run_id, thinking, ["dev", "unseen"], p["questions"], plan)
+        run(scale, seed, systems, p["reps"], model, run_id, thinking, ["dev", "unseen"], p["questions"], plan,
+            p.get("eval_set", "v0"), p.get("hint", False), max_cost)
     print(f"== {plan} complete. Report: uv run python -m bench.report --run {run_id}", flush=True)
 
 
@@ -358,6 +391,10 @@ def main(argv: list[str] | None = None) -> None:
     pl.add_argument("--model", default="haiku")
     pl.add_argument("--thinking", type=int, default=None)
     pl.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    pl.add_argument("--max-cost", type=float, default=None, help="stop when list-price spend passes this (USD)")
+    r.add_argument("--eval-set", default="v0", choices=["v0", "v2"])
+    r.add_argument("--hint", action="store_true", help="give M the same format hint as B0/B1")
+    r.add_argument("--max-cost", type=float, default=None)
     args = ap.parse_args(argv)
     if args.cmd == "prepare":
         d = prepare(args.scale, args.seed)
@@ -371,13 +408,14 @@ def main(argv: list[str] | None = None) -> None:
         run_id = args.run or datetime.now().strftime("%Y%m%d-%H%M%S")
         try:
             run(args.scale, args.seed, args.systems.split(","), args.reps, args.model, run_id, args.thinking,
-                args.sets.split(","), [q for q in args.questions.split(",") if q])
-        except TooManyFailures as exc:
+                args.sets.split(","), [q for q in args.questions.split(",") if q], None, args.eval_set,
+                args.hint, args.max_cost)
+        except (TooManyFailures, BudgetExceeded) as exc:
             sys.exit(str(exc))
     elif args.cmd == "plan":
         try:
-            run_plan(args.plan, args.run, args.model, args.thinking, args.seed)
-        except TooManyFailures as exc:
+            run_plan(args.plan, args.run, args.model, args.thinking, args.seed, args.max_cost)
+        except (TooManyFailures, BudgetExceeded) as exc:
             sys.exit(str(exc))
     elif args.cmd == "calibrate":
         RESULTS.mkdir(parents=True, exist_ok=True)

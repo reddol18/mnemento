@@ -268,3 +268,88 @@ def test_converter_limit_and_having():
                                   {"group": {"company_id": "co_2"}, "n": 2, "measures": {}, "ids": []}]})
     out = to_answer(grouped, q)
     assert out["number"] == 2 and out["ids"] == ["co_1", "co_2"]
+
+
+# ---- harness v2 (task 0004 ③) ---------------------------------------------------------------------
+
+def test_guard_excludes_itself_its_children_and_its_shell():
+    from bench.guard import matching
+
+    procs = [
+        {"pid": 1, "ppid": 0, "cmd": "bash -c 'python -m bench.guard --match bench.run'"},  # the guard's shell
+        {"pid": 2, "ppid": 1, "cmd": "python -m bench.guard --match bench.run"},  # the guard
+        {"pid": 3, "ppid": 2, "cmd": "powershell Get-CimInstance ... 'bench.run'"},  # its process listing
+        {"pid": 10, "ppid": 0, "cmd": "uv run python -m bench.run plan --run r"},  # the run
+        {"pid": 11, "ppid": 10, "cmd": "python -m bench.run plan --run r"},
+    ]
+    assert matching(procs, "bench.run", self_pid=2) == [10, 11]
+    assert matching(procs[:3], "bench.run", self_pid=2) == []  # run gone -> the guard can exit
+
+
+def test_max_cost_stops_cleanly(tmp_path, monkeypatch):
+    import bench.run as br
+
+    monkeypatch.setattr(br, "DATA", tmp_path / "data")
+    monkeypatch.setattr(br, "RESULTS", tmp_path / "results")
+
+    class Costly(FakeCLI):
+        def complete_json(self, **kw):
+            r = super().complete_json(**kw)
+            r.usage.cost_usd = 0.5
+            return r
+
+    monkeypatch.setattr(br, "ClaudeCLIAdapter", Costly)
+    FakeCLI.calls, FakeCLI.fail = [], False
+    with pytest.raises(br.BudgetExceeded):
+        br.run(60, 5, ["B0"], 3, "fake", "r", None, ["dev", "unseen"], ["D1", "D3", "U1"], max_cost=1.2)
+    rows = br._load_rows(tmp_path / "results" / "r" / "results.jsonl")
+    assert len(rows) == 3  # 3 x $0.5 > $1.2: stopped after the third row, which was kept
+
+
+def test_hint_reaches_m_interpreter_and_meta(tmp_path, monkeypatch):
+    import bench.run as br
+
+    monkeypatch.setattr(br, "DATA", tmp_path / "data")
+    monkeypatch.setattr(br, "RESULTS", tmp_path / "results")
+
+    prompts = []
+
+    class Recording(FakeCLI):
+        def complete_json(self, *, system, prompt, schema, stage):
+            prompts.append(prompt)
+            return super().complete_json(system=system, prompt=prompt, schema=schema, stage=stage)
+
+    monkeypatch.setattr(br, "ClaudeCLIAdapter", Recording)
+    br.run(60, 5, ["M"], 1, "fake", "h", None, ["dev"], ["D3"], hint=True)
+    assert any("Requested answer format" in p and "number = how many" in p for p in prompts)
+    meta = json.loads((tmp_path / "results" / "h" / "meta.json").read_text())
+    assert meta["hint"] == "same format hint for every system" and meta["eval_set"] == "v0"
+    with pytest.raises(SystemExit, match="eval_set"):  # a run keeps its condition
+        br.run(60, 5, ["M"], 1, "fake", "h", None, ["dev"], ["D3"], hint=False)
+
+
+def test_eval_set_v2_data():
+    from bench.render import memory_files
+
+    v0, v2 = generate(400, 7), generate(400, 7, version="v2")
+    assert v0.now != v2.now and v2.version == "v2"
+    aliases = [a for c in v2.companies for a in c.aliases]
+    assert len(aliases) == len(set(aliases)) and len(aliases) > sum(len(c.aliases) for c in v0.companies)
+    labelled = [a for a in v2.apps if a.company_label]
+    assert labelled and all(a.company_label in v2.company(a.company_id).aliases for a in labelled)
+    text = "\n".join(body for _, body, _ in memory_files(v2))
+    assert f"- 회사: {labelled[0].company_label} " in text  # written down under the other name
+    qs = build(v2)
+    assert {q.set for q in qs} == {"dev"} and len(qs) == 20  # unseen v2 questions: not delivered yet
+    assert generate(400, 7).apps[5].__dict__ == v0.apps[5].__dict__  # v0 unchanged by the v2 option
+
+
+def test_v2_reference_specs(tmp_path):
+    ds = generate(300, 11, version="v2")
+    led = to_ledger(ds, tmp_path / "v2.db")
+    keeper = Keeper(led, ScriptedLLM())
+    for q in build(ds):
+        ans = keeper.ask(q.text, spec=REF[q.id](q), now=ds.now)
+        ok, why = grade(q, to_answer(ans, q))
+        assert ok, f"{q.id}: {why}"
+    led.close()

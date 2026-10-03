@@ -40,6 +40,22 @@ def _prev_month(d: date) -> date:
 
 
 def build(ds: Dataset) -> list[Question]:
+    qs = _build_v0_shapes(ds)
+    if ds.version == "v2":
+        # evaluation set v2: every v0 question was seen during v1 development -> dev;
+        # unseen questions come from the directing agent (docs/eval/), added before measuring
+        for q in qs:
+            q.set = "dev"
+        qs += build_unseen_v2(ds)
+    return qs
+
+
+def build_unseen_v2(ds: Dataset) -> list[Question]:
+    """Unseen questions of evaluation set v2 — empty until the directing agent delivers them."""
+    return []
+
+
+def _build_v0_shapes(ds: Dataset) -> list[Question]:
     live = ds.live
     today = ds.now.date()
     qs: list[Question] = []

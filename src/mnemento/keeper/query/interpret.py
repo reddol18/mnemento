@@ -133,6 +133,7 @@ def interpret(
     tz: str,
     trace: Trace,
     max_attempts: int = 2,
+    hint: str | None = None,
 ) -> QuerySpec | Clarification:
     relevant = select_schemas(question, schemas)
     dictionary = render_dictionary(relevant, observed)
@@ -140,6 +141,8 @@ def interpret(
         f"Now: {now.isoformat()} ({tz}). Today is {now.date().isoformat()}.\n\n"
         f"Dictionary:\n{dictionary}\n\nQuestion: {question}"
     )
+    if hint:
+        base_prompt += f"\nRequested answer format (choose the spec whose result gives this): {hint}"
     out_schema = InterpretOutput.model_json_schema()
     errors: list[str] = []
     for attempt in range(1, max_attempts + 1):

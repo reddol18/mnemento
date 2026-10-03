@@ -59,8 +59,10 @@ def run_b1(q: Question, llm: ClaudeCLIAdapter, memdir: Path, today: str, tz: str
     return {"answer": r.data, "llm": [_usage_row(r.usage)], "wall_ms": r.usage.wall_ms}
 
 
-def run_m(q: Question, keeper: Keeper, now, narrate: bool = False) -> dict[str, Any]:
-    ans = keeper.ask(q.text, now=now, narrate=narrate)
+def run_m(q: Question, keeper: Keeper, now, narrate: bool = False, hint: bool = False) -> dict[str, Any]:
+    """hint=False: the v0 condition (M gets only the question); hint=True: M's interpreter gets the same
+    format hint as B0/B1 (evaluation condition of v1, task 0004 ③)."""
+    ans = keeper.ask(q.text, now=now, narrate=narrate, hint=q.format if hint else None)
     stored = ans.to_dict()  # kept so narration (Mn) can be added later without re-interpreting
     if stored.get("result") and stored["result"].get("rows"):
         stored["result"] = {**stored["result"], "rows": stored["result"]["rows"][:MAX_LISTED_IDS]}

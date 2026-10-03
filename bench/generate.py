@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Seoul")
 BENCH_NOW = datetime(2026, 11, 20, 12, 0, tzinfo=TZ)  # deliberately not the dev-demo date
+BENCH_NOW_V2 = datetime(2026, 12, 4, 12, 0, tzinfo=TZ)  # evaluation set v2: another date and seed
 
 PLATFORMS = [("saramin", 0.55), ("wanted", 0.25), ("groupby", 0.12), ("jobkorea", 0.08)]
 RATES = [("top10", 0.2), ("top30", 0.35), ("top50", 0.25), (None, 0.2)]
@@ -56,6 +57,7 @@ class App:
     correction_reason: str | None = None
     retracted: bool = False  # a duplicate entry that was retracted
     retraction_reason: str | None = None
+    company_label: str | None = None  # v2: the name this record was written down with (an alias)
 
     @property
     def applied_date(self) -> date:
@@ -77,6 +79,7 @@ class Dataset:
     now: datetime
     companies: list[Company]
     apps: list[App]  # includes retracted duplicates (flag), excluded from answers
+    version: str = "v0"
 
     @property
     def live(self) -> list[App]:
@@ -105,8 +108,17 @@ def _company_name(rng: random.Random, used: set[str]) -> tuple[str, str]:
             return base, suffix
 
 
-def generate(scale: int, seed: int = 20261120, now: datetime = BENCH_NOW) -> Dataset:
+def generate(scale: int, seed: int = 20261120, now: datetime | None = None, version: str = "v0") -> Dataset:
+    """version v0: the frozen v0 evaluation data (unchanged). v2: aliases unique across companies,
+    more companies with an alias, and some records written down under the alias instead of the
+    registered name (tests grouping by company). v2 draws its extra choices from a separate random
+    stream, so the v0 sequence is untouched."""
+    if version not in ("v0", "v2"):
+        raise ValueError(version)
+    now = now or (BENCH_NOW if version == "v0" else BENCH_NOW_V2)
     rng = random.Random(f"{seed}:{scale}")
+    rng2 = random.Random(f"{seed}:{scale}:v2")
+    used_aliases: set[str] = set()
     n_companies = max(20, scale // 3)
     used: set[str] = set()
     companies = []
@@ -117,6 +129,16 @@ def generate(scale: int, seed: int = 20261120, now: datetime = BENCH_NOW) -> Dat
         aliases = []
         if rng.random() < 0.3:
             aliases.append(f"{rng.choice(_EN)}{rng.choice(_EN).lower()} {_EN_SUFFIX[suffix]}")
+        if version == "v2":
+            aliases = [a for a in aliases if a not in used_aliases]
+            if not aliases and rng2.random() < 0.3:  # about half of the companies get an alias
+                aliases = [""]
+            if aliases:
+                alias = aliases[0]
+                while not alias or alias in used_aliases:
+                    alias = f"{rng2.choice(_EN)}{rng2.choice(_EN).lower()} {_EN_SUFFIX[suffix]}"
+                aliases = [alias]
+            used_aliases.update(aliases)
         companies.append(Company(f"co_{i:05d}", name, base, aliases))
 
     span_days = max(45, scale // 8)
@@ -146,6 +168,10 @@ def generate(scale: int, seed: int = 20261120, now: datetime = BENCH_NOW) -> Dat
                         app.events.append(StatusEvent("rejected", outcome_at))
                     elif r < 0.55:
                         app.events.append(StatusEvent("passed", outcome_at))
+        if version == "v2":
+            company = companies[int(app.company_id[3:])]
+            if company.aliases and rng2.random() < 0.3:
+                app.company_label = company.aliases[0]
         apps.append(app)
         if rng.random() < 0.02:  # first recorded with the wrong date, corrected later
             app.recorded_applied_date = app.applied_date - timedelta(days=1)
@@ -155,4 +181,4 @@ def generate(scale: int, seed: int = 20261120, now: datetime = BENCH_NOW) -> Dat
         dup = App(id=f"app_dup{j:04d}", company_id=src.company_id, platform=src.platform, applied=src.applied,
                   rate=src.rate, reason=src.reason, retracted=True, retraction_reason=f"{src.id}와 중복 기록")
         apps.append(dup)
-    return Dataset(seed, scale, now, companies, apps)
+    return Dataset(seed, scale, now, companies, apps, version)

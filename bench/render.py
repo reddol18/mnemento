@@ -73,11 +73,12 @@ def _company_file(c: Company) -> tuple[str, str, str]:
 
 
 def _app_file(a: App, c: Company) -> tuple[str, str, str]:
+    shown = a.company_label or c.name  # v2: some records were written with the company's other name
     fname = f"application_{a.id}.md"
     shown_date = a.recorded_applied_date or a.applied_date
     status = "무효(중복 기록, 철회됨)" if a.retracted else STATUS_KO[a.status]
     lines = [
-        f"- 회사: {c.name} (company_{c.id}.md)",
+        f"- 회사: {shown} (company_{c.id}.md)",
         f"- 플랫폼: {PLATFORM_KO[a.platform]}",
         f"- 지원 시각: {a.applied.strftime('%Y-%m-%d %H:%M')} (KST)",
         f"- 지원일: {a.applied_date.isoformat()}",
@@ -94,7 +95,7 @@ def _app_file(a: App, c: Company) -> tuple[str, str, str]:
                      f"(이유: {a.correction_reason})")
     if a.retracted:
         lines.append(f"- 철회: 이 기록은 무효 (이유: {a.retraction_reason})")
-    desc = f"{a.applied_date.isoformat()} {PLATFORM_KO[a.platform]} 지원 — {c.name}, {status}"
+    desc = f"{a.applied_date.isoformat()} {PLATFORM_KO[a.platform]} 지원 — {shown}, {status}"
     body = (f"---\nname: application-{a.id}\ndescription: {desc}\nmetadata:\n  type: project\n---\n\n"
             + "\n".join(lines) + "\n")
     return fname, body, desc
