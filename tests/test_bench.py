@@ -91,6 +91,40 @@ REF["H2"] = lambda q: {"entity_type": "application", "mode": "aggregate", "group
                                      "where": [{"field": "status", "op": "eq", "value": "passed"}]}]}
 NOT_EXPRESSIBLE: set[str] = set()
 
+# evaluation set v2 unseen questions (docs/eval/unseen-v2.md), hand-written references only — no system is
+# run on these questions before the measurement
+REF.update({
+    "V1": lambda q: {"entity_type": "application", "mode": "count", "filters": [
+        {"field": "platform", "op": "eq", "value": "groupby"},
+        {"field": "applied_at", "op": "gte", "value": "@last_month_start"},
+        {"field": "applied_at", "op": "lt", "value": "@this_month_start"},
+        {"field": "status", "op": "reached", "value": "viewed"}]},
+    "V2": lambda q: {"entity_type": "application", "mode": "list", "limit": 1000, "filters": [
+        {"field": "company_id", "op": "name_is", "value": q.text.split("에 지원한")[0]}]},
+    "V3": lambda q: {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "company_id"}],
+                     "measures": [{"name": "viewed", "agg": "count_if",
+                                   "where": [{"field": "status", "op": "reached", "value": "viewed"}]}],
+                     "having": [{"measure": "count", "op": "gte", "value": 2},
+                                {"measure": "viewed", "op": "eq", "value": 0}]},
+    "V4": lambda q: {"entity_type": "application", "mode": "list", "limit": 5, "descending": True,
+                     "filters": [{"field": "status", "op": "reached", "value": "viewed"}],
+                     "order_by_event": {"kind": "status_changed", "to": "viewed"}},
+    "V5": lambda q: {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "platform"}],
+                     "measures": [{"name": "rejected", "agg": "count_if",
+                                   "where": [{"field": "status", "op": "eq", "value": "rejected"}]}]},
+    "V6": lambda q: {"entity_type": "application", "mode": "count", "filters": [
+        {"field": "status", "op": "in", "value": ["applied", "viewed"]},
+        {"field": "applied_at", "op": "gte", "value": "2026-11-23"},
+        {"field": "applied_at", "op": "lte", "value": "2026-11-29"}]},
+    "V7": lambda q: {"entity_type": "application", "mode": "list", "limit": 1000,
+                     "filters": [{"field": "status", "op": "eq", "value": "withdrawn"}]},
+    "V8": lambda q: {"entity_type": "application", "mode": "list", "filters": [
+        {"field": "platform", "op": "eq", "value": "jobkorea"}, {"field": "status", "op": "eq", "value": "passed"}]},
+    "V9": lambda q: {"entity_type": "application", "mode": "count", "filters": [
+        {"field": "viewed_at", "op": "gte", "value": "@this_week_start-1w"},
+        {"field": "viewed_at", "op": "lte", "value": "@today-1d"}]},
+})
+
 
 @pytest.fixture(scope="module", params=[(120, 1), (400, 7)], ids=["n120", "n400"])
 def world(request, tmp_path_factory):
@@ -340,7 +374,8 @@ def test_eval_set_v2_data():
     text = "\n".join(body for _, body, _ in memory_files(v2))
     assert f"- 회사: {labelled[0].company_label} " in text  # written down under the other name
     qs = build(v2)
-    assert {q.set for q in qs} == {"dev"} and len(qs) == 20  # unseen v2 questions: not delivered yet
+    assert [q.id for q in qs if q.set == "dev"] == [q.id for q in build(v0)]  # all 20 v0 questions are dev
+    assert {q.id for q in qs if q.set == "unseen"} <= {f"V{i}" for i in range(1, 10)}
     assert generate(400, 7).apps[5].__dict__ == v0.apps[5].__dict__  # v0 unchanged by the v2 option
 
 
@@ -353,3 +388,60 @@ def test_v2_reference_specs(tmp_path):
         ok, why = grade(q, to_answer(ans, q))
         assert ok, f"{q.id}: {why}"
     led.close()
+
+
+@pytest.mark.parametrize("scale,seed", [(300, 11), (1500, 3)])
+def test_unseen_v2_answer_keys(tmp_path, scale, seed):
+    """Answer keys of V1-V9 against hand-written reference specs (no system run on the questions)."""
+    ds = generate(scale, seed, version="v2")
+    qs = {q.id: q for q in build(ds) if q.set == "unseen"}
+    assert {"V1", "V3", "V4", "V5", "V6", "V7", "V8", "V9"} <= set(qs)  # V2 may be excluded at a scale
+    led = to_ledger(ds, tmp_path / "u.db")
+    keeper = Keeper(led, ScriptedLLM())
+    for q in qs.values():
+        ans = keeper.ask(q.text, spec=REF[q.id](q), now=ds.now)
+        ok, why = grade(q, to_answer(ans, q))
+        assert ok, f"{q.id}: {why}"
+    led.close()
+
+
+def test_unseen_v2_rules():
+    ds = generate(1500, 3, version="v2")
+    qs = {q.id: q for q in build(ds)}
+    v2 = qs["V2"]
+    c = next(c for c in ds.companies if c.normalized == v2.text.split("에 지원한")[0])
+    labels = [a.company_label for a in ds.live if a.company_id == c.id]
+    assert any(labels) and not all(labels)  # some records under the alias, some under the registered name
+    assert "(주)" not in v2.text and "주식회사" not in v2.text
+    import dataclasses
+    other_day = dataclasses.replace(ds, now=ds.now.replace(day=5))
+    assert "V6" not in {q.id for q in build(other_day)}  # fixed November dates: only for 2026-12-04
+
+
+def test_v2_plan_steps_reps_seed_and_whole_run_budget(tmp_path, monkeypatch):
+    import bench.run as br
+
+    monkeypatch.setattr(br, "DATA", tmp_path / "data")
+    monkeypatch.setattr(br, "RESULTS", tmp_path / "results")
+
+    class Costly(FakeCLI):
+        def complete_json(self, **kw):
+            r = super().complete_json(**kw)
+            r.usage.cost_usd = 0.1
+            return r
+
+    monkeypatch.setattr(br, "ClaudeCLIAdapter", Costly)
+    FakeCLI.calls, FakeCLI.fail = [], False
+    monkeypatch.setitem(br.PLANS, "t2", {"description": "t", "reps": 2, "questions": ["D1", "D3"],
+                                         "steps": [(60, ["B0"]), (60, ["B1"], 1)], "eval_set": "v2",
+                                         "hint": True, "seed": 9})
+    br.run_plan("t2", "p", "fake", None, 5)
+    rows = br._load_rows(tmp_path / "results" / "p" / "results.jsonl")
+    assert sorted({(k[1], k[3]) for k in rows}) == [("B0", 0), ("B0", 1), ("B1", 0)]  # B1 step: 1 repetition
+    meta = json.loads((tmp_path / "results" / "p" / "meta.json").read_text())
+    assert meta["seed"] == 9 and meta["eval_set"] == "v2"
+    assert abs(br._run_cost("p") - 0.6) < 1e-9  # 6 calls x $0.1
+    # resuming with more questions: the cap includes what the run already spent
+    monkeypatch.setitem(br.PLANS["t2"], "questions", ["D1", "D3", "U1"])
+    with pytest.raises(br.BudgetExceeded):
+        br.run_plan("t2", "p", "fake", None, 5, max_cost=0.65)

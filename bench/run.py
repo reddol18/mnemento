@@ -190,6 +190,16 @@ PLANS = {
         "steps": [(100, ["M"]), (1000, ["M"])],
         "eval_set": "v0", "hint": False,
     },
+    # evaluation set v2 (task 0004 ③): own seed and date, dev 20 + unseen 9 questions, the same format
+    # hint for every system; steps may carry their own repetition count
+    "v2": {
+        "description": "Eval set v2: dev 20 + unseen 9 questions, same format hint for every system, "
+                       "3 repetitions (B1 at 10,000: 1)",
+        "reps": 3,
+        "questions": None,  # all questions of the evaluation set
+        "steps": [(100, ["B0", "B1", "M"]), (1000, ["B1", "M"]), (10000, ["M"]), (10000, ["B1"], 1)],
+        "eval_set": "v2", "hint": True, "seed": 20261204,
+    },
 }
 
 
@@ -340,11 +350,28 @@ def narrate_m_row(m_row: dict, pipeline: QueryPipeline) -> dict:
 def run_plan(plan: str, run_id: str, model: str, thinking: int | None, seed: int,
              max_cost: float | None = None) -> None:
     p = PLANS[plan]
-    for scale, systems in p["steps"]:
-        print(f"== {plan}: n={scale} systems={','.join(systems)} reps={p['reps']}", flush=True)
-        run(scale, seed, systems, p["reps"], model, run_id, thinking, ["dev", "unseen"], p["questions"], plan,
-            p.get("eval_set", "v0"), p.get("hint", False), max_cost)
+    seed = p.get("seed", seed)
+    spent_before = _run_cost(run_id)  # the cap covers the whole run, across resumed sessions
+    for step in p["steps"]:
+        scale, systems = step[0], step[1]
+        reps = step[2] if len(step) > 2 else p["reps"]
+        print(f"== {plan}: n={scale} systems={','.join(systems)} reps={reps}", flush=True)
+        budget = None if max_cost is None else max_cost - spent_before
+        run(scale, seed, systems, reps, model, run_id, thinking, ["dev", "unseen"], p["questions"], plan,
+            p.get("eval_set", "v0"), p.get("hint", False), budget)
+        spent_before = _run_cost(run_id)
     print(f"== {plan} complete. Report: uv run python -m bench.report --run {run_id}", flush=True)
+
+
+def _run_cost(run_id: str) -> float:
+    """List-price cost recorded in a run so far (Mn rows count only their narration call)."""
+    rows = _load_rows(RESULTS / run_id / "results.jsonl")
+    total = 0.0
+    for r in rows.values():
+        calls = r.get("llm", [])[-1:] if r["system"] == "Mn" and r.get("narration") else (
+            [] if r["system"] == "Mn" else r.get("llm", []))
+        total += sum((u.get("cost_usd") or 0) for u in calls)
+    return total
 
 
 def calibrate(model: str, out: Path) -> dict:

@@ -6,6 +6,7 @@ Every system returns the same answer object (ANSWER_SCHEMA). Rules (fixed before
 - rate_groups:  every expected (period, category) group with n>0 present (period ignored when the key
                 has none) with value within 0.02, and the expected flags set
 - ids alternatives: a listed alternative id set (another accepted reading) also counts
+- ids None: the correct set is not well defined (a tie at a cut-off) -> the number alone is graded
 - count_groups: every expected category with n and value exact
 """
 
@@ -77,7 +78,7 @@ def grade(q: Question, ans: dict[str, Any] | None) -> tuple[bool, str]:
         targets = [exp["number"], *exp.get("alternatives", [])]
         if not any(abs(float(num) - float(t)) <= tol + 1e-9 for t in targets):
             return False, f"number {num} != {exp['number']}"
-        if q.grader == "ids" and len(exp["ids"]) <= MAX_LISTED_IDS:
+        if q.grader == "ids" and exp.get("ids") is not None and len(exp["ids"]) <= MAX_LISTED_IDS:
             got = set(ans.get("ids") or [])
             if any(got == set(alt) for alt in exp.get("alt_ids", [])):
                 return True, "ok (alternative reading)"
