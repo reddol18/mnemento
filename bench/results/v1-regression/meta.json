@@ -1,0 +1,14 @@
+{
+ "run": "v1-regression",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20261120,
+ "frozen_hash": "59a900c40484eb4b",
+ "git": "e925f2c0ad2855cc371d42a9e22dd3bd518a5de2+dirty",
+ "started": "2026-10-03T21:11:58.850413+09:00",
+ "adapter": "claude-cli",
+ "plan": "v1-regression",
+ "plan_description": "v1 regression: M only, v0 evaluation set and condition, 12 questions, 1 repetition",
+ "eval_set": "v0",
+ "hint": "B0/B1 format hint, M question only (v0 condition)"
+}

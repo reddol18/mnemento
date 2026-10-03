@@ -1,0 +1,37 @@
+== v1-regression: n=100 systems=M reps=1
+n=100 M  D1 rep0: OK  ok                                                0.0s in=0
+n=100 M  D2 rep0: OK  ok                                                0.0s in=0
+n=100 M  D3 rep0: OK  ok                                               11.1s in=4700
+n=100 M  D4 rep0: OK  ok                                               31.9s in=4723
+n=100 M  U1 rep0: OK  ok                                               13.4s in=4703
+n=100 M  U2 rep0: OK  ok                                                6.1s in=4708
+n=100 M  U3 rep0: OK  ok                                                6.5s in=4713
+n=100 M  U4 rep0: OK  ok                                               19.6s in=4714
+n=100 M  H1 rep0: OK  ok (alternative reading)                         38.3s in=4722
+n=100 M  H2 rep0: BAD None/saramin: 0.32 != 0.10                       13.8s in=4724
+n=100 M  H3 rep0: BAD no number                                        65.2s in=9464
+n=100 M  H4 rep0: OK  ok                                               16.6s in=4727
+== v1-regression: n=1000 systems=M reps=1
+n=1000 M  D1 rep0: OK  ok                                                0.0s in=0
+n=1000 M  D2 rep0: OK  ok                                                0.1s in=0
+n=1000 M  D3 rep0: OK  ok                                               19.5s in=4700
+n=1000 M  D4 rep0: BAD missing group 2026-10/top10                      17.8s in=4724
+n=1000 M  U1 rep0: OK  ok                                                8.9s in=4705
+n=1000 M  U2 rep0: OK  ok                                                6.3s in=4709
+n=1000 M  U3 rep0: OK  ok                                                6.4s in=4712
+n=1000 M  U4 rep0: OK  ok                                                8.8s in=4714
+n=1000 M  H1 rep0: OK  ok (alternative reading)                         39.3s in=4721
+n=1000 M  H2 rep0: OK  ok                                               21.3s in=4725
+n=1000 M  H3 rep0: OK  ok                                               48.3s in=9464
+n=1000 M  H4 rep0: OK  ok                                               17.0s in=4727
+== v1-regression complete. Report: uv run python -m bench.report --run v1-regression
+exit=0
+Model `haiku` via Claude Code CLI · run `v1-regression` · frozen `59a900c40484eb4b` · git `e925f2c0ad2855cc371d42a9e22dd3bd518a5de2+dirty`
+
+**v1 regression: M only, v0 evaluation set and condition, 12 questions, 1 repetition.**
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) |
+|---|---|---|---|---|---|---|---|---|---|
+| 100 | M Mnemento (template answer) | 4/4 (100%) | 6/8 (75%) | 18.5 / 38.3 | 16.9 / 36.7 | 0.92 | 4,325 (2,009) | 1,935 | 0.0183 |
+| 1,000 | M Mnemento (template answer) | 3/4 (75%) | 8/8 (100%) | 16.1 / 39.3 | 14.5 / 37.7 | 0.92 | 4,325 (2,010) | 1,706 | 0.0172 |
+

@@ -542,3 +542,15 @@ def test_order_by_event_time(demo):
 def test_having_and_event_order_validation(demo, spec, needle):
     errs = validate_spec(QuerySpec.model_validate(spec), schemas_of(demo))
     assert any(needle in e for e in errs), errs
+
+
+def test_measure_names_may_be_korean(demo):
+    # regression (v1-regression H3): the model named measures in Korean and validation rejected them
+    spec = {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "platform"}],
+            "measures": [{"name": "지원수", "agg": "count"}], "having": [{"measure": "지원수", "op": "gte", "value": 3}]}
+    ans = keeper(demo)[0].ask("두 번 이상?", spec=spec, now=NOW)
+    assert ans.status == "answered" and {g["group"]["platform"] for g in ans.result["groups"]} == {"saramin", "wanted"}
+    assert "지원수" not in ans.sql  # names never reach SQL
+    bad = QuerySpec.model_validate({"entity_type": "application", "mode": "aggregate",
+                                    "measures": [{"name": "x; DROP", "agg": "count"}]})
+    assert any("short word" in e for e in validate_spec(bad, schemas_of(demo)))

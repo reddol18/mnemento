@@ -151,8 +151,10 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         if m.name in names:
             errs.append(f"{where}: duplicate measure name {m.name!r}")
         names.add(m.name)
-        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]{0,40}$", m.name):
-            errs.append(f"{where}: measure name must be an identifier")
+        # names label result columns only (SQL uses positional aliases m0, m1 ...), so any language
+        # works: Korean names from the model are fine
+        if not re.match(r"^[^\W\d]\w{0,40}$", m.name):
+            errs.append(f"{where}: measure name must be a short word (letters, digits, _), got {m.name!r}")
         if m.agg == "count_if" and not m.where:
             errs.append(f"{where}: count_if needs `where`")
         for j, wf in enumerate(m.where):
