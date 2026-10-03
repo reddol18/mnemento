@@ -1,0 +1,48 @@
+[
+ {
+  "scale": 100,
+  "system": "M",
+  "n": 12,
+  "dev": [
+   4,
+   4
+  ],
+  "unseen": [
+   7,
+   8
+  ],
+  "time_mean": 12.906216666666666,
+  "time_p95": 25.6181,
+  "time_mean_no_overhead": 11.285549999999999,
+  "time_p95_no_overhead": 23.8859,
+  "llm_calls_per_q": 0.9166666666666666,
+  "in_per_q": 4324.666666666667,
+  "in_per_q_no_overhead": 2009.1666666666667,
+  "cache_read_per_q": 0.0,
+  "out_per_q": 1314.5,
+  "cost_per_q": 0.015212666666666666
+ },
+ {
+  "scale": 1000,
+  "system": "M",
+  "n": 12,
+  "dev": [
+   3,
+   4
+  ],
+  "unseen": [
+   8,
+   8
+  ],
+  "time_mean": 13.7863,
+  "time_p95": 29.0177,
+  "time_mean_no_overhead": 12.323616666666668,
+  "time_p95_no_overhead": 27.4156,
+  "llm_calls_per_q": 0.8333333333333334,
+  "in_per_q": 3929.25,
+  "in_per_q_no_overhead": 1824.25,
+  "cache_read_per_q": 0.0,
+  "out_per_q": 1434.5833333333333,
+  "cost_per_q": 0.015023083333333333
+ }
+]
