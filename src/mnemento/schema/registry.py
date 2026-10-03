@@ -21,7 +21,8 @@ class SchemaRegistry:
     def register(self, definition: SchemaDef | dict[str, Any]) -> SchemaDef:
         """Register a new schema or a new version of an existing one.
 
-        - First registration must be version 1.
+        - The first registration starts the history at whatever version the definition has (a new
+          database can begin from the current definition).
         - A new version must be exactly latest + 1 and contain only additive changes;
           destructive changes raise BreakingSchemaChangeError (migration tooling is v2).
         - Re-registering a definition identical to the latest version is a no-op.
@@ -29,10 +30,7 @@ class SchemaRegistry:
         schema = definition if isinstance(definition, SchemaDef) else SchemaDef.from_dict(definition)
         with self._storage.transaction():
             latest = self.get(schema.name) if schema.name in self.names() else None
-            if latest is None:
-                if schema.version != 1:
-                    raise SchemaDefinitionError(f"{schema.name}: first version must be 1")
-            else:
+            if latest is not None:
                 if schema.to_dict() == latest.to_dict():
                     return latest
                 if schema.version != latest.version + 1:

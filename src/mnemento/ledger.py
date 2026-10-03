@@ -34,6 +34,9 @@ class Ledger:
         self.storage = storage
         self.tz = tz
         self.schemas = SchemaRegistry(storage, tz)
+        if storage.needs_rebuild:  # derived columns were added: recompute them from the events
+            self.rebuild_all()
+            storage.needs_rebuild = False
 
     @classmethod
     def open(cls, path: str | Path = ":memory:", tz: str = DEFAULT_TZ) -> "Ledger":

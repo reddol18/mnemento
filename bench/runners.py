@@ -87,6 +87,9 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
     mode = res.get("mode")
     if mode in ("count", "list"):
         out["number"] = res["total"]
+        rows_shown = len(res.get("rows") or [])
+        if mode == "list" and "limit" in (ans.spec or {}) and rows_shown < res["total"]:
+            out["number"] = rows_shown  # an explicit limit ("the latest three") answers with what is shown
         rows = res.get("rows") or []
         if rows and "entity_id" in rows[0]:  # events: report the records they belong to
             out["ids"] = list(dict.fromkeys(r["entity_id"] for r in rows))[:MAX_LISTED_IDS]
@@ -115,4 +118,7 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
             out["number"] = round(sum(n * v for n, v in pairs) / sum(n for n, _ in pairs), 4)
     elif not groups or len(groups) == 1 and not keys:
         out["number"] = res["total"]
+    if (ans.spec or {}).get("having"):  # "which groups satisfy ..." -> the groups themselves
+        first = [next(iter(g["group"].values()), None) for g in groups]
+        out["number"], out["ids"] = len(groups), [k for k in first if k is not None][:MAX_LISTED_IDS]
     return out

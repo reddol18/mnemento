@@ -34,7 +34,8 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 FIELD_TYPES = {"string", "integer", "number", "boolean", "array"}
 ITEM_TYPES = {"string", "integer", "number", "boolean"}
 FORMATS = {"date", "date-time"}
-_FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels"}
+_FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
+               "implies"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field"}
 
 FORMAT_CHECKER = FormatChecker(formats=())
@@ -54,6 +55,7 @@ class FieldDef:
     items: str | None = None  # item type for arrays
     ref: str | None = None  # this field holds the id of an entity of type `ref`
     labels: dict[str, tuple[str, ...]] | None = None  # enum value -> natural-language synonyms
+    implies: dict[str, tuple[str, ...]] | None = None  # status -> earlier statuses it passed through
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"type": self.type, "description": self.description}
@@ -63,6 +65,8 @@ class FieldDef:
             d["enum"] = list(self.enum)
         if self.labels:
             d["labels"] = {k: list(v) for k, v in self.labels.items()}
+        if self.implies:
+            d["implies"] = {k: list(v) for k, v in self.implies.items()}
         if self.format:
             d["format"] = self.format
         if self.ref:
@@ -274,4 +278,10 @@ def _parse_field(schema_name: str, fname: str, fdef: Any) -> FieldDef:
         if not all(isinstance(v, list) and all(isinstance(s, str) and s for s in v) for v in labels.values()):
             raise SchemaDefinitionError(f"{where}: labels values must be lists of strings")
         labels = {k: tuple(v) for k, v in labels.items()}
-    return FieldDef(fname, ftype, description, enum, fmt, required, indexed, items, ref, labels)
+    implies = fdef.get("implies")
+    if implies is not None:
+        if enum is None or not isinstance(implies, dict) or set(implies) - set(enum) or not all(
+                isinstance(v, list) and set(v) <= set(enum) for v in implies.values()):
+            raise SchemaDefinitionError(f"{where}: implies must map enum values to lists of enum values")
+        implies = {k: tuple(v) for k, v in implies.items()}
+    return FieldDef(fname, ftype, description, enum, fmt, required, indexed, items, ref, labels, implies)

@@ -424,3 +424,121 @@ def test_narration_off_by_default(demo):
     k, llm = keeper(demo)
     ans = k.ask("Q4 plain", spec=Q4_SPEC, now=NOW)
     assert llm.calls == [] and ans.text.startswith("Interpretation:")
+
+
+# ---- reached: history, not current state (ADR-0012) -----------------------------------------
+
+def test_reached_counts_records_that_moved_on(demo):
+    # demo: viewed ever = s01(rejected) s02 s03(passed) s07 s08(rejected) s09 s10 o01 o02 o03 -> 10
+    spec = {"entity_type": "application", "mode": "count",
+            "filters": [{"field": "status", "op": "reached", "value": "viewed"}]}
+    ans = keeper(demo)[0].ask("열람된 적 있는 지원 몇 개?", spec=spec, now=NOW)
+    assert ans.result["total"] == 10
+    assert {"app_s01", "app_s03", "app_s08"} <= set(ans.evidence)  # moved on after viewing
+    current = {**spec, "filters": [{"field": "status", "op": "eq", "value": "viewed"}]}
+    assert keeper(demo)[0].ask("지금 열람 상태 몇 개?", spec=current, now=NOW).result["total"] == 7
+
+
+def test_reached_follows_implies_and_corrections(tmp_path):
+    from mnemento import Ledger
+    from mnemento.demo import SCHEMA_DIR
+
+    led = Ledger.open(tmp_path / "r.db")
+    led.schemas.load_dir(SCHEMA_DIR)
+    t = "2026-10-01T10:00:00+09:00"
+    doc = {"company_id": "co_x", "platform": "saramin", "status": "applied", "applied_at": "2026-10-01"}
+    led.record_event("a1", "created", doc, t, "a", entity_type="application")
+    led.record_event("a1", "status_changed", {"to": "passed"}, "2026-10-02T10:00:00+09:00", "a")  # no viewed event
+    led.record_event("a2", "created", doc, t, "a", entity_type="application")
+    wrong = led.record_event("a2", "status_changed", {"to": "viewed"}, "2026-10-02T10:00:00+09:00", "a")
+    led.record_event("a2", "retracted", {"target": wrong.id}, "2026-10-03T10:00:00+09:00", "a", "wrong record")
+    k = Keeper(led, ScriptedLLM())
+    spec = {"entity_type": "application", "mode": "list",
+            "filters": [{"field": "status", "op": "reached", "value": "viewed"}]}
+    ans = k.ask("열람된 지원?", spec=spec, now=NOW)
+    assert ans.evidence == ["a1"]  # passed implies viewed; a2's view was retracted
+    assert led.get_entity("a2").reached == ["applied"]
+    led.close()
+
+
+def test_reached_validation(demo):
+    bad = QuerySpec.model_validate({"entity_type": "application", "mode": "count",
+                                    "filters": [{"field": "platform", "op": "reached", "value": "saramin"}]})
+    assert any("only works on the status field" in e for e in validate_spec(bad, schemas_of(demo)))
+    bad = QuerySpec.model_validate({"entity_type": "application", "mode": "count",
+                                    "filters": [{"field": "status", "op": "reached", "value": "opened"}]})
+    assert any("not allowed" in e for e in validate_spec(bad, schemas_of(demo)))
+
+
+def test_interpreter_is_told_about_history(demo):
+    good = {"entity_type": "application", "mode": "count",
+            "filters": [{"field": "status", "op": "reached", "value": "viewed"}]}
+    k, llm = keeper(demo, query_out(good))
+    k.ask("열람된 적 있는 지원은 몇 건이야?", now=NOW)
+    assert "passed implies it went through viewed" in llm.calls[0]["prompt"]
+    assert 'op "reached"' in llm.calls[0]["system"]
+
+
+def test_old_database_gets_reached_rebuilt(tmp_path):
+    import sqlite3
+
+    from mnemento import Ledger
+    from mnemento.demo import seed
+
+    path = tmp_path / "old.db"
+    led = Ledger.open(path)
+    seed(led)
+    led.close()
+    con = sqlite3.connect(path)  # simulate a database created before ADR-0012
+    con.execute("ALTER TABLE entities DROP COLUMN reached")
+    con.commit()
+    con.close()
+    led = Ledger.open(path)
+    assert "viewed" in led.get_entity("app_s01").reached  # recomputed from events on open
+    led.close()
+
+
+# ---- having / order_by_event (task 0004 ②) --------------------------------------------------
+
+def test_having_filters_groups(demo):
+    spec = {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "platform"}],
+            "having": [{"measure": "count", "op": "gte", "value": 3}]}
+    ans = keeper(demo)[0].ask("3번 이상 지원한 플랫폼?", spec=spec, now=NOW)
+    groups = {g["group"]["platform"]: g["n"] for g in ans.result["groups"]}
+    assert groups == {"saramin": 22, "wanted": 5}  # groupby (1) filtered out
+    assert ans.sql.endswith("HAVING _n >= ? ORDER BY g0") and ans.params[-1] == 3
+
+
+def test_having_on_a_measure(demo):
+    spec = {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "expected_rate"}],
+            "measures": [{"name": "viewed", "agg": "count_if", "where": [{"field": "viewed_at", "op": "exists"}]}],
+            "having": [{"measure": "viewed", "op": "gt", "value": 3}]}
+    ans = keeper(demo)[0].ask("열람 3건 넘는 등급?", spec=spec, now=NOW)
+    assert {g["group"]["expected_rate"] for g in ans.result["groups"]} == {"top10", "top30"}
+
+
+def test_order_by_event_time(demo):
+    spec = {"entity_type": "application", "mode": "list", "limit": 2, "descending": True,
+            "filters": [{"field": "status", "op": "reached", "value": "viewed"}],
+            "order_by_event": {"kind": "status_changed", "to": "viewed"}}
+    ans = keeper(demo)[0].ask("가장 최근에 열람된 두 곳?", spec=spec, now=NOW)
+    assert [r["id"] for r in ans.result["rows"]] == ["app_o03", "app_o01"]  # 10/3, then the 10/2 tie by id
+    assert "MAX(ev.at_utc)" in ans.sql
+
+
+@pytest.mark.parametrize(
+    "spec,needle",
+    [
+        ({"entity_type": "application", "mode": "aggregate",
+          "having": [{"measure": "count", "op": "gte", "value": 2}]}, "having requires group_by"),
+        ({"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "platform"}],
+          "having": [{"measure": "nope", "op": "gte", "value": 2}]}, "unknown measure"),
+        ({"entity_type": "application", "mode": "count",
+          "order_by_event": {"kind": "status_changed", "to": "viewed"}}, "list mode"),
+        ({"entity_type": "application", "mode": "list",
+          "order_by_event": {"kind": "status_changed", "to": "opened"}}, "not allowed"),
+    ],
+)
+def test_having_and_event_order_validation(demo, spec, needle):
+    errs = validate_spec(QuerySpec.model_validate(spec), schemas_of(demo))
+    assert any(needle in e for e in errs), errs

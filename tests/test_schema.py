@@ -108,9 +108,11 @@ def test_reregister_identical_is_noop(reg):
     assert [r.version for r in reg.history("note")] == [1]
 
 
-def test_first_version_must_be_1(reg):
-    with pytest.raises(SchemaDefinitionError):
-        reg.register({**BASE, "version": 2})
+def test_first_registration_starts_history_at_its_version(reg):
+    reg.register({**BASE, "version": 2})  # a new database may begin from the current definition
+    assert [r.version for r in reg.history("note")] == [2]
+    with pytest.raises(SchemaDefinitionError):  # but later versions must still follow on
+        reg.register({**v2(), "version": 4, "description": "changed"})
 
 
 def test_additive_bump_keeps_history(reg):

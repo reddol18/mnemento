@@ -55,6 +55,9 @@ Rules:
   @this_month_start, @last_month_start, @this_year_start (offsets like +7d, -1m allowed).
   Prefer tokens for words like today/yesterday/this month/last month.
 - To filter a reference field (one with "ref") by the referenced record's name, use op "name_is" with the name.
+- Current state vs history: op "eq"/"in" on status tests the CURRENT status only. Whether a record EVER
+  reached a status ("was viewed", "got to", "ever", "~된 적", "~까지 간", "열람된 지원") uses op "reached"
+  on status — e.g. viewed-then-rejected records count as "viewed".
 - mode: "count" for how-many, "list" for which/what records, "aggregate" for grouped numbers,
   comparisons and rates (use group_by + measures; count_if with `where` for "how many of them ...").
 - For comparisons over time ("last time", "before", "again", "지난번", "예전에도"), do NOT ask which period:
@@ -73,6 +76,9 @@ def _render_field(name: str, fd, observed: list[str] | None) -> str:
     if fd.ref:
         bits.append(f"ref {fd.ref} (id; filter by name with name_is)")
     line = f"  - {name} ({', '.join(bits)}): {fd.description}"
+    if fd.implies:
+        line += "\n      history: " + "; ".join(f"{k} implies it went through {', '.join(v)}"
+                                         for k, v in fd.implies.items()) + " (use op reached)"
     if fd.enum:
         labels = fd.labels or {}
         vals = [f"{v}" + (f" [{'/'.join(labels[v])}]" if v in labels else "") for v in fd.enum]

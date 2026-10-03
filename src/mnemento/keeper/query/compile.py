@@ -82,6 +82,14 @@ class Compiler:
             self.params.append("%" + str(v).replace("\\", "\\\\").replace("%", "\\%")
                                .replace("_", "\\_") + "%")
             return f"{c} LIKE ? ESCAPE '\\'"
+        if op == "reached":
+            # ever had the status (or a later one that implies it), from the replayed history (ADR-0012)
+            wanted = set(v if isinstance(v, list) else [v])
+            for later, earlier in (fd.implies or {}).items():
+                if wanted & set(earlier):
+                    wanted.add(later)
+            marks = ", ".join(self.bind(f.field, x) for x in sorted(wanted))
+            return f"EXISTS (SELECT 1 FROM json_each(entities.reached) WHERE json_each.value IN ({marks}))"
         if op == "name_is":
             raise ValueError("name_is filters must be resolved to ids before compiling")
         sql_op = {"eq": "=", "ne": "IS NOT", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}[op]
@@ -104,10 +112,16 @@ class Compiler:
         self.params = []
 
         if spec.mode == "list":
-            order = self._order(spec, default=self.default_order)
+            if spec.order_by_event is not None:
+                direction = "DESC" if spec.descending else "ASC"
+                when = self._event_time(spec.order_by_event, "MAX" if spec.descending else "MIN")
+                order = f"{when} {direction}, id"
+            else:
+                order = self._order(spec, default=self.default_order)
+            order_params, self.params = self.params, []
             sql = (f"SELECT {self.list_columns}, COUNT(*) OVER () AS _total FROM {self.table} "
                    f"WHERE {where_sql} ORDER BY {order} LIMIT ?")
-            return CompiledQuery(sql, [*where_params, spec.limit or 100], "list",
+            return CompiledQuery(sql, [*where_params, *order_params, spec.limit or 100], "list",
                                  resolved_dates=self.resolved)
 
         selects, groups, gnames = [], [], []
@@ -128,7 +142,16 @@ class Compiler:
         sql = f"SELECT {', '.join(selects)} FROM {self.table} WHERE {where_sql}"
         params = [*measure_params, *where_params]
         if groups:
-            sql += f" GROUP BY {', '.join(groups)} ORDER BY {self._order(spec, default=', '.join(groups), groups=gnames, measures=mnames)}"
+            sql += f" GROUP BY {', '.join(groups)}"
+            if spec.having:
+                conds = []
+                for h in spec.having:
+                    col = "_n" if h.measure == "count" else f"m{mnames.index(h.measure)}"
+                    sql_op = {"eq": "=", "ne": "!=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}[h.op]
+                    conds.append(f"{col} {sql_op} ?")
+                    params.append(h.value)
+                sql += " HAVING " + " AND ".join(conds)
+            sql += f" ORDER BY {self._order(spec, default=', '.join(groups), groups=gnames, measures=mnames)}"
         return CompiledQuery(sql, params, spec.mode if groups or measures else "count",
                              gnames, mnames, self.resolved)
 
@@ -150,13 +173,13 @@ class Compiler:
             expr, fn = self.col(m.field), m.agg.upper()
         return f"{fn}(CASE WHEN {cond} THEN {expr} END)" if cond else f"{fn}({expr})"
 
-    def _event_time(self, ref: EventRef) -> str:
-        """Earliest UTC time of a matching, non-voided event of the current entity."""
+    def _event_time(self, ref: EventRef, agg: str = "MIN") -> str:
+        """Earliest (MIN) or latest (MAX) UTC time of a matching, non-voided event of the entity."""
         conds = ["ev.entity_id = entities.id", f"ev.kind = {self._bind_raw(ref.kind)}",
                  "ev.id IN (SELECT value FROM json_each(entities.event_ids))"]
         if ref.to is not None:
             conds.append(f"json_extract(ev.payload, '$.to') = {self._bind_raw(ref.to)}")
-        return f"(SELECT MIN(ev.at_utc) FROM events ev WHERE {' AND '.join(conds)})"
+        return f"(SELECT {agg}(ev.at_utc) FROM events ev WHERE {' AND '.join(conds)})"
 
     def _bind_raw(self, v: Any) -> str:
         self.params.append(v)

@@ -76,10 +76,20 @@ REF = {
         {"field": "status", "op": "in", "value": ["applied", "viewed"]},
         {"field": "applied_at", "op": "lt", "value": "@today-30d"}]},
 }
-# Not expressible in QuerySpec v0 (found while writing these references, deliberately not added so the
-# benchmark measures the system as frozen): H3 needs a filter on group size (HAVING count >= 2),
-# H4 needs ordering by the time of an event (the rejection).
-NOT_EXPRESSIBLE = {"H3", "H4"}
+# v0 could not express H3 (group size filter) and H4 (ordering by event time); v1 adds having and
+# order_by_event (task 0004 ②), so every question now has a reference spec.
+REF["H3"] = lambda q: {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "company_id"}],
+                       "having": [{"measure": "count", "op": "gte", "value": 2}]}
+REF["H4"] = lambda q: {"entity_type": "application", "mode": "list", "limit": 3, "descending": True,
+                       "filters": [{"field": "status", "op": "eq", "value": "rejected"}],
+                       "order_by_event": {"kind": "status_changed", "to": "rejected"},
+                       "list_fields": ["company_id", "reason"]}
+# H2 "viewed" means ever viewed: the v1 reference uses the history filter (ADR-0012)
+REF["H2"] = lambda q: {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "platform"}],
+                       "filters": [{"field": "status", "op": "reached", "value": "viewed"}],
+                       "measures": [{"name": "passed", "agg": "count_if",
+                                     "where": [{"field": "status", "op": "eq", "value": "passed"}]}]}
+NOT_EXPRESSIBLE: set[str] = set()
 
 
 @pytest.fixture(scope="module", params=[(120, 1), (400, 7)], ids=["n120", "n400"])
@@ -239,3 +249,22 @@ def test_run_refuses_changed_frozen_files(tmp_path, monkeypatch):
     (tmp_path / "r" / "meta.json").write_text(json.dumps({"frozen_hash": "old", "model": "haiku"}))
     with pytest.raises(SystemExit, match="frozen files changed"):
         br._open_run("r", "haiku", None, 1, None)
+
+
+def test_converter_limit_and_having():
+    from types import SimpleNamespace
+
+    q = Question("X", "unseen", "t", "number = 3; ids = those", "ids", {})
+    listed = SimpleNamespace(status="answered", text="", warnings=[], evidence=["a", "b", "c"],
+                             spec={"limit": 3}, result={"mode": "list", "total": 10,
+                                                        "rows": [{"id": "a"}, {"id": "b"}, {"id": "c"}]})
+    assert to_answer(listed, q)["number"] == 3  # explicit limit: what is shown
+    listed.spec = {}
+    assert to_answer(listed, q)["number"] == 10  # default limit: the total
+    grouped = SimpleNamespace(status="answered", text="", warnings=[], evidence=["x"],
+                              spec={"having": [{"measure": "count", "op": "gte", "value": 2}]},
+                              result={"mode": "aggregate", "total": 5, "groups": [
+                                  {"group": {"company_id": "co_1"}, "n": 3, "measures": {}, "ids": []},
+                                  {"group": {"company_id": "co_2"}, "n": 2, "measures": {}, "ids": []}]})
+    out = to_answer(grouped, q)
+    assert out["number"] == 2 and out["ids"] == ["co_1", "co_2"]

@@ -46,6 +46,7 @@ class EntityState:
     updated_at: str | None = None  # latest `at` among applied events
     last_event_seq: int | None = None
     event_ids: list[str] = field(default_factory=list)  # applied (non-voided) data events
+    reached: list[str] = field(default_factory=list)  # every status the record has had (ADR-0012)
 
     def as_json(self) -> dict[str, Any]:
         return {"id": self.id, "type": self.type, **self.doc}
@@ -53,6 +54,9 @@ class EntityState:
 
 class Storage(ABC):
     """Persistence for the three tables: schemas, events (append-only), entities."""
+
+    # set when a derived column was added to an existing database: entities must be rebuilt from events
+    needs_rebuild: bool = False
 
     # ---- transactions -------------------------------------------------------------------
     @abstractmethod

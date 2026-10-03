@@ -93,9 +93,9 @@ def test_unknown_fields_are_not_stored_and_become_a_proposal(k):
     assert second.status == "rejected"
     [prop] = second.proposals
     assert prop["kind"] == "extend_schema" and prop["entity_type"] == "application"
-    assert prop["to_version"] == 2 and "recruiter_type" in prop["add_fields"]
+    assert prop["to_version"] == 3 and "recruiter_type" in prop["add_fields"]
     assert "not applied" in prop["status"]
-    assert k.ledger.schemas.get("application").version == 1  # never applied automatically
+    assert k.ledger.schemas.get("application").version == 2  # never applied automatically
     assert "recruiter_type" not in k.ledger.get_entity("app_o05").doc
 
 

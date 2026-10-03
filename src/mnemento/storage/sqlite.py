@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS entities (
     created_at     TEXT,
     updated_at     TEXT,
     last_event_seq INTEGER,
-    event_ids      TEXT    NOT NULL DEFAULT '[]'
+    event_ids      TEXT    NOT NULL DEFAULT '[]',
+    reached        TEXT    NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS ix_entities_type ON entities (type, retracted);
 
@@ -106,6 +107,10 @@ class SQLiteStorage(Storage):
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.executescript(_DDL)
+        cols = {r["name"] for r in self._conn.execute("PRAGMA table_xinfo(entities)")}
+        if "reached" not in cols:  # database created before ADR-0012: add, then rebuild from events
+            self._conn.execute("ALTER TABLE entities ADD COLUMN reached TEXT NOT NULL DEFAULT '[]'")
+            self.needs_rebuild = True
 
     # ---- transactions -------------------------------------------------------------------
 
@@ -205,20 +210,21 @@ class SQLiteStorage(Storage):
     def put_entity(self, state: EntityState) -> None:
         self._conn.execute(
             "INSERT INTO entities (id, type, schema_version, doc, retracted, created_at, "
-            "updated_at, last_event_seq, event_ids) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "updated_at, last_event_seq, event_ids, reached) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(id) DO UPDATE SET type=excluded.type, "
             "schema_version=excluded.schema_version, doc=excluded.doc, "
             "retracted=excluded.retracted, created_at=excluded.created_at, "
             "updated_at=excluded.updated_at, last_event_seq=excluded.last_event_seq, "
-            "event_ids=excluded.event_ids",
+            "event_ids=excluded.event_ids, reached=excluded.reached",
             (state.id, state.type, state.schema_version, _dumps(state.doc), int(state.retracted),
-             state.created_at, state.updated_at, state.last_event_seq, _dumps(state.event_ids)),
+             state.created_at, state.updated_at, state.last_event_seq, _dumps(state.event_ids),
+             _dumps(state.reached)),
         )
 
     def get_entity(self, entity_id: str) -> EntityState | None:
         row = self._conn.execute(
             "SELECT id, type, schema_version, doc, retracted, created_at, updated_at, "
-            "last_event_seq, event_ids FROM entities WHERE id = ?", (entity_id,)
+            "last_event_seq, event_ids, reached FROM entities WHERE id = ?", (entity_id,)
         ).fetchone()
         return _entity_from_row(row) if row else None
 
@@ -245,7 +251,7 @@ class SQLiteStorage(Storage):
                 params.append(_sql_value(value))
         sql = (
             "SELECT id, type, schema_version, doc, retracted, created_at, updated_at, "
-            "last_event_seq, event_ids FROM entities WHERE " + " AND ".join(where) + " ORDER BY id"
+            "last_event_seq, event_ids, reached FROM entities WHERE " + " AND ".join(where) + " ORDER BY id"
         )
         return [_entity_from_row(r) for r in self._conn.execute(sql, params).fetchall()]
 
@@ -362,4 +368,5 @@ def _entity_from_row(row: sqlite3.Row) -> EntityState:
         doc=json.loads(row["doc"]), retracted=bool(row["retracted"]),
         created_at=row["created_at"], updated_at=row["updated_at"],
         last_event_seq=row["last_event_seq"], event_ids=json.loads(row["event_ids"]),
+        reached=json.loads(row["reached"]),
     )

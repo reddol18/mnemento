@@ -109,12 +109,16 @@ def replay(entity_id: str, entity_type: str, events: Iterable[Event]) -> EntityS
 
     doc: dict[str, Any] | None = None
     applied: list[str] = []
+    reached: list[str] = []
     created_at = updated_at = None
     latest_utc = ""
     for e in data:
         payload = corrections.get(e.id, e.payload)
         doc = apply_data_event(doc, e.kind, payload, e.id)
         applied.append(e.id)
+        status = doc.get(STATUS_FIELD)
+        if isinstance(status, str) and status not in reached:
+            reached.append(status)
         if e.kind == CREATED:
             created_at = e.at
         if e.at_utc >= latest_utc:
@@ -133,4 +137,5 @@ def replay(entity_id: str, entity_type: str, events: Iterable[Event]) -> EntityS
         updated_at=updated_at,
         last_event_seq=last.seq,
         event_ids=applied,
+        reached=reached,
     )

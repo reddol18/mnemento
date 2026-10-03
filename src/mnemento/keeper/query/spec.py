@@ -18,7 +18,7 @@ Scalar = Union[str, int, float, bool]
 
 Op = Literal[
     "eq", "ne", "in", "not_in", "gt", "gte", "lt", "lte",
-    "exists", "missing", "contains", "name_is",
+    "exists", "missing", "contains", "name_is", "reached",
 ]
 Bucket = Literal["none", "day", "week", "month", "year"]
 Agg = Literal["count", "count_if", "sum", "avg", "min", "max", "avg_days_between",
@@ -33,7 +33,9 @@ class Filter(BaseModel):
     model_config = ConfigDict(extra="forbid")
     field: str = Field(description="A field of the target schema.")
     op: Op = Field(description="Comparison. name_is: the field references another entity "
-                               "(see 'ref'); value is that entity's name, resolved by the Keeper.")
+                               "(see 'ref'); value is that entity's name, resolved by the Keeper. "
+                               "reached (status only): the record EVER had this status (history), "
+                               "even if its current status is later; eq/in on status = current state.")
     value: Scalar | list[Scalar] | None = Field(
         default=None,
         description="Comparison value. Lists for in/not_in. Dates as YYYY-MM-DD or a relative "
@@ -65,6 +67,13 @@ class Measure(BaseModel):
     where: list[Filter] = Field(default_factory=list)
 
 
+class Having(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    measure: str = Field(description="'count' (rows in the group) or a measure name.")
+    op: Literal["eq", "ne", "gt", "gte", "lt", "lte"]
+    value: float
+
+
 class QuerySpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source: Literal["entities", "events"] = Field(
@@ -82,7 +91,12 @@ class QuerySpec(BaseModel):
     group_by: list[GroupKey] = Field(default_factory=list)
     measures: list[Measure] = Field(default_factory=list)
     list_fields: list[str] = Field(default_factory=list, description="Fields to show in list mode.")
+    having: list[Having] = Field(default_factory=list, description="Conditions on group results, e.g. "
+                                 "groups with count >= 2. Requires group_by.")
     order_by: str | None = Field(default=None, description="Field or measure name to sort by.")
+    order_by_event: EventRef | None = Field(
+        default=None, description="list mode: sort records by when this event happened (e.g. the "
+                                  "rejection), latest first with descending=true.")
     descending: bool = False
     limit: int | None = Field(default=100, ge=1, le=1000)
     interpretation: str = Field(
@@ -170,6 +184,18 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         errs.append(f"order_by: unknown field or measure {spec.order_by!r}")
     if spec.mode != "aggregate" and spec.group_by:
         errs.append("group_by requires mode 'aggregate'")
+    for i, h in enumerate(spec.having):
+        if not spec.group_by:
+            errs.append("having requires group_by")
+            break
+        if h.measure != "count" and h.measure not in names:
+            errs.append(f"having[{i}]: unknown measure {h.measure!r} (use 'count' or a measure name)")
+    if spec.order_by_event is not None:
+        if spec.mode != "list" or spec.source != "entities":
+            errs.append("order_by_event works in list mode on entities")
+        elif spec.order_by_event.to is not None and "status" in schema.fields:
+            if spec.order_by_event.to not in (schema.fields["status"].enum or ()):
+                errs.append(f"order_by_event: status {spec.order_by_event.to!r} not allowed")
     return errs
 
 
@@ -191,6 +217,11 @@ def _check_filter(schema: SchemaDef, f: Filter, where: str) -> list[str]:
         return [f"{where}: op {f.op} takes a single value"]
     else:
         values = [v]
+    if f.op == "reached":
+        if f.field != "status" or fd.enum is None:
+            return [f"{where}: reached only works on the status field"]
+        bad = [x for x in values if x not in fd.enum]
+        return [f"{where}: {bad} not allowed for status; allowed: {list(fd.enum)}"] if bad else []
     if f.op == "name_is":
         if not fd.ref:
             errs.append(f"{where}: name_is only works on reference fields")

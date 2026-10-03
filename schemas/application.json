@@ -1,6 +1,6 @@
 {
   "name": "application",
-  "version": 1,
+  "version": 2,
   "description": "One job application the user submitted to one posting (e.g. id app_saramin_10000001). Status moves applied -> viewed -> passed/rejected, or withdrawn.",
   "keywords": [
     "지원",
@@ -61,7 +61,7 @@
         "rejected",
         "withdrawn"
       ],
-      "description": "Current status. applied: submitted; viewed: the company opened the application; passed: passed document screening; rejected: rejected; withdrawn: the user withdrew.",
+      "description": "Current status. applied: submitted; viewed: the company opened the application; passed: passed document screening; rejected: rejected; withdrawn: the user withdrew. The value is the CURRENT state only — whether a record ever reached a status (e.g. 'was viewed', even if later rejected) is answered from its history with the 'reached' filter.",
       "required": true,
       "indexed": true,
       "labels": {
@@ -85,6 +85,11 @@
         "withdrawn": [
           "철회",
           "지원취소"
+        ]
+      },
+      "implies": {
+        "passed": [
+          "viewed"
         ]
       }
     },
