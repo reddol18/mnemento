@@ -1,0 +1,40 @@
+== v1.1-regression: n=100 systems=M:haiku reps=1
+n=100 M-haiku D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D3 rep0: OK  ok                                               48.5s in=5266
+n=100 M-haiku D4 rep0: OK  ok                                               27.7s in=5341
+n=100 M-haiku D5 rep0: BAD no number                                        29.7s in=5282
+n=100 M-haiku D6 rep0: OK  ok                                               18.8s in=5271
+n=100 M-haiku D7 rep0: OK  ok                                               18.5s in=5272
+n=100 M-haiku U1 rep0: OK  ok                                                9.8s in=5263
+n=100 M-haiku U2 rep0: OK  ok                                                8.3s in=5274
+n=100 M-haiku U3 rep0: OK  ok                                                7.3s in=5267
+n=100 M-haiku U4 rep0: OK  ok                                               12.8s in=5267
+n=100 M-haiku U5 rep0: OK  ok                                                9.4s in=5279
+n=100 M-haiku U6 rep0: OK  ok                                               16.1s in=5275
+n=100 M-haiku U7 rep0: OK  ok                                               11.4s in=5268
+n=100 M-haiku U8 rep0: OK  ok                                               28.2s in=5252
+n=100 M-haiku H1 rep0: OK  ok                                               40.9s in=5283
+n=100 M-haiku H2 rep0: OK  ok                                               28.0s in=5314
+n=100 M-haiku H3 rep0: OK  ok                                               45.0s in=5293
+n=100 M-haiku H4 rep0: OK  ok                                               10.7s in=5304
+n=100 M-haiku H5 rep0: BAD number 12 != 14                                  13.7s in=5276
+n=100 M-haiku V1 rep0: OK  ok                                               16.0s in=5287
+n=100 M-haiku V2 rep0: OK  ok                                                6.5s in=5266
+n=100 M-haiku V3 rep0: BAD number 18 != 8                                  114.1s in=5287
+n=100 M-haiku V4 rep0: OK  ok                                               14.8s in=5270
+n=100 M-haiku V5 rep0: OK  ok                                               12.0s in=5301
+n=100 M-haiku V6 rep0: OK  ok                                               16.3s in=5278
+n=100 M-haiku V7 rep0: OK  ok                                               35.8s in=5279
+n=100 M-haiku V8 rep0: OK  ok                                               13.4s in=5259
+n=100 M-haiku V9 rep0: OK  ok                                               37.7s in=5271
+== v1.1-regression complete. Report: uv run python -m bench.report --run v1.1-regression
+exit=0
+Model `haiku` via Claude Code CLI · run `v1.1-regression` · frozen `c8dc7320c33fda3f` · git `93279252cf61e64fb252c71d789e9e58ab1cb5d2+dirty`
+
+**v1.1 regression: M-haiku, eval set v2 data (all questions dev now), same format hint, 100 records, 1 repetition.**
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) |
+|---|---|---|---|---|---|---|---|---|---|
+| 100 | M-haiku | 18/20 (90%) | 8/9 (89%) | 22.5 / 48.5 | 20.9 / 46.8 | 0.93 | 4,915 (2,564) | 2,447 | 0.0221 |
+

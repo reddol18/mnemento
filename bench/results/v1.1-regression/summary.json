@@ -1,0 +1,25 @@
+[
+ {
+  "scale": 100,
+  "system": "M-haiku",
+  "n": 29,
+  "dev": [
+   18,
+   20
+  ],
+  "unseen": [
+   8,
+   9
+  ],
+  "time_mean": 22.464472413793104,
+  "time_p95": 48.5304,
+  "time_mean_no_overhead": 20.85764827586207,
+  "time_p95_no_overhead": 46.7794,
+  "llm_calls_per_q": 0.9310344827586207,
+  "in_per_q": 4915.3448275862065,
+  "in_per_q_no_overhead": 2563.551724137931,
+  "cache_read_per_q": 0.0,
+  "out_per_q": 2447.448275862069,
+  "cost_per_q": 0.022058620689655164
+ }
+]

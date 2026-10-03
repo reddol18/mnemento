@@ -1,0 +1,19 @@
+{
+ "run": "v1.1-regression",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20261204,
+ "frozen_hash": "c8dc7320c33fda3f",
+ "git": "93279252cf61e64fb252c71d789e9e58ab1cb5d2+dirty",
+ "started": "2026-10-04T06:10:55.008727+09:00",
+ "adapter": "claude-cli",
+ "plan": "v1.1-regression",
+ "plan_description": "v1.1 regression: M-haiku, eval set v2 data (all questions dev now), same format hint, 100 records, 1 repetition",
+ "eval_set": "v2",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "M-haiku": [
+   "claude-haiku-4-5-20251001"
+  ]
+ }
+}
