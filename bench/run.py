@@ -40,14 +40,16 @@ DEFAULT_SEED = 20261120
 CONTEXT_LIMIT_TOKENS = 200_000
 CHARS_PER_TOKEN = 1.6  # Korean-heavy markdown; replaced by `calibrate` measurements when available
 
-FROZEN_FILES = [  # everything that shapes the systems' behaviour; hashed into every run's metadata
-    "src/mnemento/keeper/query/interpret.py", "src/mnemento/keeper/query/rules.py",
-    "src/mnemento/keeper/query/spec.py", "src/mnemento/keeper/query/compile.py",
-    "src/mnemento/keeper/query/answer.py", "src/mnemento/keeper/query/pipeline.py",
-    "src/mnemento/keeper/query/cache.py", "src/mnemento/keeper/llm.py", "schemas/application.json",
-    "schemas/company.json", "schemas/posting.json", "bench/runners.py", "bench/questions.py", "bench/grade.py",
-    "bench/generate.py", "bench/render.py",
-]
+def _frozen_files() -> list[str]:
+    """Everything that shapes the systems' behaviour, hashed into every run's metadata: the whole
+    package, the schemas and the harness except reporting/plotting/guarding (which do not change answers)."""
+    files = sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in (ROOT / "src" / "mnemento").rglob("*.py"))
+    files += sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in (ROOT / "schemas").glob("*.json"))
+    files += [f"bench/{n}" for n in ("generate.py", "render.py", "questions.py", "grade.py", "runners.py", "run.py")]
+    return files
+
+
+FROZEN_FILES = _frozen_files()
 
 
 def data_dir(scale: int, seed: int, eval_set: str = "v0") -> Path:
@@ -58,7 +60,7 @@ def frozen_hash() -> str:
     h = hashlib.sha256()
     for f in FROZEN_FILES:
         h.update(f.encode())
-        h.update((ROOT / f).read_bytes())
+        h.update((ROOT / f).read_bytes().replace(b"\r\n", b"\n"))  # same hash for any checkout
     return h.hexdigest()[:16]
 
 
