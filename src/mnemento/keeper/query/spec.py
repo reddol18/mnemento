@@ -27,6 +27,15 @@ Agg = Literal["count", "count_if", "sum", "avg", "min", "max", "avg_days_between
 RELATIVE_DATE_RE = re.compile(
     r"^@(today|this_week_start|this_month_start|last_month_start|this_year_start)([+-]\d{1,4}[dwm])?$"
 )
+# calendar tokens of a named month: weeks are Monday-Sunday; the "last full week" is the last such week
+# that lies entirely inside the month
+MONTH_TOKEN_RE = re.compile(
+    r"^@(month_start|month_end|last_full_week_start|last_full_week_end)\((\d{4})-(\d{2})\)$"
+)
+
+
+def is_date_token(value: object) -> bool:
+    return isinstance(value, str) and bool(RELATIVE_DATE_RE.match(value) or MONTH_TOKEN_RE.match(value))
 
 
 class Filter(BaseModel):
@@ -38,8 +47,10 @@ class Filter(BaseModel):
                                "even if its current status is later; eq/in on status = current state.")
     value: Scalar | list[Scalar] | None = Field(
         default=None,
-        description="Comparison value. Lists for in/not_in. Dates as YYYY-MM-DD or a relative "
-                    "token like @today, @today-1d, @this_month_start, @last_month_start.",
+        description="Comparison value. Lists for in/not_in. Dates as YYYY-MM-DD or a token: @today, "
+                    "@today-1d, @this_week_start, @this_month_start, @last_month_start, or for a named "
+                    "month @month_start(2026-11), @month_end(2026-11), @last_full_week_start(2026-11), "
+                    "@last_full_week_end(2026-11).",
     )
 
 
@@ -114,8 +125,15 @@ EVENT_SCHEMA = SchemaDef.from_dict({
     "name": "event",
     "description": "The append-only change log.",
     "fields": {
-        "kind": {"type": "string", "description": "Event kind.",
-                 "enum": ["created", "updated", "status_changed", "corrected", "retracted"], "indexed": True},
+        "kind": {"type": "string",
+                 "description": "Event kind. created: first recorded; updated: an ordinary edit or addition; "
+                                "status_changed: the status moved; corrected: an earlier event was corrected "
+                                "because it was wrong (target = that event); retracted: a record or event was "
+                                "invalidated (e.g. a duplicate).",
+                 "enum": ["created", "updated", "status_changed", "corrected", "retracted"], "indexed": True,
+                 "labels": {"created": ["최초 기록", "등록"], "updated": ["수정", "보완", "추가 기록"],
+                            "status_changed": ["상태 변경"], "corrected": ["정정", "바로잡음", "잘못 기록"],
+                            "retracted": ["무효", "철회", "취소 처리", "중복"]}},
         "by": {"type": "string", "description": "Agent that recorded the event.", "indexed": True},
         "entity_type": {"type": "string", "description": "Record type.", "indexed": True},
         "entity_id": {"type": "string", "description": "Record id.", "indexed": True},
@@ -236,7 +254,7 @@ def _check_filter(schema: SchemaDef, f: Filter, where: str) -> list[str]:
             errs.append(f"{where}: {bad} not allowed for {f.field}; allowed: {list(fd.enum)}")
     if fd.format in ("date", "date-time"):
         for x in values:
-            if not (isinstance(x, str) and (is_calendar_date(x) or RELATIVE_DATE_RE.match(x))):
+            if not (isinstance(x, str) and (is_calendar_date(x) or is_date_token(x))):
                 errs.append(f"{where}: {x!r} is not YYYY-MM-DD or a relative date token")
     if f.op in ("gt", "gte", "lt", "lte") and fd.type not in _NUMERIC and fd.format is None:
         errs.append(f"{where}: {f.op} needs a numeric or date field")

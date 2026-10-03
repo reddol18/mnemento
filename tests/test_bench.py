@@ -16,9 +16,14 @@ from bench.runners import to_answer
 from mnemento.keeper import Keeper, ScriptedLLM
 
 
+_REF_NOW = [BENCH_NOW]  # the reference date of the dataset under test (year of "M/D" questions)
+
+
 def _d1(q):
+    from mnemento.keeper.query.rules import _resolve_md
+
     m, d = q.text.split(" ")[0].split("/")
-    return f"{BENCH_NOW.year}-{int(m):02d}-{int(d):02d}"
+    return _resolve_md(int(m), int(d), None, _REF_NOW[0].date()).isoformat()
 
 
 REF = {
@@ -138,6 +143,7 @@ def world(request, tmp_path_factory):
 
 def test_reference_specs_reproduce_the_answer_key(world):
     ds, led, _ = world
+    _REF_NOW[0] = ds.now
     keeper = Keeper(led, ScriptedLLM())
     for q in build(ds):
         if q.id in NOT_EXPRESSIBLE:
@@ -381,6 +387,7 @@ def test_eval_set_v2_data():
 
 def test_v2_reference_specs(tmp_path):
     ds = generate(300, 11, version="v2")
+    _REF_NOW[0] = ds.now
     led = to_ledger(ds, tmp_path / "v2.db")
     keeper = Keeper(led, ScriptedLLM())
     for q in build(ds):
@@ -394,6 +401,7 @@ def test_v2_reference_specs(tmp_path):
 def test_unseen_v2_answer_keys(tmp_path, scale, seed):
     """Answer keys of V1-V9 against hand-written reference specs (no system run on the questions)."""
     ds = generate(scale, seed, version="v2")
+    _REF_NOW[0] = ds.now
     qs = {q.id: q for q in build(ds) if q.set == "unseen"}
     assert {"V1", "V3", "V4", "V5", "V6", "V7", "V8", "V9"} <= set(qs)  # V2 may be excluded at a scale
     led = to_ledger(ds, tmp_path / "u.db")
@@ -473,3 +481,33 @@ def test_per_system_models_2x2(tmp_path, monkeypatch):
     meta = json.loads((tmp_path / "results" / "x" / "meta.json").read_text())
     assert meta["resolved_models"]["B1-opus"] == ["claude-opus-x"]
     assert meta["resolved_models"]["M-haiku"] == ["claude-haiku-x"]
+
+
+
+def test_converter_event_counts_use_record_ids():
+    from types import SimpleNamespace
+
+    q = Question("X", "dev", "t", "number = how many; ids = those records", "ids", {})
+    ans = SimpleNamespace(status="answered", text="", warnings=[], evidence=["evt_1"], spec={"source": "events"},
+                          result={"mode": "count", "total": 1, "rows": [],
+                                  "groups": [{"group": {}, "n": 1, "measures": {}, "ids": ["evt_1"],
+                                              "entity_ids": ["app_dup0000"]}]})
+    out = to_answer(ans, q)
+    assert out["number"] == 1 and out["ids"] == ["app_dup0000"]  # regression (v2 U6): not the event id
+
+
+def test_eval_set_v3(tmp_path):
+    ds = generate(300, 20270201, version="v3")
+    assert ds.now.date().isoformat() == "2027-02-01" and ds.now.weekday() == 0  # Monday the 1st
+    aliases = [a for c in ds.companies for a in c.aliases]
+    assert len(aliases) == len(set(aliases)) and any(a.company_label for a in ds.apps)
+    qs = build(ds)
+    assert {q.set for q in qs} == {"dev"}  # v0 + v2 questions are all dev; v3 unseen not delivered yet
+    assert "V6" not in {q.id for q in qs}  # names fixed November 2026 dates
+    _REF_NOW[0] = ds.now
+    led = to_ledger(ds, tmp_path / "v3.db")
+    keeper = Keeper(led, ScriptedLLM())
+    for q in qs:
+        ok, why = grade(q, to_answer(keeper.ask(q.text, spec=REF[q.id](q), now=ds.now), q))
+        assert ok, f"{q.id}: {why}"
+    led.close()

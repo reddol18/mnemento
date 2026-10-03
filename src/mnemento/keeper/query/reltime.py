@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from .spec import RELATIVE_DATE_RE
+from .spec import MONTH_TOKEN_RE, RELATIVE_DATE_RE
 
 
 def _add_months(d: date, n: int) -> date:
@@ -16,7 +16,29 @@ def _add_months(d: date, n: int) -> date:
     return date(y, m, min(d.day, last))
 
 
+def _month_end(year: int, month: int) -> date:
+    return _add_months(date(year, month, 1), 1) - timedelta(days=1)
+
+
+def resolve_month_token(token: str) -> str:
+    m = MONTH_TOKEN_RE.match(token)
+    if not m:
+        raise ValueError(f"not a month token: {token!r}")
+    kind, year, month = m.group(1), int(m.group(2)), int(m.group(3))
+    first, last = date(year, month, 1), _month_end(year, month)
+    if kind == "month_start":
+        return first.isoformat()
+    if kind == "month_end":
+        return last.isoformat()
+    sunday = last - timedelta(days=(last.weekday() + 1) % 7)  # last Sunday inside the month
+    if kind == "last_full_week_end":
+        return sunday.isoformat()
+    return (sunday - timedelta(days=6)).isoformat()
+
+
 def resolve_relative(token: str, now: datetime) -> str:
+    if MONTH_TOKEN_RE.match(token):
+        return resolve_month_token(token)
     m = RELATIVE_DATE_RE.match(token)
     if not m:
         raise ValueError(f"not a relative date token: {token!r}")

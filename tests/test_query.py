@@ -115,7 +115,8 @@ def test_schema_selection_keeps_prompt_small(demo):
     from mnemento.keeper.query.interpret import select_schemas
 
     schemas = schemas_of(demo)
-    assert [s.name for s in select_schemas("회사 목록", schemas)] == ["company"]
+    # a company question also needs the records that point at companies (applications, postings)
+    assert {s.name for s in select_schemas("회사 목록", schemas)} == {"company", "application", "posting"}
     assert {s.name for s in select_schemas("사람인 지원 몇 곳", schemas)} == {"application", "company", "posting"}
     assert len(select_schemas("무엇이든", schemas)) == 3  # nothing matched -> fall back to all
 
@@ -554,3 +555,60 @@ def test_measure_names_may_be_korean(demo):
     bad = QuerySpec.model_validate({"entity_type": "application", "mode": "aggregate",
                                     "measures": [{"name": "x; DROP", "agg": "count"}]})
     assert any("short word" in e for e in validate_spec(bad, schemas_of(demo)))
+
+
+
+# ---- task 0005 (v1.1) ---------------------------------------------------------------------------
+
+def test_schema_selection_includes_referencing_types(demo):
+    # regression (v2 D7): a question naming only postings must still see the application records
+    from mnemento.keeper.query.interpret import select_schemas
+
+    names = [s.name for s in select_schemas("서치펌 공고로 확인돼 패스한 곳은?", schemas_of(demo))]
+    assert "posting" in names and "application" in names
+
+
+def test_event_kinds_are_described_in_the_dictionary(demo):
+    from mnemento.keeper.query.interpret import render_dictionary
+
+    text = render_dictionary([demo.schemas.get("application")], {})
+    assert "event log (QuerySpec source=events" in text
+    assert "corrected [정정/바로잡음/잘못 기록]" in text and "retracted [무효/철회/취소 처리/중복]" in text
+
+
+@pytest.mark.parametrize(
+    "token,expected",
+    [("@last_full_week_start(2026-11)", "2026-11-23"), ("@last_full_week_end(2026-11)", "2026-11-29"),
+     ("@last_full_week_start(2026-05)", "2026-05-25"), ("@last_full_week_end(2026-05)", "2026-05-31"),
+     ("@month_start(2026-02)", "2026-02-01"), ("@month_end(2028-02)", "2028-02-29")],
+)
+def test_month_tokens(token, expected):
+    # Nov 2026 ends on a Monday -> its last full Mon-Sun week is 23-29; May 2026 ends on a Sunday
+    assert resolve_relative(token, NOW) == expected
+
+
+def test_month_tokens_validate_and_compile(demo):
+    spec = QuerySpec.model_validate({"entity_type": "application", "mode": "count", "filters": [
+        {"field": "applied_at", "op": "gte", "value": "@last_full_week_start(2026-09)"},
+        {"field": "applied_at", "op": "lte", "value": "@last_full_week_end(2026-09)"}]})
+    assert validate_spec(spec, schemas_of(demo)) == []
+    c = compile_spec(spec, demo.schemas.get("application"), NOW)
+    assert c.params[1:] == ["2026-09-21", "2026-09-27"]
+    bad = QuerySpec.model_validate({"entity_type": "application", "mode": "count", "filters": [
+        {"field": "applied_at", "op": "eq", "value": "@last_full_week(2026-09)"}]})
+    assert validate_spec(bad, schemas_of(demo))
+
+
+def test_interpreter_rules_for_event_order_weeks_and_kinds(demo):
+    from mnemento.keeper.query.interpret import SYSTEM_PROMPT
+
+    assert "order_by_event" in SYSTEM_PROMPT and "ties records of the same day" in SYSTEM_PROMPT
+    assert "@last_full_week_start(YYYY-MM)" in SYSTEM_PROMPT
+    assert "corrections (corrected), retractions (retracted)" in SYSTEM_PROMPT
+
+
+def test_event_counts_report_the_records(demo):
+    spec = {"source": "events", "entity_type": "application", "mode": "count",
+            "filters": [{"field": "kind", "op": "eq", "value": "retracted"}]}
+    ans = keeper(demo)[0].ask("무효 처리한 기록?", spec=spec, now=NOW)
+    assert ans.result["groups"][0]["entity_ids"] == ["app_o15"]

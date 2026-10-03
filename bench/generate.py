@@ -15,6 +15,9 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("Asia/Seoul")
 BENCH_NOW = datetime(2026, 11, 20, 12, 0, tzinfo=TZ)  # deliberately not the dev-demo date
 BENCH_NOW_V2 = datetime(2026, 12, 4, 12, 0, tzinfo=TZ)  # evaluation set v2: another date and seed
+# evaluation set v3: Monday the 1st, so "last week" crosses a month end and "this month" is a single day
+BENCH_NOW_V3 = datetime(2027, 2, 1, 12, 0, tzinfo=TZ)
+REFERENCE_DATES = {"v0": BENCH_NOW, "v2": BENCH_NOW_V2, "v3": BENCH_NOW_V3}
 
 PLATFORMS = [("saramin", 0.55), ("wanted", 0.25), ("groupby", 0.12), ("jobkorea", 0.08)]
 RATES = [("top10", 0.2), ("top30", 0.35), ("top50", 0.25), (None, 0.2)]
@@ -109,13 +112,13 @@ def _company_name(rng: random.Random, used: set[str]) -> tuple[str, str]:
 
 
 def generate(scale: int, seed: int = 20261120, now: datetime | None = None, version: str = "v0") -> Dataset:
-    """version v0: the frozen v0 evaluation data (unchanged). v2: aliases unique across companies,
+    """version v0: the frozen v0 evaluation data (unchanged). v2 (and v3, with its own date): aliases unique across companies,
     more companies with an alias, and some records written down under the alias instead of the
     registered name (tests grouping by company). v2 draws its extra choices from a separate random
     stream, so the v0 sequence is untouched."""
-    if version not in ("v0", "v2"):
+    if version not in REFERENCE_DATES:
         raise ValueError(version)
-    now = now or (BENCH_NOW if version == "v0" else BENCH_NOW_V2)
+    now = now or REFERENCE_DATES[version]
     rng = random.Random(f"{seed}:{scale}")
     rng2 = random.Random(f"{seed}:{scale}:v2")
     used_aliases: set[str] = set()
@@ -129,7 +132,7 @@ def generate(scale: int, seed: int = 20261120, now: datetime | None = None, vers
         aliases = []
         if rng.random() < 0.3:
             aliases.append(f"{rng.choice(_EN)}{rng.choice(_EN).lower()} {_EN_SUFFIX[suffix]}")
-        if version == "v2":
+        if version != "v0":  # v2 and later
             aliases = [a for a in aliases if a not in used_aliases]
             if not aliases and rng2.random() < 0.3:  # about half of the companies get an alias
                 aliases = [""]
@@ -168,7 +171,7 @@ def generate(scale: int, seed: int = 20261120, now: datetime | None = None, vers
                         app.events.append(StatusEvent("rejected", outcome_at))
                     elif r < 0.55:
                         app.events.append(StatusEvent("passed", outcome_at))
-        if version == "v2":
+        if version != "v0":
             company = companies[int(app.company_id[3:])]
             if company.aliases and rng2.random() < 0.3:
                 app.company_label = company.aliases[0]

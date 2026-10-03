@@ -64,6 +64,14 @@ Rules:
   group by month of the record's main date (group_by with bucket "month") so every period is shown side by
   side, and say so in `interpretation`.
 - "Viewed first / sooner" can be measured as the share of records with a view date (count_if exists).
+- Order of events ("in the order they were viewed", "most recently rejected", "the first one to ...") is
+  ordered by when the event happened: use order_by_event (descending=true for most recent first). Date
+  fields hold only the day, so ordering by them ties records of the same day.
+- Weeks are Monday-Sunday. "The last week of <month>" is the last Monday-Sunday week that lies entirely
+  inside that month: @last_full_week_start(YYYY-MM) .. @last_full_week_end(YYYY-MM). "This week" starts
+  at @this_week_start, "last week" is @this_week_start-1w .. @this_week_start-1d.
+- The event log records corrections (corrected), retractions (retracted) and ordinary edits (updated)
+  separately; use the kind whose label matches the question's word.
 - Clarify only when no reasonable default exists and the choice changes the answer (e.g. which of two
   different records, or a field the dictionary lacks); then use kind=clarify with 2-5 options.
 - Write `interpretation` in the question's language: one sentence restating what will be counted/listed."""
@@ -89,6 +97,8 @@ def _render_field(name: str, fd, observed: list[str] | None) -> str:
 
 
 def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], list[str]]) -> str:
+    from .spec import EVENT_SCHEMA
+
     out = []
     for s in schemas:
         out.append(f"* {s.name}: {s.description}")
@@ -96,6 +106,9 @@ def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], 
             out.append(f"  (a bare date refers to {s.default_date_field})")
         for fname, fd in s.fields.items():
             out.append(_render_field(fname, fd, observed.get((s.name, fname))))
+    out.append(f"* event log (QuerySpec source=events, entity_type = the record type): {EVENT_SCHEMA.description}")
+    for fname, fd in EVENT_SCHEMA.fields.items():
+        out.append(_render_field(fname, fd, None))
     return "\n".join(out)
 
 
@@ -104,7 +117,9 @@ _WORD = re.compile(r"[\w가-힣]+")
 
 def select_schemas(question: str, schemas: dict[str, SchemaDef]) -> list[SchemaDef]:
     """Relevant schemas: those whose keywords/labels/names appear in the question, plus the types
-    their reference fields point to. Falls back to all schemas when nothing matches."""
+    they reference AND the types that reference them (a question about postings or companies is
+    usually answered from the records that point at them). Falls back to all schemas when nothing
+    matches."""
     q = question.lower()
     picked: list[str] = []
     for name, s in schemas.items():
@@ -116,7 +131,12 @@ def select_schemas(question: str, schemas: dict[str, SchemaDef]) -> list[SchemaD
             picked.append(name)
     if not picked:
         return list(schemas.values())
-    for name in list(picked):
+    mentioned = list(picked)
+    for name in mentioned:  # referencing types (reverse direction)
+        for other, s in schemas.items():
+            if other not in picked and any(fd.ref == name for fd in s.fields.values()):
+                picked.append(other)
+    for name in list(picked):  # referenced types (forward direction)
         for fd in schemas[name].fields.values():
             if fd.ref and fd.ref in schemas and fd.ref not in picked:
                 picked.append(fd.ref)

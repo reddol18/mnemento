@@ -95,6 +95,9 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
         rows = res.get("rows") or []
         if rows and "entity_id" in rows[0]:  # events: report the records they belong to
             out["ids"] = list(dict.fromkeys(r["entity_id"] for r in rows))[:MAX_LISTED_IDS]
+        elif any("entity_ids" in g for g in res.get("groups") or []):  # event counts: same
+            ent = [e for g in res["groups"] for e in g.get("entity_ids", [])]
+            out["ids"] = list(dict.fromkeys(ent))[:MAX_LISTED_IDS]
         return out
     groups = res.get("groups") or []
     measures = (ans.spec or {}).get("measures") or []

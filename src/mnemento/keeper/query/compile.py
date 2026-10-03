@@ -14,7 +14,7 @@ from ...schema.definition import SchemaDef
 from ...storage.sqlite import column_for
 from .reltime import resolve_relative
 from ...timeutil import utc_sort_key
-from .spec import EVENT_SCHEMA, RELATIVE_DATE_RE, EventRef, Filter, QuerySpec
+from .spec import EVENT_SCHEMA, EventRef, Filter, QuerySpec, is_date_token
 
 
 @dataclass
@@ -53,7 +53,7 @@ class Compiler:
         }[bucket]
 
     def value(self, fname: str, v: Any) -> Any:
-        if isinstance(v, str) and RELATIVE_DATE_RE.match(v):
+        if is_date_token(v):
             self.resolved[v] = resolve_relative(v, self.now)
             v = self.resolved[v]
         if isinstance(v, bool):
@@ -138,6 +138,8 @@ class Compiler:
             mnames.append(m.name)
         selects.append("COUNT(*) AS _n")
         selects.append("json_group_array(id) AS _ids")
+        if self.table == "events":  # the records the counted events belong to
+            selects.append("json_group_array(DISTINCT entity_id) AS _eids")
         measure_params = self.params
         sql = f"SELECT {', '.join(selects)} FROM {self.table} WHERE {where_sql}"
         params = [*measure_params, *where_params]

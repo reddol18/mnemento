@@ -28,7 +28,7 @@ from mnemento.keeper.llm import ClaudeCLIAdapter
 from mnemento.keeper.query.pipeline import QueryPipeline
 
 from . import questions as qmod
-from .generate import BENCH_NOW, BENCH_NOW_V2, TZ, generate
+from .generate import REFERENCE_DATES, TZ, generate
 from .grade import ANSWER_SCHEMA, grade
 from .render import SCHEMA_DIR, full_context, to_ledger, to_memory_dir
 from .runners import run_b0, run_b1, run_m
@@ -192,6 +192,15 @@ PLANS = {
         "steps": [(100, ["M"]), (1000, ["M"])],
         "eval_set": "v0", "hint": False,
     },
+    # task 0005: after the v1.1 fixes, M-haiku on the v2 data (every v0/v2 question is dev now)
+    "v1.1-regression": {
+        "description": "v1.1 regression: M-haiku, eval set v2 data (all questions dev now), same format hint, "
+                       "100 records, 1 repetition",
+        "reps": 1,
+        "questions": None,
+        "steps": [(100, ["M:haiku"])],
+        "eval_set": "v2", "hint": True, "seed": 20261204,
+    },
     # evaluation set v2 (task 0004 ③): own seed and date, dev 20 + unseen 9 questions, the same format
     # hint for every system; steps may carry their own repetition count
     # step 1 of v2 (decided 2026-10-03): 100 records, both systems on both models (2x2)
@@ -258,7 +267,7 @@ def run(scale: int, seed: int, systems: list[str], reps: int, model: str, run_id
         eval_set: str = "v0", hint: bool = False, max_cost: float | None = None) -> Path:
     d = prepare(scale, seed, eval_set)
     out_dir = _open_run(run_id, model, thinking, seed, plan, eval_set, hint)
-    now = BENCH_NOW if eval_set == "v0" else BENCH_NOW_V2
+    now = REFERENCE_DATES[eval_set]
     spent = 0.0
     results_path = out_dir / "results.jsonl"
     rows = _load_rows(results_path)
@@ -448,7 +457,7 @@ def main(argv: list[str] | None = None) -> None:
     pl.add_argument("--thinking", type=int, default=None)
     pl.add_argument("--seed", type=int, default=DEFAULT_SEED)
     pl.add_argument("--max-cost", type=float, default=None, help="stop when list-price spend passes this (USD)")
-    r.add_argument("--eval-set", default="v0", choices=["v0", "v2"])
+    r.add_argument("--eval-set", default="v0", choices=sorted(REFERENCE_DATES))
     r.add_argument("--hint", action="store_true", help="give M the same format hint as B0/B1")
     r.add_argument("--max-cost", type=float, default=None)
     args = ap.parse_args(argv)

@@ -37,7 +37,10 @@ def execute(compiled: CompiledQuery, fetch) -> QueryResult:
         ids = [i for i in json.loads(r["_ids"]) if i is not None]
         g = {name: r[f"g{i}"] for i, name in enumerate(compiled.group_columns)}
         m = {name: _num(r[f"m{i}"]) for i, name in enumerate(compiled.measure_names)}
-        groups.append({"group": g, "measures": m, "n": r["_n"], "ids": ids})
+        group = {"group": g, "measures": m, "n": r["_n"], "ids": ids}
+        if "_eids" in r.keys():  # events: the records they belong to
+            group["entity_ids"] = [i for i in json.loads(r["_eids"]) if i is not None]
+        groups.append(group)
         evidence += ids
     total = sum(g["n"] for g in groups)
     if not compiled.group_columns and groups and groups[0]["n"] == 0:

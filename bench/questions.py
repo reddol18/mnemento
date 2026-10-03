@@ -47,7 +47,18 @@ def build(ds: Dataset) -> list[Question]:
         for q in qs:
             q.set = "dev"
         qs += build_unseen_v2(ds)
+    elif ds.version == "v3":
+        # evaluation set v3: the v0 and v2 questions were all seen (v1/v1.1 development) -> dev
+        qs += build_unseen_v2(ds)
+        for q in qs:
+            q.set = "dev"
+        qs += build_unseen_v3(ds)
     return qs
+
+
+def build_unseen_v3(ds: Dataset) -> list[Question]:
+    """Unseen questions of evaluation set v3 — empty until the directing agent delivers them."""
+    return []
 
 
 def build_unseen_v2(ds: Dataset) -> list[Question]:
