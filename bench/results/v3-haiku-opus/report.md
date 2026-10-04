@@ -1,0 +1,12 @@
+Model `haiku` via Claude Code CLI · run `v3-haiku-opus` · frozen `2c56c658bc5f10f9` · git `438f3bba18a1a4bc9457d282cd6bb4bf7dc4628e+dirty`
+
+**Eval set v3: dev 28 + unseen 9 questions, same format hint, 3 repetitions; B1-opus, M-opus, M-haiku at 100 and 1,000 records.**
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) | no answer / clarify |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 100 | B1-opus | 77/84 (92%) | 27/27 (100%) | 14.8 / 23.9 | 12.8 / 22.0 | 1.00 | 36,863 (34,337) | 1,201 | 0.0577 | 0 |
+| 100 | M-haiku | 76/84 (90%) | 24/27 (89%) | 26.2 / 74.7 | 24.6 / 73.1 | 0.97 | 5,137 (2,679) | 2,877 | 0.0246 | 2 |
+| 100 | M-opus | 84/84 (100%) | 27/27 (100%) | 5.9 / 9.1 | 3.9 / 7.2 | 0.99 | 6,105 (3,602) | 319 | 0.0251 | 0 |
+| 1,000 | B1-opus | 74/84 (88%) | 24/27 (89%) | 35.6 / 127.3 | 33.0 / 124.0 | 1.00 | 123,268 (120,742) | 3,352 | 0.2053 | 0 |
+| 1,000 | M-haiku | 72/84 (86%) | 24/27 (89%) | 24.8 / 67.0 | 23.1 / 64.2 | 0.99 | 5,232 (2,729) | 2,729 | 0.0241 | 3 |
+| 1,000 | M-opus | 79/84 (94%) | 24/27 (89%) | 5.8 / 10.1 | 3.8 / 6.8 | 1.00 | 6,161 (3,635) | 318 | 0.0252 | 0 |

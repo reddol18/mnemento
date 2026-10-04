@@ -1,0 +1,691 @@
+== start 2026-10-04  7:43:22.78 
+== v3: n=100 systems=M:haiku,M:opus,B1:opus reps=3
+n=100 M-haiku D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D3 rep0: OK  ok                                               39.2s in=10558
+n=100 M-haiku D4 rep0: OK  ok                                               32.2s in=5343
+n=100 M-haiku D5 rep0: OK  ok                                               58.9s in=5280
+n=100 M-haiku D6 rep0: OK  ok                                               12.2s in=5272
+n=100 M-haiku D7 rep0: BAD number 0 != 4                                    59.2s in=5271
+n=100 M-haiku U1 rep0: OK  ok                                                8.9s in=5263
+n=100 M-haiku U2 rep0: OK  ok                                               11.5s in=5275
+n=100 M-haiku U3 rep0: OK  ok                                                7.9s in=5267
+n=100 M-haiku U4 rep0: OK  ok                                               13.1s in=5267
+n=100 M-haiku U5 rep0: OK  ok                                                6.7s in=5281
+n=100 M-haiku U6 rep0: OK  ok                                               18.0s in=5275
+n=100 M-haiku U7 rep0: OK  ok                                               11.6s in=5266
+n=100 M-haiku U8 rep0: OK  ok                                                8.8s in=5252
+n=100 M-haiku H1 rep0: OK  ok (alternative reading)                         20.1s in=5282
+n=100 M-haiku H2 rep0: BAD None/saramin: 0.29 != 0.00                       26.1s in=5314
+n=100 M-haiku H3 rep0: OK  ok                                               35.4s in=5292
+n=100 M-haiku H4 rep0: OK  ok                                               14.5s in=5302
+n=100 M-haiku H5 rep0: OK  ok                                               58.3s in=5278
+n=100 M-haiku V1 rep0: OK  ok                                               27.6s in=5285
+n=100 M-haiku V2 rep0: OK  ok                                                7.7s in=5267
+n=100 M-haiku V3 rep0: OK  ok                                               42.5s in=5286
+n=100 M-haiku V4 rep0: OK  ok                                               18.2s in=5271
+n=100 M-haiku V5 rep0: OK  ok                                               16.6s in=5299
+n=100 M-haiku V7 rep0: OK  ok                                               11.5s in=5280
+n=100 M-haiku V8 rep0: OK  ok                                               11.1s in=5261
+n=100 M-haiku V9 rep0: OK  ok                                               27.4s in=5270
+n=100 M-haiku W1 rep0: OK  ok                                               10.5s in=5278
+n=100 M-haiku W2 rep0: OK  ok                                               62.0s in=5274
+n=100 M-haiku W3 rep0: OK  ok                                               18.3s in=5287
+n=100 M-haiku W4 rep0: OK  ok                                               90.2s in=5294
+n=100 M-haiku W5 rep0: BAD no number                                        52.4s in=5268
+n=100 M-haiku W6 rep0: OK  ok                                               24.5s in=5281
+n=100 M-haiku W7 rep0: OK  ok                                                7.5s in=5259
+n=100 M-haiku W8 rep0: OK  ok                                               31.4s in=5261
+n=100 M-haiku W9 rep0: OK  ok                                                7.8s in=5269
+n=100 M-haiku D1 rep1: OK  ok                                                0.0s in=0
+n=100 M-haiku D2 rep1: OK  ok                                                0.0s in=0
+n=100 M-haiku D3 rep1: OK  ok                                               27.9s in=5265
+n=100 M-haiku D4 rep1: OK  ok                                               74.7s in=5344
+n=100 M-haiku D5 rep1: OK  ok                                               42.1s in=5281
+n=100 M-haiku D6 rep1: OK  ok                                               15.8s in=5271
+n=100 M-haiku D7 rep1: BAD number 0 != 4                                    11.0s in=5272
+n=100 M-haiku U1 rep1: OK  ok                                               10.2s in=5263
+n=100 M-haiku U2 rep1: OK  ok                                               14.4s in=5275
+n=100 M-haiku U3 rep1: OK  ok                                                7.4s in=5266
+n=100 M-haiku U4 rep1: OK  ok                                               10.0s in=5266
+n=100 M-haiku U5 rep1: OK  ok                                               20.9s in=5282
+n=100 M-haiku U6 rep1: OK  ok                                               23.5s in=5275
+n=100 M-haiku U7 rep1: OK  ok                                               16.9s in=5267
+n=100 M-haiku U8 rep1: OK  ok                                               14.9s in=5253
+n=100 M-haiku H1 rep1: OK  ok (alternative reading)                         13.1s in=5285
+n=100 M-haiku H2 rep1: OK  ok                                               12.7s in=5316
+n=100 M-haiku H3 rep1: OK  ok                                               32.8s in=5294
+n=100 M-haiku H4 rep1: OK  ok                                               12.6s in=5303
+n=100 M-haiku H5 rep1: OK  ok                                               45.1s in=5276
+n=100 M-haiku V1 rep1: OK  ok                                               12.9s in=5286
+n=100 M-haiku V2 rep1: OK  ok                                                6.8s in=5269
+n=100 M-haiku V3 rep1: BAD number 20 != 4                                   91.6s in=5288
+n=100 M-haiku V4 rep1: OK  ok                                               22.2s in=5271
+n=100 M-haiku V5 rep1: OK  ok                                               14.9s in=5299
+n=100 M-haiku V7 rep1: OK  ok                                               15.8s in=5280
+n=100 M-haiku V8 rep1: OK  ok                                               15.5s in=5262
+n=100 M-haiku V9 rep1: OK  ok                                               31.4s in=5271
+n=100 M-haiku W1 rep1: OK  ok                                               10.2s in=5279
+n=100 M-haiku W2 rep1: OK  ok                                               77.8s in=5274
+n=100 M-haiku W3 rep1: OK  ok                                               35.9s in=10600
+n=100 M-haiku W4 rep1: OK  ok                                               11.7s in=5292
+n=100 M-haiku W5 rep1: BAD number 1 != 5                                   200.9s in=10596
+n=100 M-haiku W6 rep1: OK  ok                                               23.4s in=5282
+n=100 M-haiku W7 rep1: OK  ok                                                6.3s in=5258
+n=100 M-haiku W8 rep1: OK  ok                                               29.3s in=5260
+n=100 M-haiku W9 rep1: OK  ok                                                9.5s in=5268
+n=100 M-haiku D1 rep2: OK  ok                                                0.0s in=0
+n=100 M-haiku D2 rep2: OK  ok                                                0.0s in=0
+n=100 M-haiku D3 rep2: OK  ok                                               28.8s in=5265
+n=100 M-haiku D4 rep2: OK  ok                                               45.2s in=5343
+n=100 M-haiku D5 rep2: BAD no number                                        63.2s in=5281
+n=100 M-haiku D6 rep2: OK  ok                                               20.0s in=5271
+n=100 M-haiku D7 rep2: BAD number 0 != 4                                    39.2s in=5271
+n=100 M-haiku U1 rep2: OK  ok                                               12.0s in=5262
+n=100 M-haiku U2 rep2: OK  ok                                                6.9s in=5274
+n=100 M-haiku U3 rep2: OK  ok                                                6.8s in=5266
+n=100 M-haiku U4 rep2: OK  ok                                               13.3s in=5268
+n=100 M-haiku U5 rep2: OK  ok                                               13.5s in=5281
+n=100 M-haiku U6 rep2: OK  ok                                               18.9s in=5277
+n=100 M-haiku U7 rep2: OK  ok                                                8.8s in=5269
+n=100 M-haiku U8 rep2: OK  ok                                                9.2s in=5252
+n=100 M-haiku H1 rep2: OK  ok (alternative reading)                         16.5s in=5283
+n=100 M-haiku H2 rep2: OK  ok                                               21.7s in=5313
+n=100 M-haiku H3 rep2: OK  ok                                               26.6s in=5292
+n=100 M-haiku H4 rep2: OK  ok                                               22.9s in=5302
+n=100 M-haiku H5 rep2: BAD number 12 != 17                                  32.8s in=5278
+n=100 M-haiku V1 rep2: OK  ok                                               15.7s in=5286
+n=100 M-haiku V2 rep2: OK  ok                                                7.1s in=5268
+n=100 M-haiku V3 rep2: BAD number 19 != 4                                  151.2s in=5288
+n=100 M-haiku V4 rep2: OK  ok                                               16.6s in=5270
+n=100 M-haiku V5 rep2: OK  ok                                               12.8s in=5301
+n=100 M-haiku V7 rep2: OK  ok                                               56.5s in=5280
+n=100 M-haiku V8 rep2: OK  ok                                                8.2s in=5262
+n=100 M-haiku V9 rep2: OK  ok                                               56.2s in=5274
+n=100 M-haiku W1 rep2: OK  ok                                               10.9s in=5277
+n=100 M-haiku W2 rep2: OK  ok                                               15.2s in=5275
+n=100 M-haiku W3 rep2: OK  ok                                               16.4s in=5288
+n=100 M-haiku W4 rep2: OK  ok                                               30.3s in=5294
+n=100 M-haiku W5 rep2: BAD number 0 != 5                                   121.6s in=5267
+n=100 M-haiku W6 rep2: OK  ok                                               12.5s in=5282
+n=100 M-haiku W7 rep2: OK  ok                                               10.4s in=5257
+n=100 M-haiku W8 rep2: OK  ok                                               23.9s in=5261
+n=100 M-haiku W9 rep2: OK  ok                                                6.8s in=5267
+n=100 M-opus D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-opus D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-opus D3 rep0: OK  ok                                                5.8s in=6144
+n=100 M-opus D4 rep0: OK  ok                                                7.5s in=6234
+n=100 M-opus D5 rep0: OK  ok                                                7.1s in=6157
+n=100 M-opus D6 rep0: OK  ok                                                5.4s in=6151
+n=100 M-opus D7 rep0: OK  ok                                                4.8s in=6151
+n=100 M-opus U1 rep0: OK  ok                                                5.1s in=6142
+n=100 M-opus U2 rep0: OK  ok                                                8.8s in=12357
+n=100 M-opus U3 rep0: OK  ok                                                4.8s in=6143
+n=100 M-opus U4 rep0: OK  ok                                                5.6s in=6145
+n=100 M-opus U5 rep0: OK  ok                                                5.2s in=6166
+n=100 M-opus U6 rep0: OK  ok                                                6.1s in=6153
+n=100 M-opus U7 rep0: OK  ok                                                4.7s in=6142
+n=100 M-opus U8 rep0: OK  ok                                                5.0s in=6133
+n=100 M-opus H1 rep0: OK  ok (alternative reading)                          8.9s in=6164
+n=100 M-opus H2 rep0: OK  ok                                                4.8s in=6198
+n=100 M-opus H3 rep0: OK  ok                                                5.6s in=6177
+n=100 M-opus H4 rep0: OK  ok                                                5.3s in=6188
+n=100 M-opus H5 rep0: OK  ok                                                6.5s in=6154
+n=100 M-opus V1 rep0: OK  ok                                                5.1s in=6167
+n=100 M-opus V2 rep0: OK  ok                                                6.9s in=6148
+n=100 M-opus V3 rep0: OK  ok                                                6.7s in=6169
+n=100 M-opus V4 rep0: OK  ok                                                5.9s in=6151
+n=100 M-opus V5 rep0: OK  ok                                                5.3s in=6184
+n=100 M-opus V7 rep0: OK  ok                                               11.5s in=12360
+n=100 M-opus V8 rep0: OK  ok                                                4.6s in=6141
+n=100 M-opus V9 rep0: OK  ok                                                5.6s in=6152
+n=100 M-opus W1 rep0: OK  ok                                                5.3s in=6159
+n=100 M-opus W2 rep0: OK  ok                                                6.2s in=6152
+n=100 M-opus W3 rep0: OK  ok                                                5.5s in=6166
+n=100 M-opus W4 rep0: OK  ok                                                5.2s in=6179
+n=100 M-opus W5 rep0: OK  ok                                                9.1s in=6144
+n=100 M-opus W6 rep0: OK  ok                                                8.2s in=6165
+n=100 M-opus W7 rep0: OK  ok                                                4.1s in=6138
+n=100 M-opus W8 rep0: OK  ok                                                5.7s in=6140
+n=100 M-opus W9 rep0: OK  ok                                                4.7s in=6144
+n=100 M-opus D1 rep1: OK  ok                                                0.0s in=0
+n=100 M-opus D2 rep1: OK  ok                                                0.0s in=0
+n=100 M-opus D3 rep1: OK  ok                                                5.1s in=6145
+n=100 M-opus D4 rep1: OK  ok                                                7.7s in=6236
+n=100 M-opus D5 rep1: OK  ok                                                6.8s in=6157
+n=100 M-opus D6 rep1: OK  ok                                                6.1s in=6151
+n=100 M-opus D7 rep1: OK  ok                                                4.8s in=6149
+n=100 M-opus U1 rep1: OK  ok                                                4.8s in=6143
+n=100 M-opus U2 rep1: OK  ok                                                9.6s in=12357
+n=100 M-opus U3 rep1: OK  ok                                                4.8s in=6143
+n=100 M-opus U4 rep1: OK  ok                                                6.0s in=6145
+n=100 M-opus U5 rep1: OK  ok                                                5.8s in=6165
+n=100 M-opus U6 rep1: OK  ok                                                4.8s in=6155
+n=100 M-opus U7 rep1: OK  ok                                               12.5s in=6142
+n=100 M-opus U8 rep1: OK  ok                                                5.4s in=6132
+n=100 M-opus H1 rep1: OK  ok (alternative reading)                          6.8s in=6161
+n=100 M-opus H2 rep1: OK  ok                                                5.0s in=6199
+n=100 M-opus H3 rep1: OK  ok                                                6.0s in=6173
+n=100 M-opus H4 rep1: OK  ok                                                5.3s in=6188
+n=100 M-opus H5 rep1: OK  ok                                                6.6s in=6155
+n=100 M-opus V1 rep1: OK  ok                                                5.3s in=6168
+n=100 M-opus V2 rep1: OK  ok                                                4.7s in=6148
+n=100 M-opus V3 rep1: OK  ok                                                6.0s in=6169
+n=100 M-opus V4 rep1: OK  ok                                                6.1s in=6153
+n=100 M-opus V5 rep1: OK  ok                                                7.5s in=6186
+n=100 M-opus V7 rep1: OK  ok                                               11.4s in=12361
+n=100 M-opus V8 rep1: OK  ok                                                5.0s in=6141
+n=100 M-opus V9 rep1: OK  ok                                                6.7s in=6151
+n=100 M-opus W1 rep1: OK  ok                                                5.4s in=6158
+n=100 M-opus W2 rep1: OK  ok                                                6.0s in=6154
+n=100 M-opus W3 rep1: OK  ok                                                5.6s in=6167
+n=100 M-opus W4 rep1: OK  ok                                                6.5s in=6179
+n=100 M-opus W5 rep1: OK  ok                                                9.5s in=6144
+n=100 M-opus W6 rep1: OK  ok                                                6.0s in=6165
+n=100 M-opus W7 rep1: OK  ok                                                4.2s in=6138
+n=100 M-opus W8 rep1: OK  ok                                                5.5s in=6139
+n=100 M-opus W9 rep1: OK  ok                                                5.2s in=6144
+n=100 M-opus D1 rep2: OK  ok                                                0.0s in=0
+n=100 M-opus D2 rep2: OK  ok                                                0.0s in=0
+n=100 M-opus D3 rep2: OK  ok                                                5.0s in=6145
+n=100 M-opus D4 rep2: OK  ok                                                8.0s in=6233
+n=100 M-opus D5 rep2: OK  ok                                                8.4s in=6159
+n=100 M-opus D6 rep2: OK  ok                                                6.0s in=6150
+n=100 M-opus D7 rep2: OK  ok                                                4.8s in=6151
+n=100 M-opus U1 rep2: OK  ok                                                4.9s in=6142
+n=100 M-opus U2 rep2: OK  ok                                                8.9s in=12358
+n=100 M-opus U3 rep2: OK  ok                                                4.9s in=6144
+n=100 M-opus U4 rep2: OK  ok                                                6.2s in=6144
+n=100 M-opus U5 rep2: OK  ok                                                6.6s in=6164
+n=100 M-opus U6 rep2: OK  ok                                                4.7s in=6153
+n=100 M-opus U7 rep2: OK  ok                                                4.7s in=6143
+n=100 M-opus U8 rep2: OK  ok                                                5.1s in=6133
+n=100 M-opus H1 rep2: OK  ok (alternative reading)                          8.1s in=6162
+n=100 M-opus H2 rep2: OK  ok                                                6.4s in=6201
+n=100 M-opus H3 rep2: OK  ok                                                6.0s in=6177
+n=100 M-opus H4 rep2: OK  ok                                                4.9s in=6188
+n=100 M-opus H5 rep2: OK  ok                                                6.9s in=6155
+n=100 M-opus V1 rep2: OK  ok                                                4.7s in=6166
+n=100 M-opus V2 rep2: OK  ok                                                4.4s in=6149
+n=100 M-opus V3 rep2: OK  ok                                                5.3s in=6170
+n=100 M-opus V4 rep2: OK  ok                                                5.8s in=6152
+n=100 M-opus V5 rep2: OK  ok                                                5.5s in=6185
+n=100 M-opus V7 rep2: OK  ok                                                5.3s in=6160
+n=100 M-opus V8 rep2: OK  ok                                                4.5s in=6141
+n=100 M-opus V9 rep2: OK  ok                                                7.4s in=6151
+n=100 M-opus W1 rep2: OK  ok                                                5.4s in=6158
+n=100 M-opus W2 rep2: OK  ok                                                6.5s in=6154
+n=100 M-opus W3 rep2: OK  ok                                                9.0s in=6164
+n=100 M-opus W4 rep2: OK  ok                                                6.3s in=6178
+n=100 M-opus W5 rep2: OK  ok                                               18.5s in=6144
+n=100 M-opus W6 rep2: OK  ok                                                5.8s in=6164
+n=100 M-opus W7 rep2: OK  ok                                                4.2s in=6139
+n=100 M-opus W8 rep2: OK  ok                                                5.8s in=6140
+n=100 M-opus W9 rep2: OK  ok                                                4.4s in=6143
+n=100 B1-opus D1 rep0: OK  ok                                               10.7s in=33046
+n=100 B1-opus D2 rep0: OK  ok                                                7.7s in=21680
+n=100 B1-opus D3 rep0: OK  ok                                               12.2s in=35592
+n=100 B1-opus D4 rep0: BAD 2027-01/top10: 0.62 != 0.56                      23.9s in=49709
+n=100 B1-opus D5 rep0: OK  ok                                               23.7s in=36197
+n=100 B1-opus D6 rep0: BAD number 1 != 3                                    11.0s in=31925
+n=100 B1-opus D7 rep0: OK  ok                                                7.6s in=21237
+n=100 B1-opus U1 rep0: OK  ok                                               15.4s in=39227
+n=100 B1-opus U2 rep0: OK  ok                                                9.8s in=31539
+n=100 B1-opus U3 rep0: OK  ok                                               11.3s in=33172
+n=100 B1-opus U4 rep0: OK  ok                                               19.1s in=54619
+n=100 B1-opus U5 rep0: BAD saramin: n=50 value=0 != 52/0                    21.7s in=36995
+n=100 B1-opus U6 rep0: OK  ok                                               10.5s in=31057
+n=100 B1-opus U7 rep0: OK  ok                                               17.5s in=35882
+n=100 B1-opus U8 rep0: OK  ok                                                9.5s in=33734
+n=100 B1-opus H1 rep0: OK  ok (alternative reading)                         14.5s in=33010
+n=100 B1-opus H2 rep0: OK  ok                                               15.9s in=35871
+n=100 B1-opus H3 rep0: OK  ok                                               23.0s in=24314
+n=100 B1-opus H4 rep0: OK  ok                                               11.5s in=34556
+n=100 B1-opus H5 rep0: OK  ok                                               17.2s in=32924
+n=100 B1-opus V1 rep0: OK  ok                                               12.7s in=43684
+n=100 B1-opus V2 rep0: OK  ok                                                8.6s in=21724
+n=100 B1-opus V3 rep0: OK  ok                                               19.1s in=37891
+n=100 B1-opus V4 rep0: OK  ok                                               11.8s in=32170
+n=100 B1-opus V5 rep0: OK  ok                                               18.2s in=41451
+n=100 B1-opus V7 rep0: OK  ok                                               12.6s in=34099
+n=100 B1-opus V8 rep0: OK  ok                                               11.2s in=33541
+n=100 B1-opus V9 rep0: OK  ok                                               12.2s in=38147
+n=100 B1-opus W1 rep0: OK  ok                                               16.5s in=21314
+n=100 B1-opus W2 rep0: OK  ok                                               11.9s in=35730
+n=100 B1-opus W3 rep0: OK  ok                                               13.2s in=32338
+n=100 B1-opus W4 rep0: OK  ok                                               18.3s in=63504
+n=100 B1-opus W5 rep0: OK  ok                                               20.1s in=50543
+n=100 B1-opus W6 rep0: OK  ok                                               19.5s in=33121
+n=100 B1-opus W7 rep0: OK  ok                                                6.5s in=20580
+n=100 B1-opus W8 rep0: OK  ok                                               11.4s in=33823
+n=100 B1-opus W9 rep0: OK  ok                                               11.2s in=33369
+n=100 B1-opus D1 rep1: OK  ok                                               12.6s in=42258
+n=100 B1-opus D2 rep1: OK  ok                                               11.4s in=31110
+n=100 B1-opus D3 rep1: OK  ok                                               14.2s in=35521
+n=100 B1-opus D4 rep1: BAD 2027-01/top10: 0.62 != 0.56                      27.3s in=60376
+n=100 B1-opus D5 rep1: OK  ok                                               23.8s in=39147
+n=100 B1-opus D6 rep1: BAD number 1 != 3                                     9.0s in=21245
+n=100 B1-opus D7 rep1: OK  ok                                                7.5s in=20684
+n=100 B1-opus U1 rep1: OK  ok                                               16.8s in=44364
+n=100 B1-opus U2 rep1: OK  ok                                               10.8s in=33312
+n=100 B1-opus U3 rep1: OK  ok                                               11.2s in=34037
+n=100 B1-opus U4 rep1: OK  ok                                               19.5s in=32310
+n=100 B1-opus U5 rep1: OK  ok                                               30.0s in=111357
+n=100 B1-opus U6 rep1: OK  ok                                               10.9s in=31023
+n=100 B1-opus U7 rep1: OK  ok                                               19.1s in=50530
+n=100 B1-opus U8 rep1: OK  ok                                               10.8s in=46614
+n=100 B1-opus H1 rep1: BAD number 12 != 11                                  15.9s in=44997
+n=100 B1-opus H2 rep1: OK  ok                                               16.8s in=49876
+n=100 B1-opus H3 rep1: OK  ok                                               28.4s in=34635
+n=100 B1-opus H4 rep1: OK  ok                                               12.4s in=34548
+n=100 B1-opus H5 rep1: OK  ok                                               14.9s in=23836
+n=100 B1-opus V1 rep1: OK  ok                                               13.5s in=44356
+n=100 B1-opus V2 rep1: OK  ok                                                9.7s in=31112
+n=100 B1-opus V3 rep1: OK  ok                                               17.5s in=38443
+n=100 B1-opus V4 rep1: OK  ok                                               13.3s in=45922
+n=100 B1-opus V5 rep1: OK  ok                                               19.6s in=47293
+n=100 B1-opus V7 rep1: OK  ok                                                7.9s in=21258
+n=100 B1-opus V8 rep1: OK  ok                                               13.5s in=43150
+n=100 B1-opus V9 rep1: OK  ok                                               10.1s in=23121
+n=100 B1-opus W1 rep1: OK  ok                                               15.3s in=21388
+n=100 B1-opus W2 rep1: OK  ok                                               11.4s in=35639
+n=100 B1-opus W3 rep1: OK  ok                                               12.3s in=24259
+n=100 B1-opus W4 rep1: OK  ok                                               19.6s in=72940
+n=100 B1-opus W5 rep1: OK  ok                                               16.3s in=50118
+n=100 B1-opus W6 rep1: OK  ok                                               17.5s in=21471
+n=100 B1-opus W7 rep1: OK  ok                                               10.4s in=43122
+n=100 B1-opus W8 rep1: OK  ok                                               10.3s in=33854
+n=100 B1-opus W9 rep1: OK  ok                                               11.3s in=22350
+n=100 B1-opus D1 rep2: OK  ok                                               24.6s in=21717
+n=100 B1-opus D2 rep2: OK  ok                                                8.1s in=21684
+n=100 B1-opus D3 rep2: OK  ok                                               12.3s in=35545
+n=100 B1-opus D4 rep2: OK  ok                                               22.3s in=72892
+n=100 B1-opus D5 rep2: OK  ok                                               31.1s in=75537
+n=100 B1-opus D6 rep2: BAD number 1 != 3                                     9.2s in=21245
+n=100 B1-opus D7 rep2: OK  ok                                                7.7s in=21245
+n=100 B1-opus U1 rep2: OK  ok                                               15.8s in=32175
+n=100 B1-opus U2 rep2: OK  ok                                               12.0s in=33294
+n=100 B1-opus U3 rep2: OK  ok                                               10.9s in=34087
+n=100 B1-opus U4 rep2: OK  ok                                               22.1s in=34220
+n=100 B1-opus U5 rep2: OK  ok                                               21.7s in=56356
+n=100 B1-opus U6 rep2: OK  ok                                                9.1s in=31077
+n=100 B1-opus U7 rep2: OK  ok                                               19.3s in=50495
+n=100 B1-opus U8 rep2: OK  ok                                               10.3s in=50046
+n=100 B1-opus H1 rep2: OK  ok (alternative reading)                         13.3s in=33246
+n=100 B1-opus H2 rep2: OK  ok                                               15.4s in=35740
+n=100 B1-opus H3 rep2: OK  ok                                               30.6s in=38648
+n=100 B1-opus H4 rep2: OK  ok                                               11.4s in=34558
+n=100 B1-opus H5 rep2: OK  ok                                               15.4s in=37943
+n=100 B1-opus V1 rep2: OK  ok                                               14.2s in=57334
+n=100 B1-opus V2 rep2: OK  ok                                                9.6s in=31137
+n=100 B1-opus V3 rep2: OK  ok                                               15.2s in=40089
+n=100 B1-opus V4 rep2: OK  ok                                               15.7s in=46219
+n=100 B1-opus V5 rep2: OK  ok                                               14.7s in=25480
+n=100 B1-opus V7 rep2: OK  ok                                               12.3s in=33649
+n=100 B1-opus V8 rep2: OK  ok                                               10.9s in=33551
+n=100 B1-opus V9 rep2: OK  ok                                               14.4s in=35901
+n=100 B1-opus W1 rep2: OK  ok                                               19.6s in=21965
+n=100 B1-opus W2 rep2: OK  ok                                               11.7s in=35640
+n=100 B1-opus W3 rep2: OK  ok                                               13.0s in=33569
+n=100 B1-opus W4 rep2: OK  ok                                               17.9s in=57458
+n=100 B1-opus W5 rep2: OK  ok                                               14.3s in=35708
+n=100 B1-opus W6 rep2: OK  ok                                               21.2s in=10121
+n=100 B1-opus W7 rep2: OK  ok                                                8.9s in=31430
+n=100 B1-opus W8 rep2: OK  ok                                               12.5s in=33781
+n=100 B1-opus W9 rep2: OK  ok                                               10.3s in=22156
+== v3: n=1000 systems=M:haiku,M:opus reps=3
+n=1000 M-haiku D1 rep0: OK  ok                                                0.0s in=0
+n=1000 M-haiku D2 rep0: OK  ok                                                0.1s in=0
+n=1000 M-haiku D3 rep0: OK  ok                                               23.9s in=5263
+n=1000 M-haiku D4 rep0: OK  ok                                               49.4s in=5343
+n=1000 M-haiku D5 rep0: BAD number 1000 != 35.09                             53.8s in=5280
+n=1000 M-haiku D6 rep0: OK  ok                                               12.3s in=5269
+n=1000 M-haiku D7 rep0: BAD number 0 != 37                                   12.4s in=5270
+n=1000 M-haiku U1 rep0: OK  ok                                               15.5s in=5263
+n=1000 M-haiku U2 rep0: OK  ok                                               11.5s in=5276
+n=1000 M-haiku U3 rep0: OK  ok                                                6.3s in=5265
+n=1000 M-haiku U4 rep0: OK  ok                                               12.1s in=5268
+n=1000 M-haiku U5 rep0: OK  ok                                               10.7s in=5283
+n=1000 M-haiku U6 rep0: OK  ok                                               39.9s in=5277
+n=1000 M-haiku U7 rep0: OK  ok                                                9.9s in=5266
+n=1000 M-haiku U8 rep0: OK  ok                                               21.0s in=5253
+n=1000 M-haiku H1 rep0: OK  ok                                               23.2s in=5283
+n=1000 M-haiku H2 rep0: OK  ok                                               35.9s in=5314
+n=1000 M-haiku H3 rep0: OK  ok                                               31.0s in=5294
+n=1000 M-haiku H4 rep0: OK  ok                                               13.7s in=5304
+n=1000 M-haiku H5 rep0: BAD number 394 != 401                                15.6s in=5277
+n=1000 M-haiku V1 rep0: OK  ok                                               20.9s in=5286
+n=1000 M-haiku V2 rep0: OK  ok                                                5.8s in=5268
+n=1000 M-haiku V3 rep0: OK  ok                                               15.1s in=5286
+n=1000 M-haiku V4 rep0: BAD ids differ (missing 1, extra 1)                  15.1s in=5272
+n=1000 M-haiku V5 rep0: OK  ok                                               48.8s in=5300
+n=1000 M-haiku V7 rep0: OK  ok                                               67.4s in=10588
+n=1000 M-haiku V8 rep0: OK  ok                                                6.8s in=5263
+n=1000 M-haiku V9 rep0: OK  ok                                               30.4s in=5271
+n=1000 M-haiku W1 rep0: OK  ok                                               14.2s in=5277
+n=1000 M-haiku W2 rep0: OK  ok                                               41.3s in=5273
+n=1000 M-haiku W3 rep0: OK  ok                                               33.9s in=5288
+n=1000 M-haiku W4 rep0: OK  ok                                               31.6s in=5294
+n=1000 M-haiku W5 rep0: BAD no number                                       219.2s in=10583
+n=1000 M-haiku W6 rep0: OK  ok                                               15.8s in=5281
+n=1000 M-haiku W7 rep0: OK  ok                                                6.2s in=5258
+n=1000 M-haiku W8 rep0: OK  ok                                               28.8s in=5261
+n=1000 M-haiku W9 rep0: OK  ok                                                9.2s in=5266
+n=1000 M-haiku D1 rep1: OK  ok                                                0.0s in=0
+n=1000 M-haiku D2 rep1: OK  ok                                                0.1s in=0
+n=1000 M-haiku D3 rep1: BAD number 50 != 187                                 74.5s in=10557
+n=1000 M-haiku D4 rep1: OK  ok                                               46.0s in=5344
+n=1000 M-haiku D5 rep1: BAD number 382 != 35.09                              52.5s in=5282
+n=1000 M-haiku D6 rep1: OK  ok                                               11.7s in=5270
+n=1000 M-haiku D7 rep1: BAD number 0 != 37                                   24.9s in=5270
+n=1000 M-haiku U1 rep1: OK  ok                                               17.5s in=5263
+n=1000 M-haiku U2 rep1: OK  ok                                                6.5s in=5276
+n=1000 M-haiku U3 rep1: OK  ok                                               10.0s in=5267
+n=1000 M-haiku U4 rep1: OK  ok                                                7.7s in=5268
+n=1000 M-haiku U5 rep1: OK  ok                                               11.0s in=5282
+n=1000 M-haiku U6 rep1: OK  ok                                               14.6s in=5277
+n=1000 M-haiku U7 rep1: OK  ok                                               14.1s in=5267
+n=1000 M-haiku U8 rep1: OK  ok                                               17.0s in=5253
+n=1000 M-haiku H1 rep1: OK  ok                                               25.5s in=5284
+n=1000 M-haiku H2 rep1: OK  ok                                               21.8s in=5315
+n=1000 M-haiku H3 rep1: OK  ok                                               30.0s in=5293
+n=1000 M-haiku H4 rep1: OK  ok                                               14.9s in=5302
+n=1000 M-haiku H5 rep1: BAD number 411 != 401                                31.6s in=5276
+n=1000 M-haiku V1 rep1: OK  ok                                               21.9s in=5289
+n=1000 M-haiku V2 rep1: OK  ok                                                6.5s in=5268
+n=1000 M-haiku V3 rep1: OK  ok                                               67.0s in=5285
+n=1000 M-haiku V4 rep1: OK  ok                                               17.0s in=5270
+n=1000 M-haiku V5 rep1: OK  ok                                               15.8s in=5300
+n=1000 M-haiku V7 rep1: OK  ok                                                8.3s in=5280
+n=1000 M-haiku V8 rep1: OK  ok                                               13.3s in=5262
+n=1000 M-haiku V9 rep1: OK  ok                                               57.1s in=5272
+n=1000 M-haiku W1 rep1: OK  ok                                                9.3s in=5278
+n=1000 M-haiku W2 rep1: OK  ok                                               24.2s in=5273
+n=1000 M-haiku W3 rep1: OK  ok                                               10.9s in=5287
+n=1000 M-haiku W4 rep1: OK  ok                                               30.4s in=5293
+n=1000 M-haiku W5 rep1: BAD no number                                        41.8s in=5266
+n=1000 M-haiku W6 rep1: OK  ok                                               14.9s in=5282
+n=1000 M-haiku W7 rep1: OK  ok                                                6.9s in=5260
+n=1000 M-haiku W8 rep1: OK  ok                                               27.4s in=5261
+n=1000 M-haiku W9 rep1: OK  ok                                                7.6s in=5267
+n=1000 M-haiku D1 rep2: OK  ok                                                0.0s in=0
+n=1000 M-haiku D2 rep2: OK  ok                                                0.1s in=0
+n=1000 M-haiku D3 rep2: BAD number 50 != 187                                 22.7s in=5268
+n=1000 M-haiku D4 rep2: OK  ok                                               43.2s in=5344
+n=1000 M-haiku D5 rep2: BAD no number                                        67.1s in=5282
+n=1000 M-haiku D6 rep2: OK  ok                                               27.4s in=5272
+n=1000 M-haiku D7 rep2: BAD number 0 != 37                                    8.9s in=5270
+n=1000 M-haiku U1 rep2: OK  ok                                               12.1s in=5263
+n=1000 M-haiku U2 rep2: OK  ok                                                9.2s in=5277
+n=1000 M-haiku U3 rep2: OK  ok                                                6.4s in=5265
+n=1000 M-haiku U4 rep2: OK  ok                                               14.1s in=5270
+n=1000 M-haiku U5 rep2: OK  ok                                                7.1s in=5280
+n=1000 M-haiku U6 rep2: OK  ok                                               38.9s in=5275
+n=1000 M-haiku U7 rep2: OK  ok                                                9.6s in=5267
+n=1000 M-haiku U8 rep2: OK  ok                                               10.5s in=5252
+n=1000 M-haiku H1 rep2: OK  ok                                               26.4s in=5283
+n=1000 M-haiku H2 rep2: OK  ok                                               14.4s in=5315
+n=1000 M-haiku H3 rep2: OK  ok                                               33.5s in=5293
+n=1000 M-haiku H4 rep2: OK  ok                                               12.2s in=5304
+n=1000 M-haiku H5 rep2: BAD number 394 != 401                                28.8s in=5277
+n=1000 M-haiku V1 rep2: OK  ok                                               19.1s in=5287
+n=1000 M-haiku V2 rep2: OK  ok                                                6.3s in=5266
+n=1000 M-haiku V3 rep2: OK  ok                                               36.2s in=5288
+n=1000 M-haiku V4 rep2: OK  ok                                               22.4s in=5269
+n=1000 M-haiku V5 rep2: OK  ok                                               24.5s in=5299
+n=1000 M-haiku V7 rep2: OK  ok                                               20.6s in=10587
+n=1000 M-haiku V8 rep2: OK  ok                                                8.6s in=5261
+n=1000 M-haiku V9 rep2: OK  ok                                               36.6s in=5273
+n=1000 M-haiku W1 rep2: OK  ok                                               10.1s in=5277
+n=1000 M-haiku W2 rep2: OK  ok                                               69.3s in=5272
+n=1000 M-haiku W3 rep2: OK  ok                                               13.2s in=5288
+n=1000 M-haiku W4 rep2: OK  ok                                               23.9s in=5293
+n=1000 M-haiku W5 rep2: BAD number 14 != 40                                 185.4s in=10564
+n=1000 M-haiku W6 rep2: OK  ok                                               31.8s in=5283
+n=1000 M-haiku W7 rep2: OK  ok                                                6.8s in=5259
+n=1000 M-haiku W8 rep2: OK  ok                                               11.8s in=5263
+n=1000 M-haiku W9 rep2: OK  ok                                               10.0s in=5267
+n=1000 M-opus D1 rep0: OK  ok                                                0.0s in=0
+n=1000 M-opus D2 rep0: OK  ok                                                0.1s in=0
+n=1000 M-opus D3 rep0: BAD number 50 != 187                                  5.0s in=6145
+n=1000 M-opus D4 rep0: OK  ok                                                6.8s in=6234
+n=1000 M-opus D5 rep0: OK  ok                                                6.6s in=6158
+n=1000 M-opus D6 rep0: OK  ok                                                5.3s in=6152
+n=1000 M-opus D7 rep0: OK  ok                                                5.2s in=6150
+n=1000 M-opus U1 rep0: OK  ok                                                5.0s in=6144
+n=1000 M-opus U2 rep0: OK  ok                                                9.8s in=12359
+n=1000 M-opus U3 rep0: OK  ok                                                4.2s in=6143
+n=1000 M-opus U4 rep0: OK  ok                                                5.8s in=6145
+n=1000 M-opus U5 rep0: OK  ok                                                5.5s in=6167
+n=1000 M-opus U6 rep0: OK  ok                                               12.5s in=6152
+n=1000 M-opus U7 rep0: OK  ok                                                4.7s in=6142
+n=1000 M-opus U8 rep0: OK  ok                                                4.4s in=6130
+n=1000 M-opus H1 rep0: OK  ok                                                8.3s in=6161
+n=1000 M-opus H2 rep0: OK  ok                                                4.8s in=6201
+n=1000 M-opus H3 rep0: OK  ok                                                6.3s in=6175
+n=1000 M-opus H4 rep0: OK  ok                                                4.8s in=6188
+n=1000 M-opus H5 rep0: BAD number 394 != 401                                 8.5s in=6153
+n=1000 M-opus V1 rep0: OK  ok                                                4.7s in=6166
+n=1000 M-opus V2 rep0: OK  ok                                                4.2s in=6147
+n=1000 M-opus V3 rep0: OK  ok                                                5.3s in=6169
+n=1000 M-opus V4 rep0: OK  ok                                                5.2s in=6152
+n=1000 M-opus V5 rep0: OK  ok                                                5.4s in=6186
+n=1000 M-opus V7 rep0: OK  ok                                               10.0s in=12362
+n=1000 M-opus V8 rep0: OK  ok                                                4.7s in=6139
+n=1000 M-opus V9 rep0: OK  ok                                               14.6s in=6151
+n=1000 M-opus W1 rep0: OK  ok                                                5.1s in=6158
+n=1000 M-opus W2 rep0: OK  ok                                                7.1s in=6154
+n=1000 M-opus W3 rep0: OK  ok                                                5.8s in=6165
+n=1000 M-opus W4 rep0: OK  ok                                                6.7s in=6178
+n=1000 M-opus W5 rep0: BAD number 0 != 40                                   11.2s in=6143
+n=1000 M-opus W6 rep0: OK  ok                                                5.7s in=6164
+n=1000 M-opus W7 rep0: OK  ok                                                4.9s in=6136
+n=1000 M-opus W8 rep0: OK  ok                                                5.4s in=6140
+n=1000 M-opus W9 rep0: OK  ok                                                4.1s in=6143
+n=1000 M-opus D1 rep1: OK  ok                                                0.0s in=0
+n=1000 M-opus D2 rep1: OK  ok                                                0.1s in=0
+n=1000 M-opus D3 rep1: OK  ok                                                5.2s in=6144
+n=1000 M-opus D4 rep1: OK  ok                                                8.1s in=6234
+n=1000 M-opus D5 rep1: OK  ok                                                7.0s in=6160
+n=1000 M-opus D6 rep1: OK  ok                                                5.2s in=6151
+n=1000 M-opus D7 rep1: OK  ok                                                4.8s in=6149
+n=1000 M-opus U1 rep1: OK  ok                                                5.7s in=6143
+n=1000 M-opus U2 rep1: OK  ok                                               10.1s in=12360
+n=1000 M-opus U3 rep1: OK  ok                                                4.3s in=6142
+n=1000 M-opus U4 rep1: OK  ok                                                5.7s in=6145
+n=1000 M-opus U5 rep1: OK  ok                                                5.1s in=6167
+n=1000 M-opus U6 rep1: OK  ok                                                5.8s in=6154
+n=1000 M-opus U7 rep1: OK  ok                                                4.8s in=6144
+n=1000 M-opus U8 rep1: OK  ok                                                4.5s in=6133
+n=1000 M-opus H1 rep1: OK  ok                                                6.4s in=6163
+n=1000 M-opus H2 rep1: OK  ok                                                4.7s in=6201
+n=1000 M-opus H3 rep1: OK  ok                                                5.2s in=6177
+n=1000 M-opus H4 rep1: OK  ok                                                4.9s in=6187
+n=1000 M-opus H5 rep1: BAD number 394 != 401                                 7.7s in=6154
+n=1000 M-opus V1 rep1: OK  ok                                                4.8s in=6166
+n=1000 M-opus V2 rep1: OK  ok                                                4.2s in=6148
+n=1000 M-opus V3 rep1: OK  ok                                                6.4s in=6167
+n=1000 M-opus V4 rep1: OK  ok                                                4.8s in=6150
+n=1000 M-opus V5 rep1: OK  ok                                                6.6s in=6185
+n=1000 M-opus V7 rep1: OK  ok                                                9.8s in=12362
+n=1000 M-opus V8 rep1: OK  ok                                                4.3s in=6140
+n=1000 M-opus V9 rep1: OK  ok                                                6.1s in=6151
+n=1000 M-opus W1 rep1: OK  ok                                                5.9s in=6156
+n=1000 M-opus W2 rep1: OK  ok                                                5.7s in=6153
+n=1000 M-opus W3 rep1: OK  ok                                                4.9s in=6167
+n=1000 M-opus W4 rep1: OK  ok                                                5.8s in=6176
+n=1000 M-opus W5 rep1: BAD number 31 != 40                                   8.4s in=6144
+n=1000 M-opus W6 rep1: OK  ok                                                5.6s in=6163
+n=1000 M-opus W7 rep1: OK  ok                                                5.3s in=6138
+n=1000 M-opus W8 rep1: OK  ok                                                6.5s in=6140
+n=1000 M-opus W9 rep1: OK  ok                                                4.0s in=6143
+n=1000 M-opus D1 rep2: OK  ok                                                0.0s in=0
+n=1000 M-opus D2 rep2: OK  ok                                                0.1s in=0
+n=1000 M-opus D3 rep2: BAD number 50 != 187                                  5.1s in=6145
+n=1000 M-opus D4 rep2: OK  ok                                                8.0s in=6234
+n=1000 M-opus D5 rep2: OK  ok                                                7.9s in=6159
+n=1000 M-opus D6 rep2: OK  ok                                                5.6s in=6151
+n=1000 M-opus D7 rep2: OK  ok                                                4.4s in=6150
+n=1000 M-opus U1 rep2: OK  ok                                                4.9s in=6142
+n=1000 M-opus U2 rep2: OK  ok                                               10.9s in=12362
+n=1000 M-opus U3 rep2: OK  ok                                                4.4s in=6142
+n=1000 M-opus U4 rep2: OK  ok                                                5.9s in=6144
+n=1000 M-opus U5 rep2: OK  ok                                                4.9s in=6167
+n=1000 M-opus U6 rep2: OK  ok                                                5.3s in=6151
+n=1000 M-opus U7 rep2: OK  ok                                                4.5s in=6143
+n=1000 M-opus U8 rep2: OK  ok                                                5.2s in=6132
+n=1000 M-opus H1 rep2: OK  ok                                                7.9s in=6163
+n=1000 M-opus H2 rep2: OK  ok                                                4.8s in=6201
+n=1000 M-opus H3 rep2: OK  ok                                                7.3s in=6177
+n=1000 M-opus H4 rep2: OK  ok                                                4.8s in=6187
+n=1000 M-opus H5 rep2: BAD number 394 != 401                                 6.4s in=6153
+n=1000 M-opus V1 rep2: OK  ok                                                5.2s in=6168
+n=1000 M-opus V2 rep2: OK  ok                                                4.5s in=6148
+n=1000 M-opus V3 rep2: OK  ok                                                5.2s in=6169
+n=1000 M-opus V4 rep2: OK  ok                                                5.0s in=6152
+n=1000 M-opus V5 rep2: OK  ok                                                6.2s in=6184
+n=1000 M-opus V7 rep2: OK  ok                                               11.4s in=12363
+n=1000 M-opus V8 rep2: OK  ok                                                4.4s in=6142
+n=1000 M-opus V9 rep2: OK  ok                                                6.1s in=6153
+n=1000 M-opus W1 rep2: OK  ok                                                5.2s in=6155
+n=1000 M-opus W2 rep2: OK  ok                                                7.1s in=6153
+n=1000 M-opus W3 rep2: OK  ok                                                6.4s in=6166
+n=1000 M-opus W4 rep2: OK  ok                                                5.3s in=6178
+n=1000 M-opus W5 rep2: BAD number 31 != 40                                  10.9s in=6144
+n=1000 M-opus W6 rep2: OK  ok                                                5.9s in=6163
+n=1000 M-opus W7 rep2: OK  ok                                                4.2s in=6137
+n=1000 M-opus W8 rep2: OK  ok                                                5.5s in=6141
+n=1000 M-opus W9 rep2: OK  ok                                                3.9s in=6143
+== v3: n=1000 systems=B1:opus reps=3
+n=1000 B1-opus D1 rep0: OK  ok                                               24.2s in=149277
+n=1000 B1-opus D2 rep0: OK  ok                                               11.2s in=26767
+n=1000 B1-opus D3 rep0: OK  ok                                               20.9s in=60286
+n=1000 B1-opus D4 rep0: BAD 2027-01/top10: 0.51 != 0.49                      57.8s in=207120
+n=1000 B1-opus D5 rep0: OK  ok                                              145.6s in=362019
+n=1000 B1-opus D6 rep0: BAD number 10 != 15                                   9.6s in=29088
+n=1000 B1-opus D7 rep0: OK  ok                                               10.6s in=41314
+n=1000 B1-opus U1 rep0: OK  ok                                               20.7s in=68082
+n=1000 B1-opus U2 rep0: OK  ok                                               10.6s in=41695
+n=1000 B1-opus U3 rep0: OK  ok                                               19.0s in=87585
+n=1000 B1-opus U4 rep0: OK  ok                                               29.5s in=96564
+n=1000 B1-opus U5 rep0: OK  ok                                               36.1s in=149207
+n=1000 B1-opus U6 rep0: OK  ok                                               12.0s in=40484
+n=1000 B1-opus U7 rep0: OK  ok                                               84.9s in=217533
+n=1000 B1-opus U8 rep0: OK  ok                                               12.2s in=68988
+n=1000 B1-opus H1 rep0: OK  ok                                               23.3s in=84270
+n=1000 B1-opus H2 rep0: OK  ok                                               52.2s in=233263
+n=1000 B1-opus H3 rep0: OK  ok                                               99.8s in=517286
+n=1000 B1-opus H4 rep0: OK  ok                                               19.9s in=87638
+n=1000 B1-opus H5 rep0: OK  ok                                               32.1s in=164960
+n=1000 B1-opus V1 rep0: OK  ok                                               28.8s in=148974
+n=1000 B1-opus V2 rep0: OK  ok                                                8.2s in=26763
+n=1000 B1-opus V3 rep0: OK  ok                                              151.8s in=548126
+n=1000 B1-opus V4 rep0: OK  ok                                               17.2s in=113049
+n=1000 B1-opus V5 rep0: OK  ok                                               39.3s in=96113
+n=1000 B1-opus V7 rep0: OK  ok                                               16.7s in=72938
+n=1000 B1-opus V8 rep0: OK  ok                                               22.6s in=68805
+n=1000 B1-opus V9 rep0: OK  ok                                               14.5s in=81291
+n=1000 B1-opus W1 rep0: OK  ok                                               23.4s in=56924
+n=1000 B1-opus W2 rep0: OK  ok                                               32.1s in=103286
+n=1000 B1-opus W3 rep0: OK  ok                                               16.8s in=131960
+n=1000 B1-opus W4 rep0: OK  ok                                               42.8s in=114576
+n=1000 B1-opus W5 rep0: OK  ok                                               41.1s in=144077
+n=1000 B1-opus W6 rep0: BAD number 139 != 141                                42.5s in=168593
+n=1000 B1-opus W7 rep0: OK  ok                                               16.7s in=87326
+n=1000 B1-opus W8 rep0: OK  ok                                               27.8s in=58158
+n=1000 B1-opus W9 rep0: OK  ok                                               18.0s in=82852
+n=1000 B1-opus D1 rep1: OK  ok                                               15.7s in=93063
+n=1000 B1-opus D2 rep1: OK  ok                                                7.8s in=26801
+n=1000 B1-opus D3 rep1: OK  ok                                               15.5s in=56655
+n=1000 B1-opus D4 rep1: OK  ok                                               54.4s in=289613
+n=1000 B1-opus D5 rep1: OK  ok                                              127.3s in=357570
+n=1000 B1-opus D6 rep1: BAD number 10 != 15                                  11.0s in=29088
+n=1000 B1-opus D7 rep1: OK  ok                                               11.8s in=56239
+n=1000 B1-opus U1 rep1: OK  ok                                               23.2s in=69132
+n=1000 B1-opus U2 rep1: OK  ok                                               13.1s in=41921
+n=1000 B1-opus U3 rep1: OK  ok                                               15.6s in=78845
+n=1000 B1-opus U4 rep1: OK  ok                                               34.5s in=114247
+n=1000 B1-opus U5 rep1: OK  ok                                               45.2s in=167298
+n=1000 B1-opus U6 rep1: OK  ok                                               11.8s in=40486
+n=1000 B1-opus U7 rep1: OK  ok                                              102.0s in=212954
+n=1000 B1-opus U8 rep1: OK  ok                                               11.2s in=49781
+n=1000 B1-opus H1 rep1: OK  ok                                               31.3s in=145376
+n=1000 B1-opus H2 rep1: OK  ok                                               37.6s in=135724
+n=1000 B1-opus H3 rep1: BAD no number                                        40.4s in=97184
+n=1000 B1-opus H4 rep1: OK  ok                                               19.6s in=120806
+n=1000 B1-opus H5 rep1: BAD number 394 != 401                                30.1s in=182865
+n=1000 B1-opus V1 rep1: OK  ok                                               30.5s in=106091
+n=1000 B1-opus V2 rep1: OK  ok                                               13.1s in=56071
+n=1000 B1-opus V3 rep1: OK  ok                                              148.1s in=229607
+n=1000 B1-opus V4 rep1: OK  ok                                               17.0s in=80416
+n=1000 B1-opus V5 rep1: OK  ok                                               45.4s in=129413
+n=1000 B1-opus V7 rep1: OK  ok                                               19.2s in=82729
+n=1000 B1-opus V8 rep1: OK  ok                                               16.6s in=106270
+n=1000 B1-opus V9 rep1: OK  ok                                               24.5s in=124010
+n=1000 B1-opus W1 rep1: OK  ok                                               22.2s in=58059
+n=1000 B1-opus W2 rep1: OK  ok                                               28.0s in=92329
+n=1000 B1-opus W3 rep1: OK  ok                                               12.6s in=68671
+n=1000 B1-opus W4 rep1: OK  ok                                               41.8s in=131236
+n=1000 B1-opus W5 rep1: BAD number 39 != 40                                  64.7s in=188835
+n=1000 B1-opus W6 rep1: BAD number 140 != 141                                48.9s in=220435
+n=1000 B1-opus W7 rep1: OK  ok                                               20.8s in=81338
+n=1000 B1-opus W8 rep1: OK  ok                                               13.4s in=79060
+n=1000 B1-opus W9 rep1: OK  ok                                               17.6s in=62583
+n=1000 B1-opus D1 rep2: OK  ok                                               17.0s in=92408
+n=1000 B1-opus D2 rep2: OK  ok                                                9.4s in=41113
+n=1000 B1-opus D3 rep2: OK  ok                                               23.4s in=112358
+n=1000 B1-opus D4 rep2: BAD 2027-01/top10: 0.51 != 0.49                      51.9s in=177491
+n=1000 B1-opus D5 rep2: OK  ok                                              155.7s in=300895
+n=1000 B1-opus D6 rep2: BAD number 10 != 15                                   8.5s in=29064
+n=1000 B1-opus D7 rep2: OK  ok                                               11.7s in=56232
+n=1000 B1-opus U1 rep2: OK  ok                                               18.0s in=48997
+n=1000 B1-opus U2 rep2: OK  ok                                               12.3s in=41940
+n=1000 B1-opus U3 rep2: OK  ok                                               13.5s in=54242
+n=1000 B1-opus U4 rep2: OK  ok                                               29.0s in=102275
+n=1000 B1-opus U5 rep2: OK  ok                                               44.7s in=176009
+n=1000 B1-opus U6 rep2: OK  ok                                               11.7s in=40467
+n=1000 B1-opus U7 rep2: OK  ok                                               92.4s in=211141
+n=1000 B1-opus U8 rep2: OK  ok                                               14.0s in=68898
+n=1000 B1-opus H1 rep2: OK  ok                                               27.0s in=104789
+n=1000 B1-opus H2 rep2: OK  ok                                               45.4s in=135347
+n=1000 B1-opus H3 rep2: OK  ok                                              154.7s in=411385
+n=1000 B1-opus H4 rep2: OK  ok                                               17.3s in=98108
+n=1000 B1-opus H5 rep2: BAD number 400 != 401                                41.9s in=184598
+n=1000 B1-opus V1 rep2: OK  ok                                               25.1s in=122870
+n=1000 B1-opus V2 rep2: OK  ok                                               10.8s in=41225
+n=1000 B1-opus V3 rep2: BAD number 59 != 58                                 188.7s in=396968
+n=1000 B1-opus V4 rep2: OK  ok                                               17.3s in=61174
+n=1000 B1-opus V5 rep2: OK  ok                                               35.2s in=105584
+n=1000 B1-opus V7 rep2: BAD number 35 != 37                                  16.0s in=61462
+n=1000 B1-opus V8 rep2: OK  ok                                               14.2s in=68813
+n=1000 B1-opus V9 rep2: OK  ok                                               32.4s in=146987
+n=1000 B1-opus W1 rep2: OK  ok                                               17.9s in=57909
+n=1000 B1-opus W2 rep2: OK  ok                                               20.3s in=62478
+n=1000 B1-opus W3 rep2: OK  ok                                               14.9s in=74108
+n=1000 B1-opus W4 rep2: OK  ok                                               37.5s in=150146
+n=1000 B1-opus W5 rep2: OK  ok                                               78.0s in=320310
+n=1000 B1-opus W6 rep2: OK  ok                                               52.7s in=196686
+n=1000 B1-opus W7 rep2: OK  ok                                               17.0s in=111379
+n=1000 B1-opus W8 rep2: OK  ok                                               13.9s in=58167
+spent $22.62 > --max-cost $22.60; stopped after n=1000 B1-opus W8 rep2. Resume with --run v3-haiku-opus.
+plan exit=1 2026-10-04 11:12:09.67 
+Model `haiku` via Claude Code CLI · run `v3-haiku-opus` · frozen `2c56c658bc5f10f9` · git `438f3bba18a1a4bc9457d282cd6bb4bf7dc4628e+dirty`
+
+**Eval set v3: dev 28 + unseen 9 questions, same format hint, 3 repetitions; B1-opus, M-opus, M-haiku at 100 and 1,000 records.**
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) | no answer / clarify |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 100 | B1-opus | 77/84 (92%) | 27/27 (100%) | 14.8 / 23.9 | 12.8 / 22.0 | 1.00 | 36,863 (34,337) | 1,201 | 0.0577 | 0 |
+| 100 | M-haiku | 76/84 (90%) | 24/27 (89%) | 26.2 / 74.7 | 24.6 / 73.1 | 0.97 | 5,137 (2,679) | 2,877 | 0.0246 | 2 |
+| 100 | M-opus | 84/84 (100%) | 27/27 (100%) | 5.9 / 9.1 | 3.9 / 7.2 | 0.99 | 6,105 (3,602) | 319 | 0.0251 | 0 |
+| 1,000 | B1-opus | 74/84 (88%) | 23/26 (88%) | 35.7 / 145.6 | 33.2 / 142.5 | 1.00 | 123,855 (121,329) | 3,370 | 0.2056 | 0 |
+| 1,000 | M-haiku | 72/84 (86%) | 24/27 (89%) | 24.8 / 67.0 | 23.1 / 64.2 | 0.99 | 5,232 (2,729) | 2,729 | 0.0241 | 3 |
+| 1,000 | M-opus | 79/84 (94%) | 24/27 (89%) | 5.8 / 10.1 | 3.8 / 6.8 | 1.00 | 6,161 (3,635) | 318 | 0.0252 | 0 |
+
+report exit=0 
+== resume missing row (approved) Sun, Oct  4, 2026 12:19:51 PM
+== v3: n=100 systems=M:haiku,M:opus,B1:opus reps=3
+== v3: n=1000 systems=M:haiku,M:opus reps=3
+== v3: n=1000 systems=B1:opus reps=3
+n=1000 B1-opus W9 rep2: OK  ok                                               19.7s in=58714
+== v3 complete. Report: uv run python -m bench.report --run v3-haiku-opus

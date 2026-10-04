@@ -1,0 +1,25 @@
+{
+ "run": "v3-haiku-opus",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20270201,
+ "frozen_hash": "2c56c658bc5f10f9",
+ "git": "438f3bba18a1a4bc9457d282cd6bb4bf7dc4628e+dirty",
+ "started": "2026-10-04T07:43:23.477126+09:00",
+ "adapter": "claude-cli",
+ "plan": "v3",
+ "plan_description": "Eval set v3: dev 28 + unseen 9 questions, same format hint, 3 repetitions; B1-opus, M-opus, M-haiku at 100 and 1,000 records",
+ "eval_set": "v3",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "B1-opus": [
+   "claude-opus-5-5"
+  ],
+  "M-haiku": [
+   "claude-haiku-4-5-20251001"
+  ],
+  "M-opus": [
+   "claude-opus-5-5"
+  ]
+ }
+}
