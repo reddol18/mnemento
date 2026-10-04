@@ -81,7 +81,7 @@ def main() -> None:
              "otherwise the grader's message. **Dev questions were used while fixing Mnemento (v1, v1.1), so an "
              "advantage on them may be overfitting; compare systems on the unseen questions.**", ""]
     for (run, eval_set, seed, columns), heading in (
-            (V3, "## v3 — opus and haiku, 100 and 1,000 records (B1-haiku not measured in v3)"),
+            (V3, "## v3 — opus and haiku, 100 and 1,000 records (frozen version 2c56c658bc5f10f9)"),
             (V2, "## v2 — 100 records, haiku and opus (2×2)")):
         lines += [heading, "", f"Run `{run}`, evaluation set {eval_set} (seed {seed}), same format hint for every system.", ""]
         lines += table(run, eval_set, seed, columns)

@@ -12,6 +12,9 @@
  "eval_set": "v3",
  "hint": "same format hint for every system",
  "resolved_models": {
+  "B1-haiku": [
+   "claude-haiku-4-5-20251001"
+  ],
   "B1-opus": [
    "claude-opus-5-5"
   ],

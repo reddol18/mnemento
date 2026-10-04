@@ -1,0 +1,242 @@
+== start 2026-10-04 12:23:47.26 
+== v3 add-on: n=100 B1:haiku reps=3, budget left $30.00
+n=100 B1-haiku D1 rep0: OK  ok                                               13.9s in=20585
+n=100 B1-haiku D2 rep0: OK  ok                                               18.3s in=34208
+n=100 B1-haiku D3 rep0: OK  ok                                               31.8s in=61728
+n=100 B1-haiku D4 rep0: OK  ok                                              155.3s in=351497
+n=100 B1-haiku D5 rep0: OK  ok                                               82.0s in=166722
+n=100 B1-haiku D6 rep0: BAD number 4 != 3                                    21.7s in=32607
+n=100 B1-haiku D7 rep0: OK  ok                                               16.0s in=33149
+n=100 B1-haiku U1 rep0: OK  ok                                               35.3s in=55092
+n=100 B1-haiku U2 rep0: OK  ok                                               33.3s in=37497
+n=100 B1-haiku U3 rep0: OK  ok                                               16.7s in=34330
+n=100 B1-haiku U4 rep0: BAD number 55 != 43                                  85.7s in=64597
+n=100 B1-haiku U5 rep0: BAD saramin: n=51 value=0 != 52/0                    84.9s in=38144
+n=100 B1-haiku U6 rep0: BAD ids differ (missing 1, extra 1)                  10.9s in=20544
+n=100 B1-haiku U7 rep0: OK  ok                                               75.6s in=153331
+n=100 B1-haiku U8 rep0: OK  ok                                               15.5s in=32659
+n=100 B1-haiku H1 rep0: OK  ok (alternative reading)                         32.1s in=24580
+n=100 B1-haiku H2 rep0: OK  ok                                               96.1s in=284275
+n=100 B1-haiku H3 rep0: OK  ok                                              137.2s in=67966
+n=100 B1-haiku H4 rep0: OK  ok                                               16.9s in=33301
+n=100 B1-haiku H5 rep0: OK  ok                                              107.8s in=119276
+n=100 B1-haiku V1 rep0: OK  ok                                               42.1s in=43103
+n=100 B1-haiku V2 rep0: OK  ok                                               18.5s in=34598
+n=100 B1-haiku V3 rep0: BAD number 9 != 4                                    61.0s in=63898
+n=100 B1-haiku V4 rep0: OK  ok                                               45.7s in=40538
+n=100 B1-haiku V5 rep0: OK  ok                                               66.1s in=49759
+n=100 B1-haiku V7 rep0: OK  ok                                               12.9s in=21806
+n=100 B1-haiku V8 rep0: OK  ok                                               29.7s in=63016
+n=100 B1-haiku V9 rep0: BAD number 4 != 5                                    28.9s in=36627
+n=100 B1-haiku W1 rep0: OK  ok                                               30.9s in=37180
+n=100 B1-haiku W2 rep0: BAD number 4 != 5                                    29.0s in=37016
+n=100 B1-haiku W3 rep0: OK  ok                                               30.1s in=39416
+n=100 B1-haiku W4 rep0: OK  ok                                               91.4s in=141927
+n=100 B1-haiku W5 rep0: BAD number 1 != 5                                    71.8s in=70304
+n=100 B1-haiku W6 rep0: BAD no answer                                       112.2s in=0
+n=100 B1-haiku W7 rep0: OK  ok                                               13.8s in=31749
+n=100 B1-haiku W8 rep0: OK  ok                                               14.7s in=21109
+n=100 B1-haiku W9 rep0: OK  ok                                               26.3s in=57329
+n=100 B1-haiku D1 rep1: OK  ok                                               18.9s in=34768
+n=100 B1-haiku D2 rep1: OK  ok                                               26.4s in=59924
+n=100 B1-haiku D3 rep1: OK  ok                                               30.3s in=75471
+n=100 B1-haiku D4 rep1: BAD 2027-01/top10: 0.25 != 0.56                      84.4s in=99350
+n=100 B1-haiku D5 rep1: BAD number 26.85 != 34.23                            53.7s in=98616
+n=100 B1-haiku D6 rep1: OK  ok                                               15.5s in=34561
+n=100 B1-haiku D7 rep1: OK  ok                                               18.3s in=33620
+n=100 B1-haiku U1 rep1: OK  ok                                               29.5s in=73873
+n=100 B1-haiku U2 rep1: OK  ok                                               18.9s in=33788
+n=100 B1-haiku U3 rep1: OK  ok                                               16.9s in=34167
+n=100 B1-haiku U4 rep1: BAD number 16 != 43                                  64.1s in=129663
+n=100 B1-haiku U5 rep1: OK  ok                                               22.9s in=41623
+n=100 B1-haiku U6 rep1: OK  ok                                               12.6s in=31005
+n=100 B1-haiku U7 rep1: OK  ok                                               76.8s in=106193
+n=100 B1-haiku U8 rep1: OK  ok                                               20.7s in=79426
+n=100 B1-haiku H1 rep1: OK  ok (alternative reading)                         54.1s in=36172
+n=100 B1-haiku H2 rep1: OK  ok                                               56.9s in=119359
+n=100 B1-haiku H3 rep1: OK  ok                                               44.5s in=50017
+n=100 B1-haiku H4 rep1: BAD ids differ (missing 1, extra 1)                  16.6s in=22451
+n=100 B1-haiku H5 rep1: OK  ok                                              110.0s in=101708
+n=100 B1-haiku V1 rep1: OK  ok                                               32.3s in=51599
+n=100 B1-haiku V2 rep1: OK  ok                                               20.0s in=34156
+n=100 B1-haiku V3 rep1: BAD number 9 != 4                                    77.3s in=83116
+n=100 B1-haiku V4 rep1: OK  ok                                               41.7s in=53873
+n=100 B1-haiku V5 rep1: OK  ok                                               64.2s in=94523
+n=100 B1-haiku V7 rep1: OK  ok                                               12.7s in=22148
+n=100 B1-haiku V8 rep1: OK  ok                                               21.2s in=35606
+n=100 B1-haiku V9 rep1: BAD number 2 != 5                                    56.3s in=155583
+n=100 B1-haiku W1 rep1: BAD number 20 != 19                                  32.8s in=35258
+n=100 B1-haiku W2 rep1: BAD number 4 != 5                                    15.3s in=10109
+n=100 B1-haiku W3 rep1: OK  ok                                               22.7s in=35094
+n=100 B1-haiku W4 rep1: OK  ok                                               43.7s in=115192
+n=100 B1-haiku W5 rep1: BAD number 1 != 5                                    96.9s in=122170
+n=100 B1-haiku W6 rep1: OK  ok                                               82.5s in=26958
+n=100 B1-haiku W7 rep1: OK  ok                                               15.1s in=32140
+n=100 B1-haiku W8 rep1: OK  ok                                               14.2s in=21232
+n=100 B1-haiku W9 rep1: OK  ok                                               44.9s in=41645
+n=100 B1-haiku D1 rep2: OK  ok                                               17.6s in=33894
+n=100 B1-haiku D2 rep2: OK  ok                                               28.2s in=34985
+n=100 B1-haiku D3 rep2: OK  ok                                               31.4s in=41408
+n=100 B1-haiku D4 rep2: BAD 2027-01/top10: 0.33 != 0.56                      59.2s in=64678
+n=100 B1-haiku D5 rep2: BAD number 32.2 != 34.23                             52.8s in=41660
+n=100 B1-haiku D6 rep2: BAD number 1 != 3                                    12.7s in=21020
+n=100 B1-haiku D7 rep2: OK  ok                                               15.5s in=22850
+n=100 B1-haiku U1 rep2: OK  ok                                               43.8s in=58122
+n=100 B1-haiku U2 rep2: OK  ok                                               12.6s in=22092
+n=100 B1-haiku U3 rep2: OK  ok                                               15.2s in=21320
+n=100 B1-haiku U4 rep2: BAD number 16 != 43                                  53.0s in=24727
+n=100 B1-haiku U5 rep2: BAD saramin: n=50 value=0 != 52/0                    55.1s in=78717
+n=100 B1-haiku U6 rep2: BAD ids differ (missing 1, extra 1)                  11.4s in=20940
+n=100 B1-haiku U7 rep2: OK  ok                                               39.9s in=65993
+n=100 B1-haiku U8 rep2: OK  ok                                               20.9s in=22475
+n=100 B1-haiku H1 rep2: OK  ok (alternative reading)                         41.5s in=31874
+n=100 B1-haiku H2 rep2: OK  ok                                              168.9s in=232666
+n=100 B1-haiku H3 rep2: OK  ok                                               58.0s in=53943
+n=100 B1-haiku H4 rep2: OK  ok                                               16.8s in=34276
+n=100 B1-haiku H5 rep2: BAD number 16 != 17                                  37.4s in=22676
+n=100 B1-haiku V1 rep2: OK  ok                                               47.3s in=42095
+n=100 B1-haiku V2 rep2: OK  ok                                               18.6s in=35015
+n=100 B1-haiku V3 rep2: BAD number 10 != 4                                   73.1s in=83919
+n=100 B1-haiku V4 rep2: OK  ok                                               37.0s in=23098
+n=100 B1-haiku V5 rep2: OK  ok                                               34.0s in=52727
+n=100 B1-haiku V7 rep2: BAD ids differ (missing 4, extra 4)                  15.7s in=33151
+n=100 B1-haiku V8 rep2: OK  ok                                               19.3s in=61372
+n=100 B1-haiku V9 rep2: OK  ok                                               28.6s in=36752
+n=100 B1-haiku W1 rep2: OK  ok                                               34.2s in=60076
+n=100 B1-haiku W2 rep2: BAD number 4 != 5                                    21.9s in=46625
+n=100 B1-haiku W3 rep2: OK  ok                                               34.8s in=41375
+n=100 B1-haiku W4 rep2: OK  ok                                               62.5s in=270049
+n=100 B1-haiku W5 rep2: BAD number 1 != 5                                    73.2s in=159583
+n=100 B1-haiku W6 rep2: OK  ok                                               51.9s in=54983
+n=100 B1-haiku W7 rep2: OK  ok                                               13.9s in=31994
+n=100 B1-haiku W8 rep2: OK  ok                                               21.2s in=22323
+n=100 B1-haiku W9 rep2: OK  ok                                               33.1s in=39638
+== v3 add-on: n=1000 B1:haiku reps=3, budget left $24.49
+n=1000 B1-haiku D1 rep0: OK  ok                                               22.8s in=72182
+n=1000 B1-haiku D2 rep0: OK  ok                                               33.3s in=70192
+n=1000 B1-haiku D3 rep0: OK  ok                                               24.2s in=83639
+n=1000 B1-haiku D4 rep0: BAD 2027-01/top10: 0.29 != 0.49                     245.3s in=1002581
+n=1000 B1-haiku D5 rep0: BAD number 27 != 35.09                              122.0s in=156830
+n=1000 B1-haiku D6 rep0: BAD number 10 != 15                                  23.3s in=72258
+n=1000 B1-haiku D7 rep0: OK  ok                                               37.1s in=139018
+n=1000 B1-haiku U1 rep0: OK  ok                                               30.5s in=78166
+n=1000 B1-haiku U2 rep0: OK  ok                                               22.0s in=41962
+n=1000 B1-haiku U3 rep0: OK  ok                                               43.2s in=128283
+n=1000 B1-haiku U4 rep0: BAD number 581 != 437                               144.0s in=1824117
+n=1000 B1-haiku U5 rep0: OK  ok                                               86.9s in=652453
+n=1000 B1-haiku U6 rep0: OK  ok                                               18.7s in=42907
+n=1000 B1-haiku U7 rep0: OK  ok                                              161.0s in=640988
+n=1000 B1-haiku U8 rep0: BAD number 3 != 6                                    27.3s in=56647
+n=1000 B1-haiku H1 rep0: BAD number 7 != 45                                   36.0s in=28812
+n=1000 B1-haiku H2 rep0: BAD None/saramin: 0.24 != 0.16                      238.6s in=1604719
+n=1000 B1-haiku H3 rep0: BAD number 18 != 267                                102.5s in=284439
+n=1000 B1-haiku H4 rep0: BAD ids differ (missing 3, extra 3)                  26.5s in=45090
+n=1000 B1-haiku H5 rep0: BAD number 0 != 401                                  61.3s in=320344
+n=1000 B1-haiku V1 rep0: BAD number 1 != 15                                   20.0s in=41168
+n=1000 B1-haiku V2 rep0: OK  ok                                               22.8s in=42225
+n=1000 B1-haiku V3 rep0: BAD number 28 != 58                                 119.4s in=2308322
+n=1000 B1-haiku V4 rep0: BAD ids differ (missing 1, extra 1)                  36.2s in=182047
+n=1000 B1-haiku V5 rep0: OK  ok                                               86.4s in=1078674
+n=1000 B1-haiku V7 rep0: OK  ok                                               44.5s in=225282
+n=1000 B1-haiku V8 rep0: OK  ok                                               23.9s in=47113
+n=1000 B1-haiku V9 rep0: BAD number 5 != 36                                   39.2s in=118864
+n=1000 B1-haiku W1 rep0: OK  ok                                               72.8s in=194787
+n=1000 B1-haiku W2 rep0: BAD number 3 != 30                                   28.9s in=49516
+n=1000 B1-haiku W3 rep0: BAD number 0 != 6                                    27.5s in=171836
+n=1000 B1-haiku W4 rep0: OK  ok                                              113.6s in=956310
+n=1000 B1-haiku W5 rep0: BAD number 12 != 40                                 134.1s in=329042
+n=1000 B1-haiku W6 rep0: BAD number 21 != 141                                187.4s in=3635630
+n=1000 B1-haiku W7 rep0: BAD number 12 != 28                                  24.5s in=43985
+n=1000 B1-haiku W8 rep0: BAD ids differ (missing 6, extra 6)                  33.6s in=93906
+n=1000 B1-haiku W9 rep0: OK  ok                                               33.0s in=145217
+n=1000 B1-haiku D1 rep1: OK  ok                                               26.9s in=104313
+n=1000 B1-haiku D2 rep1: BAD number 1 != 7                                    12.4s in=39666
+n=1000 B1-haiku D3 rep1: OK  ok                                               85.2s in=284163
+n=1000 B1-haiku D4 rep1: BAD 2027-01/top10: 0.30 != 0.49                     196.9s in=3183406
+n=1000 B1-haiku D5 rep1: BAD number 24.4 != 35.09                            197.9s in=886337
+n=1000 B1-haiku D6 rep1: OK  ok                                               19.2s in=57394
+n=1000 B1-haiku D7 rep1: BAD ids differ (missing 4, extra 4)                  46.1s in=132609
+n=1000 B1-haiku U1 rep1: BAD number 84 != 91                                  50.2s in=100169
+n=1000 B1-haiku U2 rep1: OK  ok                                               32.8s in=42575
+n=1000 B1-haiku U3 rep1: OK  ok                                               33.0s in=96455
+n=1000 B1-haiku U4 rep1: BAD number 0 != 437                                  57.2s in=159664
+n=1000 B1-haiku U5 rep1: BAD saramin: n=570 value=34 != 564/34                74.9s in=651098
+n=1000 B1-haiku U6 rep1: OK  ok                                               19.2s in=42839
+n=1000 B1-haiku U7 rep1: OK  ok                                              104.6s in=629598
+n=1000 B1-haiku U8 rep1: BAD number 3 != 6                                    13.5s in=40325
+n=1000 B1-haiku H1 rep1: BAD number 6 != 45                                   62.3s in=213059
+n=1000 B1-haiku H2 rep1: BAD None/saramin: 0.05 != 0.16                      203.8s in=1587809
+n=1000 B1-haiku H3 rep1: BAD number 25 != 267                                224.2s in=1131823
+n=1000 B1-haiku H4 rep1: BAD ids differ (missing 3, extra 3)                  32.7s in=104827
+n=1000 B1-haiku H5 rep1: BAD number 394 != 401                                75.9s in=367348
+n=1000 B1-haiku V1 rep1: BAD number 1 != 15                                   20.8s in=41061
+n=1000 B1-haiku V2 rep1: OK  ok                                               15.5s in=41587
+n=1000 B1-haiku V3 rep1: BAD number 8 != 58                                  197.1s in=2211138
+n=1000 B1-haiku V4 rep1: BAD ids differ (missing 5, extra 5)                  28.7s in=108621
+n=1000 B1-haiku V5 rep1: OK  ok                                              103.4s in=693061
+n=1000 B1-haiku V7 rep1: OK  ok                                               37.8s in=117952
+n=1000 B1-haiku V8 rep1: OK  ok                                               21.2s in=42523
+n=1000 B1-haiku V9 rep1: BAD number 5 != 36                                   73.5s in=99771
+n=1000 B1-haiku W1 rep1: BAD no number                                        17.4s in=39918
+n=1000 B1-haiku W2 rep1: BAD number 5 != 30                                   37.3s in=102125
+n=1000 B1-haiku W3 rep1: OK  ok                                               32.1s in=168478
+n=1000 B1-haiku W4 rep1: OK  ok                                              107.8s in=412314
+n=1000 B1-haiku W5 rep1: BAD number 4 != 40                                  367.9s in=1320103
+n=1000 B1-haiku W6 rep1: BAD number 94 != 141                                211.0s in=475311
+n=1000 B1-haiku W7 rep1: BAD number 12 != 28                                  23.5s in=43887
+n=1000 B1-haiku W8 rep1: BAD ids differ (missing 6, extra 6)                  35.4s in=89876
+n=1000 B1-haiku W9 rep1: OK  ok                                               22.2s in=42713
+n=1000 B1-haiku D1 rep2: OK  ok                                               45.8s in=132838
+n=1000 B1-haiku D2 rep2: OK  ok                                               16.3s in=41786
+n=1000 B1-haiku D3 rep2: OK  ok                                               47.2s in=201697
+n=1000 B1-haiku D4 rep2: BAD 2027-01/top10: 0.33 != 0.49                     123.6s in=905950
+n=1000 B1-haiku D5 rep2: BAD number 31.5 != 35.09                            105.7s in=633674
+n=1000 B1-haiku D6 rep2: BAD number 10 != 15                                  28.8s in=47753
+n=1000 B1-haiku D7 rep2: OK  ok                                               55.1s in=139972
+n=1000 B1-haiku U1 rep2: OK  ok                                               40.5s in=74879
+n=1000 B1-haiku U2 rep2: BAD number 1 != 7                                    10.5s in=39605
+n=1000 B1-haiku U3 rep2: OK  ok                                               65.8s in=239934
+n=1000 B1-haiku U4 rep2: BAD number 587 != 437                                75.8s in=812366
+n=1000 B1-haiku U5 rep2: OK  ok                                              114.4s in=831474
+n=1000 B1-haiku U6 rep2: BAD number 1 != 10                                   11.5s in=25905
+n=1000 B1-haiku U7 rep2: OK  ok                                              165.2s in=442294
+n=1000 B1-haiku U8 rep2: BAD number 3 != 6                                    33.5s in=96329
+n=1000 B1-haiku H1 rep2: OK  ok                                              149.8s in=733401
+n=1000 B1-haiku H2 rep2: BAD None/saramin: 0.25 != 0.16                      224.9s in=1637120
+n=1000 B1-haiku H3 rep2: BAD no answer                                       138.3s in=0
+n=1000 B1-haiku H4 rep2: OK  ok                                               37.0s in=248565
+n=1000 B1-haiku H5 rep2: BAD number 394 != 401                                74.1s in=528388
+n=1000 B1-haiku V1 rep2: BAD number 10 != 15                                  28.8s in=75256
+n=1000 B1-haiku V2 rep2: OK  ok                                               17.9s in=42095
+n=1000 B1-haiku V3 rep2: BAD number 1 != 58                                  212.8s in=3152926
+n=1000 B1-haiku V4 rep2: BAD ids differ (missing 4, extra 4)                  93.7s in=367518
+n=1000 B1-haiku V5 rep2: OK  ok                                               82.9s in=918335
+n=1000 B1-haiku V7 rep2: OK  ok                                               33.8s in=150783
+n=1000 B1-haiku V8 rep2: OK  ok                                               17.5s in=42559
+n=1000 B1-haiku V9 rep2: BAD number 31 != 36                                  38.6s in=96858
+n=1000 B1-haiku W1 rep2: OK  ok                                               72.0s in=307585
+n=1000 B1-haiku W2 rep2: BAD number 5 != 30                                   54.7s in=109359
+n=1000 B1-haiku W3 rep2: OK  ok                                               84.2s in=435064
+n=1000 B1-haiku W4 rep2: BAD flag small_sample should be False                63.0s in=336716
+n=1000 B1-haiku W5 rep2: BAD number 1 != 40                                  287.6s in=1658787
+n=1000 B1-haiku W6 rep2: BAD number 120 != 141                               319.6s in=1607385
+n=1000 B1-haiku W7 rep2: BAD number 12 != 28                                  28.4s in=45919
+n=1000 B1-haiku W8 rep2: OK  ok                                               33.3s in=114194
+n=1000 B1-haiku W9 rep2: OK  ok                                               39.7s in=198811
+== add-on complete: $22.03
+add-on exit=0 2026-10-04 16:04:52.41 
+Model `haiku` via Claude Code CLI · run `v3-haiku-opus` · frozen `2c56c658bc5f10f9` · git `438f3bba18a1a4bc9457d282cd6bb4bf7dc4628e+dirty`
+
+**Eval set v3: dev 28 + unseen 9 questions, same format hint, 3 repetitions; B1-opus, M-opus, M-haiku at 100 and 1,000 records.**
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) | no answer / clarify |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 100 | B1-haiku | 63/84 (75%) | 19/27 (70%) | 42.4 / 96.9 | 40.6 / 95.1 | 0.99 | 60,961 (58,458) | 5,455 | 0.0497 | 1 |
+| 100 | B1-opus | 77/84 (92%) | 27/27 (100%) | 14.8 / 23.9 | 12.8 / 22.0 | 1.00 | 36,863 (34,337) | 1,201 | 0.0577 | 0 |
+| 100 | M-haiku | 76/84 (90%) | 24/27 (89%) | 26.2 / 74.7 | 24.6 / 73.1 | 0.97 | 5,137 (2,679) | 2,877 | 0.0246 | 2 |
+| 100 | M-opus | 84/84 (100%) | 27/27 (100%) | 5.9 / 9.1 | 3.9 / 7.2 | 0.99 | 6,105 (3,602) | 319 | 0.0251 | 0 |
+| 1,000 | B1-haiku | 39/84 (46%) | 10/27 (37%) | 77.0 / 224.2 | 74.0 / 219.3 | 0.99 | 453,960 (451,457) | 8,388 | 0.1488 | 2 |
+| 1,000 | B1-opus | 74/84 (88%) | 24/27 (89%) | 35.6 / 127.3 | 33.0 / 124.0 | 1.00 | 123,268 (120,742) | 3,352 | 0.2053 | 0 |
+| 1,000 | M-haiku | 72/84 (86%) | 24/27 (89%) | 24.8 / 67.0 | 23.1 / 64.2 | 0.99 | 5,232 (2,729) | 2,729 | 0.0241 | 3 |
+| 1,000 | M-opus | 79/84 (94%) | 24/27 (89%) | 5.8 / 10.1 | 3.8 / 6.8 | 1.00 | 6,161 (3,635) | 318 | 0.0252 | 0 |
+

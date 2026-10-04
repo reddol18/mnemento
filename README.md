@@ -34,6 +34,7 @@ LLM agents forget between sessions. Mnemento gives them one place to **write fac
 
 ## Benchmark (v3, latest)
 
+Measured on the frozen version `2c56c658bc5f10f9` (v1.1); later changes (v1.2) are not re-measured.
 Same fictional job-search history rendered three ways (ADR-0011), the **same answer-format hint for every system**,
 evaluation set v3 (own seed; reference date Monday 2027-02-01 so weeks and month ends matter), **28 dev questions +
 9 unseen questions written by the directing agent before measuring**, 3 repetitions, prompts and rules frozen
@@ -44,15 +45,18 @@ evaluation set v3 (own seed; reference date Monday 2027-02-01 so weeks and month
 | 100 | Mnemento · opus | 84/84 | **27/27** | **5.9 s** (9 s) | 6.1k | $0.025 |
 | 100 | Claude Code memory · opus | 77/84 | **27/27** | 14.8 s (24 s) | 36.9k | $0.058 |
 | 100 | Mnemento · haiku | 76/84 | 24/27 | 26.2 s (75 s) | 5.1k | $0.025 |
+| 100 | Claude Code memory · haiku | 63/84 | 19/27 | 42.4 s (97 s) | 61.0k | $0.050 |
 | 1,000 | Mnemento · opus | 79/84 | **24/27** | **5.8 s** (10 s) | 6.2k | **$0.025** |
 | 1,000 | Claude Code memory · opus | 74/84 | **24/27** | 35.6 s (127 s) | 123.3k | $0.205 |
 | 1,000 | Mnemento · haiku | 72/84 | 24/27 | 24.8 s (67 s) | 5.2k | $0.024 |
+| 1,000 | Claude Code memory · haiku | 39/84 | 10/27 | 77.0 s (224 s) | 454.0k | $0.149 |
 
 ¹ The dev questions were used while fixing Mnemento (v1, v1.1); an advantage on them may be overfitting. Compare on
-the unseen column. Claude Code memory on haiku was not re-measured in v3 (see v2).
+the unseen column.
 
-- **Accuracy on unseen questions: on par with Claude Code's own memory** (100 records 27/27 = 27/27; 1,000 records
-  24/27 = 24/27).
+- **Accuracy on unseen questions: on par with Claude Code's own memory on opus** (100 records 27/27 = 27/27;
+  1,000 records 24/27 = 24/27). **On haiku, Mnemento is clearly ahead** (24 vs 19 of 27 at 100 records, 24 vs 10 at
+  1,000), and Claude Code memory on haiku falls apart as records grow (unseen 70% → 37%).
 - **Cost and speed at 1,000 records:** 6× faster, 1/20 of the input tokens, 1/8 of the cost. Claude Code memory got
   slower and more expensive as records grew (2.4× the time, 3.6× the cost from 100 to 1,000); Mnemento stayed flat.
 - Every question, every system, with a one-line reason for each miss: **[results by question](docs/bench/results-by-question.md)** ·
