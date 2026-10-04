@@ -250,7 +250,9 @@ class RecordDraft(BaseModel):
 
 RECORD_SYSTEM = """You turn a short message into a structured record request for a record book.
 Rules:
-- Use only record types and fields from the dictionary. Enum values must be allowed values (use labels).
+- Use the record types from the dictionary. Use a registered field whenever one fits, and an allowed value
+  (via its labels) whenever one fits. Only if a fact has no fitting field or value, use a new snake_case
+  field name or the value as written — it is stored as an unregistered draft for the user to organize later.
 - Reference fields ("ref") may be filled with the referenced record's name; the system resolves it.
 - To change an existing record, set kind (updated / status_changed) and identify it with `match`
   using identifying fields (e.g. platform + posting number) instead of guessing an id.

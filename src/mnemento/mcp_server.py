@@ -27,11 +27,16 @@ from .timeutil import DEFAULT_TZ
 _REPO_SCHEMAS = Path(__file__).resolve().parents[2] / "schemas"
 
 INSTRUCTIONS = """Mnemento is a shared, structured record book. Use it instead of memory files for facts.
-- query: ask in natural language (or pass a QuerySpec). Answers carry evidence (record ids) and warnings.
-- record: write a fact, either structured (record type + fields) or as a short text. If the Keeper is
-  unsure (which record? unknown company?), it stores nothing and returns status "clarify" with options:
-  ask the user, then call record again.
-- list_schemas shows which record types and fields exist. Fields outside the schemas are never stored."""
+- query: ask in natural language (or pass a QuerySpec). Answers carry evidence (record ids) and warnings,
+  including how many records lack a field the question uses.
+- record: write a fact, either structured (record type + fields) or as a short text. Fields and values the
+  dictionary does not know yet are stored as given and can be queried right away (unregistered "drafts").
+  If the Keeper is unsure which record is meant (several matches, an unknown or similar company name, a
+  contradiction with the current state), it stores nothing and returns "clarify" with options: ask the user,
+  then call record again. A reply may also carry `questions` ("is applicant_count the same as applicants?").
+- list_schemas shows the registered fields and the drafts. Organizing drafts (descriptions, labels, indexes,
+  merging look-alike names) is done with propose_schema and then apply_schema_proposal — the latter only after
+  the user explicitly agrees."""
 
 
 def _int_env(name: str) -> int | None:
@@ -89,7 +94,16 @@ def create_server(keeper: Keeper) -> MCPServer:
         at: when it happened (ISO 8601 with offset); defaults to now. at_precision: time | date (only the
         day is known) | unknown. by: your agent name.
         evidence: why you believe it (quote, mail subject...).
-        Returns status recorded | clarify (ask the user, nothing stored) | rejected | error.
+        Fields or values the dictionary does not know are stored as given (drafts, queryable at once); the
+        reply lists them under `drafts` and may ask under `questions` whether a new name means an existing one.
+        Returns status:
+          recorded — stored (check `drafts` and `questions`);
+          clarify  — nothing stored: the target is ambiguous (several matches), a referenced name (e.g. a
+                     company) is unknown or only similar, the record looks like a duplicate, or it contradicts
+                     the current state; ask the user and call again;
+          rejected — nothing stored: a registered field is violated (required field missing, wrong type, bad
+                     date) or the target was looked up by an unregistered field;
+          error    — free text could not be structured (no LLM configured or the call failed).
         """
         if text:
             return keeper.record_text(text, by=by, evidence=evidence).to_dict()
