@@ -165,3 +165,17 @@ def test_state_records_change_with_updated_events_at_the_source_date(led):
     assert led.get_entity("crit_1").doc == new and rep.updated == {"buy_criteria": 1}
     with pytest.raises(ValueError):
         upsert(led, rep, doc=new, **{**kw, "change_kind": "deleted"})
+
+
+def test_vanished_is_limited_to_the_records_a_source_owns(led):
+    run_import(led, SOURCE)
+    rep = ImportReport()
+    upsert(led, rep, entity_type="decision", entity_id="dec_other", doc={"source_key": "other:1", "text": "x",
+           "decided_at": "2026-09-18"}, at="2026-09-18T00:00:00+09:00", at_precision="date", by=BY,
+           evidence="another source", now=NOW.isoformat())
+    report = run_import(led, SOURCE)  # without an owner filter the other source's record looks vanished
+    assert report.vanished == ["dec_other"]
+    narrowed = ImportReport()
+    report_vanished(led, narrowed, ["decision"], set(), BY,
+                    owns=lambda e: not e.doc.get("source_key", "").startswith("other:"))
+    assert "dec_other" not in narrowed.vanished

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from .ledger import Ledger
 
@@ -71,9 +71,13 @@ def upsert(ledger: Ledger, report: ImportReport, *, entity_type: str, entity_id:
     return what
 
 
-def report_vanished(ledger: Ledger, report: ImportReport, entity_types: list[str], seen: set[str], by: str) -> None:
-    """Records this importer created earlier that the source no longer has (reported only)."""
+def report_vanished(ledger: Ledger, report: ImportReport, entity_types: list[str], seen: set[str], by: str,
+                    owns: Callable[[Any], bool] | None = None) -> None:
+    """Records this importer created earlier that the source no longer has (reported only). `owns` narrows it to
+    the records of this source when several imports write the same types (e.g. by source_key prefix)."""
     for t in entity_types:
         for e in ledger.find(t):
-            if e.id not in seen and any(ev.kind == "created" and ev.by == by for ev in ledger.history(e.id)):
+            if e.id in seen or (owns is not None and not owns(e)):
+                continue
+            if any(ev.kind == "created" and ev.by == by for ev in ledger.history(e.id)):
                 report.vanished.append(e.id)
