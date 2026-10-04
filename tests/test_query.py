@@ -771,3 +771,16 @@ def test_interpreter_sees_drafts_marked(tmp_path):
     assert "- applicants (integer)" in text and "UNREGISTERED (draft)" in text
     assert "unregistered values in use (draft): remember" in text
     led.close()
+
+
+def test_cache_key_changes_with_the_interpreter(monkeypatch):
+    """Step 3b: a plan cached by an older interpreter must not be reused after the interpreter changed."""
+    from mnemento.keeper.query import cache, interpret
+
+    demo_schemas = {}
+    before = cache.cache_key("p", demo_schemas)
+    monkeypatch.setattr(cache, "INTERPRETER_REVISION", cache.INTERPRETER_REVISION + 1)
+    assert cache.cache_key("p", demo_schemas) != before
+    monkeypatch.setattr(cache, "INTERPRETER_REVISION", cache.INTERPRETER_REVISION - 1)
+    monkeypatch.setattr(interpret, "SYSTEM_PROMPT", interpret.SYSTEM_PROMPT + " (changed)")
+    assert cache.cache_key("p", demo_schemas) != before

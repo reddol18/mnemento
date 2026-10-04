@@ -179,3 +179,17 @@ def test_vanished_is_limited_to_the_records_a_source_owns(led):
     report_vanished(led, narrowed, ["decision"], set(), BY,
                     owns=lambda e: not e.doc.get("source_key", "").startswith("other:"))
     assert "dec_other" not in narrowed.vanished
+
+
+def test_schema_selection_follows_relation_notes(led):
+    """Step 3b: a 'why' question picks decision (keyword); a type that declares a relation to decision (here
+    buy_criteria) is shown too, so the interpreter can choose where the reason actually is."""
+    from mnemento.keeper.query.interpret import select_schemas
+
+    led.schemas.register({"name": "buy_criteria", "version": 1, "description": "criteria",
+                          "relations": [{"type": "decision", "note": "reasons may be in either"}],
+                          "fields": {"security_id": {"type": "string", "description": "s", "ref": "security"},
+                                     "source_note": {"type": "string", "description": "why"}}})
+    schemas = {n: led.schemas.get(n) for n in led.schemas.names()}
+    picked = [s.name for s in select_schemas("왜 이 종목은 안 사기로 했지?", schemas)]
+    assert "decision" in picked and "buy_criteria" in picked

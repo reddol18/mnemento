@@ -3,7 +3,8 @@
 "10/2 사람인 지원 몇 곳?" and "9/30 사람인 지원 몇 곳?" share the pattern "<DATE> 사람인 지원 몇 곳?".
 The spec interpreted for the first is stored as a template whose values coming from the question
 (dates, numbers) are replaced by slots; a later question with the same pattern fills the slots
-and skips the LLM. The key includes the schema versions, so a schema change invalidates entries.
+and skips the LLM. The key includes the schema versions and the interpreter's fingerprint, so a schema change or
+an interpreter change invalidates entries.
 Cached specs are validated again before use.
 """
 
@@ -59,8 +60,19 @@ def _fingerprint(schemas: dict[str, SchemaDef]) -> str:
     return ",".join(f"{n}:{s.version}" for n, s in sorted(schemas.items()))
 
 
+# bump when the interpreter changes in a way its prompt text does not show (e.g. which schemas it is given)
+INTERPRETER_REVISION = 2
+
+
+def _interpreter_fingerprint() -> str:
+    """Plans interpreted by an older interpreter are not reused (task 0008 step 3b: a stale plan survived a fix)."""
+    from .interpret import SYSTEM_PROMPT  # lazy: interpret imports this module's neighbours
+
+    return hashlib.sha256(f"{INTERPRETER_REVISION}|{SYSTEM_PROMPT}".encode()).hexdigest()[:16]
+
+
 def cache_key(pattern: str, schemas: dict[str, SchemaDef]) -> str:
-    return hashlib.sha256(f"{_fingerprint(schemas)}|{pattern}".encode()).hexdigest()
+    return hashlib.sha256(f"{_interpreter_fingerprint()}|{_fingerprint(schemas)}|{pattern}".encode()).hexdigest()
 
 
 def _replace_substrings(text: Any, mapping: dict[str, str]) -> Any:

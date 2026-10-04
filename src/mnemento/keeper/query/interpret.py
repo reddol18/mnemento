@@ -143,10 +143,10 @@ _WORD = re.compile(r"[\w가-힣]+")
 
 
 def select_schemas(question: str, schemas: dict[str, SchemaDef]) -> list[SchemaDef]:
-    """Relevant schemas: those whose keywords/labels/names appear in the question, plus the types
-    they reference AND the types that reference them (a question about postings or companies is
-    usually answered from the records that point at them). Falls back to all schemas when nothing
-    matches."""
+    """Relevant schemas: those whose keywords/labels/names appear in the question, plus the types related to
+    them by a relation note (either side declares it), the types they reference AND the types that reference
+    them (a question about postings or companies is usually answered from the records that point at them).
+    Falls back to all schemas when nothing matches."""
     q = question.lower()
     picked: list[str] = []
     for name, s in schemas.items():
@@ -159,6 +159,10 @@ def select_schemas(question: str, schemas: dict[str, SchemaDef]) -> list[SchemaD
     if not picked:
         return list(schemas.values())
     mentioned = list(picked)
+    for name in mentioned:  # types with a declared relation to a mentioned type, either way (ADR-0017)
+        related = {t for t, _ in schemas[name].relations} | {
+            other for other, s in schemas.items() if any(t == name for t, _ in s.relations)}
+        picked += [t for t in sorted(related) if t in schemas and t not in picked]
     for name in mentioned:  # referencing types (reverse direction)
         for other, s in schemas.items():
             if other not in picked and any(fd.ref == name for fd in s.fields.values()):
