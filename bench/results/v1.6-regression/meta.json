@@ -1,0 +1,22 @@
+{
+ "run": "v1.6-regression",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20270201,
+ "frozen_hash": "8024e4f8c975ac48",
+ "git": "341be5e44c9e97a6f4b26d9aa0ad2200bb2b915a+dirty",
+ "started": "2026-10-04T23:06:46.541709+09:00",
+ "adapter": "claude-cli",
+ "plan": null,
+ "plan_description": null,
+ "eval_set": "v3",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "M-haiku": [
+   "claude-haiku-4-5-20251001"
+  ],
+  "M-opus": [
+   "claude-opus-5-5"
+  ]
+ }
+}
