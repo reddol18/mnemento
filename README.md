@@ -1,5 +1,7 @@
 # Mnemento
 
+[![CI](https://github.com/reddol18/mnemento/actions/workflows/ci.yml/badge.svg)](https://github.com/reddol18/mnemento/actions/workflows/ci.yml)
+
 > *Like Leonard's polaroids in **Memento** — a shared, structured record book for LLM agents.*
 
 LLM agents forget between sessions. Mnemento gives them one place to **write facts** and **ask questions in natural language**, answered by exact structured queries — with evidence.
