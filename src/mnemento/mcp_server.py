@@ -15,6 +15,7 @@ Configuration (environment variables):
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,8 @@ def build_keeper() -> Keeper:
     schema_dir = os.environ.get("MNEMENTO_SCHEMAS") or (str(_REPO_SCHEMAS) if _REPO_SCHEMAS.is_dir() else "")
     if schema_dir:
         ledger.schemas.load_dir(schema_dir)
+        for note in ledger.schemas.load_notes:  # stdout carries the MCP protocol
+            print(f"mnemento: {note}", file=sys.stderr)
     llm = None
     if os.environ.get("MNEMENTO_LLM", "claude-cli") == "claude-cli":
         llm = ClaudeCLIAdapter(model=os.environ.get("MNEMENTO_MODEL", "haiku"),

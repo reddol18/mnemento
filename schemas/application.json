@@ -1,6 +1,6 @@
 {
   "name": "application",
-  "version": 3,
+  "version": 4,
   "description": "One job application the user submitted to one posting (e.g. id app_saramin_10000001). Status moves applied -> viewed -> passed/rejected, or withdrawn.",
   "keywords": [
     "지원",
@@ -8,6 +8,9 @@
     "application"
   ],
   "default_date_field": "applied_at",
+  "vague_terms": {
+    "빠르게 열람 / quickly viewed": "viewed within 1 day of applying: elapsed from applied_at to viewed_at, unit days, op lte, value 1"
+  },
   "fields": {
     "company_id": {
       "type": "string",
@@ -61,7 +64,7 @@
         "rejected",
         "withdrawn"
       ],
-      "description": "Current status. applied: submitted; viewed: the company opened the application; passed: passed document screening; rejected: rejected; withdrawn: the user withdrew. The value is the CURRENT state only — whether a record ever reached a status (e.g. 'was viewed', even if later rejected) is answered from its history with the 'reached' filter.",
+      "description": "Current status. applied: submitted; viewed: the company opened the application; passed: passed document screening; rejected: rejected; withdrawn: the user withdrew. The value is the CURRENT state only — whether a record ever reached a status (e.g. 'was viewed', even if later rejected) is answered from its history with the 'reached' filter. Outcome: passed and rejected are outcomes; applied and viewed mean no outcome yet (being viewed is not an outcome); withdrawn means the user cancelled.",
       "required": true,
       "indexed": true,
       "labels": {

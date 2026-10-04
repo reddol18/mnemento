@@ -56,9 +56,10 @@ def test_reopen_persists(tmp_path):
     led = Ledger.open(path)
     led.schemas.load_dir(SCHEMA_DIR)
     make_app(led, 7)
+    version = led.schemas.get("application").version
     led.close()
 
     led2 = Ledger.open(path)
     assert led2.get_entity("app_saramin_7").doc["status"] == "applied"
-    assert led2.schemas.get("application").version == 3
+    assert led2.schemas.get("application").version == version
     led2.close()

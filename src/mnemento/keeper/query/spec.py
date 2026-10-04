@@ -78,6 +78,26 @@ class Measure(BaseModel):
     where: list[Filter] = Field(default_factory=list)
 
 
+class TimePoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    field: str | None = Field(default=None, description="A date field of the record.")
+    event: EventRef | None = Field(default=None, description="When this event of the record happened "
+                                                             "(exact times only).")
+    today: bool = Field(default=False, description="Now / today.")
+
+
+class Elapsed(BaseModel):
+    """Condition on the time between two points of the same record (ADR-0018)."""
+    model_config = ConfigDict(extra="forbid")
+    start: TimePoint
+    end: TimePoint = Field(default_factory=lambda: TimePoint(today=True),
+                           description="Defaults to today.")
+    unit: Literal["days", "hours"] = Field(description="days: between dates (date fields, or today); "
+                                                       "hours: between event times (events, or now).")
+    op: Literal["gt", "gte", "lt", "lte", "eq"]
+    value: float = Field(description="Amount of `unit`, e.g. 3 for 'more than three days' with op gt.")
+
+
 class Having(BaseModel):
     model_config = ConfigDict(extra="forbid")
     measure: str = Field(description="'count' (rows in the group) or a measure name.")
@@ -99,6 +119,8 @@ class QuerySpec(BaseModel):
                     "aggregate: grouped measures/comparisons."
     )
     filters: list[Filter] = Field(default_factory=list)
+    elapsed: list[Elapsed] = Field(default_factory=list, description="Conditions on the time between two "
+                                   "points of each record, e.g. viewed more than 3 days after applying.")
     group_by: list[GroupKey] = Field(default_factory=list)
     measures: list[Measure] = Field(default_factory=list)
     list_fields: list[str] = Field(default_factory=list, description="Fields to show in list mode.")
@@ -114,6 +136,9 @@ class QuerySpec(BaseModel):
         default="",
         description="One sentence restating the question in schema terms, incl. resolved periods.",
     )
+    defaults_used: list[str] = Field(
+        default_factory=list, description="Vague words read with a default, as 'word = reading' "
+                                          "(e.g. '빠르게 = viewed within 1 day of applying'); shown to the user.")
 
 
 # ---- validation against the schema dictionary ----------------------------------------------
@@ -157,6 +182,8 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         errs.append("source=events supports count/count_if measures only")
     for i, f in enumerate(spec.filters):
         errs += _check_filter(schema, f, f"filters[{i}]")
+    for i, e in enumerate(spec.elapsed):
+        errs += _check_elapsed(spec, schema, e, f"elapsed[{i}]")
     for i, g in enumerate(spec.group_by):
         fd = schema.fields.get(g.field)
         if fd is None:
@@ -218,6 +245,35 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         elif spec.order_by_event.to is not None and "status" in schema.fields:
             if spec.order_by_event.to not in (schema.fields["status"].enum or ()):
                 errs.append(f"order_by_event: status {spec.order_by_event.to!r} not allowed")
+    return errs
+
+
+def _check_elapsed(spec: QuerySpec, schema: SchemaDef, e: Elapsed, where: str) -> list[str]:
+    if spec.source != "entities":
+        return [f"{where}: elapsed works on entities"]
+    errs: list[str] = []
+    kinds = set()
+    for side, p in (("start", e.start), ("end", e.end)):
+        given = [x for x in (p.field, p.event, p.today or None) if x is not None]
+        if len(given) != 1:
+            errs.append(f"{where}.{side}: give exactly one of field, event, today")
+            continue
+        if p.field is not None:
+            fd = schema.fields.get(p.field)
+            if fd is None or fd.format not in ("date", "date-time"):
+                errs.append(f"{where}.{side}: {p.field!r} is not a date field")
+            kinds.add("field")
+        elif p.event is not None:
+            if p.event.to is not None and "status" in schema.fields and                     p.event.to not in (schema.fields["status"].enum or ()):
+                errs.append(f"{where}.{side}: status {p.event.to!r} not allowed")
+            kinds.add("event")
+    if kinds == {"field", "event"}:
+        errs.append(f"{where}: do not mix a date field with an event time (dates are local days, events "
+                    f"are exact times); use two date fields (unit days) or two events (unit hours)")
+    if e.unit == "hours" and "field" in kinds:
+        errs.append(f"{where}: date fields hold only the day; use unit days, or events for hours")
+    if e.value < 0:
+        errs.append(f"{where}: value must not be negative")
     return errs
 
 

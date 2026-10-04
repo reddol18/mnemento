@@ -83,15 +83,25 @@ class SchemaRegistry:
     def load_dir(self, directory: str | Path) -> list[SchemaDef]:
         """Register every `*.json` schema definition in `directory` (sorted by file name).
 
-        A file older than the database's latest version is skipped: the database moved on (e.g. the user
-        approved organizing drafts, ADR-0014), and the stored version stays in force."""
+        The database keeps its own version when
+        - the file is older than the database's latest version (the database moved on), or
+        - the user organized that type (ADR-0014 approvals): from then on the database is the dictionary's
+          source, and a differing file is not applied (ADR-0018). The skipped files are in `load_notes`.
+        """
         out = []
+        self.load_notes: list[str] = []
         names = set(self.names())
         for path in sorted(Path(directory).glob("*.json")):
             d = json.loads(path.read_text(encoding="utf-8"))
             if d.get("name") in names:
                 latest = self.get(d["name"])
-                if int(d.get("version", 1)) < latest.version:
+                fv = int(d.get("version", 1))
+                organized = bool(self._storage.schema_changes(d["name"]))
+                if fv < latest.version or (organized and SchemaDef.from_dict(d).to_dict() != latest.to_dict()):
+                    if fv >= latest.version or organized:
+                        self.load_notes.append(
+                            f"{d['name']}: {path.name} v{fv} not applied; the database keeps v{latest.version}"
+                            + (" (organized by the user)" if organized else ""))
                     out.append(latest)
                     continue
             out.append(self.register(d))

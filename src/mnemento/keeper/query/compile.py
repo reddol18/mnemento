@@ -14,7 +14,7 @@ from ...schema.definition import SchemaDef
 from ...storage.sqlite import column_for
 from .reltime import resolve_relative
 from ...timeutil import utc_sort_key
-from .spec import EVENT_SCHEMA, EventRef, Filter, QuerySpec, is_date_token
+from .spec import EVENT_SCHEMA, Elapsed, EventRef, Filter, QuerySpec, TimePoint, is_date_token
 
 
 @dataclass
@@ -107,6 +107,7 @@ class Compiler:
     def compile(self, spec: QuerySpec) -> CompiledQuery:
         where = self.base_where(spec)
         where += [self.cond(f) for f in spec.filters]
+        where += [self.elapsed(e) for e in spec.elapsed]
         where_sql = " AND ".join(where)
         where_params = list(self.params)
         self.params = []
@@ -174,6 +175,22 @@ class Compiler:
         else:
             expr, fn = self.col(m.field), m.agg.upper()
         return f"{fn}(CASE WHEN {cond} THEN {expr} END)" if cond else f"{fn}({expr})"
+
+    def elapsed(self, e: Elapsed) -> str:
+        """Time between two points of the record; a missing point makes the condition false (NULL)."""
+        end = self._point(e.end, e.unit)  # bind order follows the SQL text: end, start, value
+        start = self._point(e.start, e.unit)
+        scale = " * 24" if e.unit == "hours" else ""
+        sql_op = {"eq": "=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}[e.op]
+        return f"((julianday({end}) - julianday({start})){scale}) {sql_op} {self._bind_raw(e.value)}"
+
+    def _point(self, p: TimePoint, unit: str) -> str:
+        if p.field is not None:
+            return self.col(p.field)
+        if p.event is not None:
+            return self._event_time(p.event)
+        # today: the local day for day counts, the exact UTC instant for hours
+        return self._bind_raw(self.now.date().isoformat() if unit == "days" else utc_sort_key(self.now))
 
     def _event_time(self, ref: EventRef, agg: str = "MIN") -> str:
         """Earliest (MIN) or latest (MAX) UTC time of a matching, non-voided event of the entity."""

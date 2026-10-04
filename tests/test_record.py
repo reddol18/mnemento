@@ -107,6 +107,7 @@ def test_store_first_then_organize(k):
     assert led.get_entity("app_n2").doc["applicant_count"] == 40
 
     # c. organize: proposal -> refuses without consent / descriptions / labels -> applies with them
+    before = led.schemas.get("application").version
     [prop] = k.propose_schema("application")
     assert set(prop["register_fields"]) == {"applicants", "applicant_count"}
     assert prop["register_values"] == {"platform": {"remember": 1}}
@@ -121,7 +122,7 @@ def test_store_first_then_organize(k):
                                   labels={"platform": {"remember": ["리멤버"]}},
                                   merges={"applicant_count": "applicants"}, index=["applicants"])
     schema = led.schemas.get("application")
-    assert out["version"] == schema.version == 4 and out["moved_values"] == 1
+    assert out["version"] == schema.version == before + 1 and out["moved_values"] == 1
     assert "remember" in schema.fields["platform"].enum and schema.fields["platform"].labels["remember"] == ("리멤버",)
     assert schema.fields["applicants"].indexed
     assert led.get_entity("app_n2").doc == {**led.get_entity("app_n2").doc, "applicants": 40}

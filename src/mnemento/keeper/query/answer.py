@@ -80,6 +80,8 @@ def ref_labels(schema: SchemaDef, result: QueryResult, get_entity) -> dict[str, 
 def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: datetime,
                  resolved_dates: dict[str, str], fetch) -> list[str]:
     out: list[str] = []
+    for d in spec.defaults_used:  # ADR-0018: say which default reading was used, so it can be corrected
+        out.append(f"Read with a default: {d}. Say so if you meant something else.")
     if spec.source == "entities":
         # ADR-0013/0014: records without a field the question relies on cannot match it — say how many.
         # (Optional fields, unknown dates, fields added later or still drafts.)
@@ -89,6 +91,8 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
         for m in spec.measures:
             used |= {x for x in (m.field, m.field_end) if x}
             used |= {w.field for w in m.where if w.op not in presence}
+        for e in spec.elapsed:
+            used |= {p.field for p in (e.start, e.end) if p.field}
         for fname in sorted(f for f in used if f in schema.fields):
             rows = fetch(f"SELECT COUNT(*) AS n FROM entities WHERE type = ? AND retracted = 0 "
                          f"AND json_extract(doc, '$.{fname}') IS NULL", [spec.entity_type])
@@ -98,7 +102,8 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
                 out.append(f"{missing} {spec.entity_type} record(s) have no {fname}{tag} and could not be "
                            f"counted by it.")
         uses_event_time = spec.order_by_event is not None or any(
-            m.agg == "avg_hours_between_events" for m in spec.measures)
+            m.agg == "avg_hours_between_events" for m in spec.measures) or any(
+            p.event is not None for e in spec.elapsed for p in (e.start, e.end))
         if uses_event_time:
             rows = fetch("SELECT COUNT(DISTINCT entity_id) AS n FROM events WHERE entity_type = ? "
                          "AND at_precision != 'time'", [spec.entity_type])

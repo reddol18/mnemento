@@ -25,8 +25,9 @@ from .spec import QuerySpec, validate_spec
 class InterpretOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     kind: Literal["query", "clarify"] = Field(
-        description="query if the question can be answered with the schemas; clarify if it is "
-                    "ambiguous (e.g. unclear period, target or comparison)."
+        description="query if the question can be answered with the schemas (vague words read with a "
+                    "default, listed in spec.defaults_used); clarify only if no default reading would give "
+                    "a fair answer (e.g. which of two different records, or information the dictionary lacks)."
     )
     spec: QuerySpec | None = Field(default=None, description="Required when kind=query.")
     clarify_question: str | None = Field(default=None, description="Required when kind=clarify.")
@@ -72,8 +73,22 @@ Rules:
   at @this_week_start, "last week" is @this_week_start-1w .. @this_week_start-1d.
 - The event log records corrections (corrected), retractions (retracted) and ordinary edits (updated)
   separately; use the kind whose label matches the question's word.
-- Clarify only when no reasonable default exists and the choice changes the answer (e.g. which of two
-  different records, or a field the dictionary lacks); then use kind=clarify with 2-5 options.
+- Time BETWEEN two points of the same record as a condition ("viewed more than 3 days after applying",
+  "applied over a month ago and still ...", "took less than a day") uses `elapsed`: start/end are a date
+  field, an event (exact times, e.g. {kind: status_changed, to: viewed}) or today. unit "days" with date
+  fields (or today), unit "hours" with events (or now); never mix a date field with an event.
+  For an average of such a time use the measures avg_days_between / avg_hours_between_events instead.
+- Lengths of time ("over three days", "more than a week", "한 달 넘게", "두 달 넘은") count days:
+  1 week = 7 days, 1 month = 30 days, e.g. elapsed from the date field to today, op gt, value 30 — or the
+  same as a filter "< @today-30d". Calendar tokens (@this_month_start, @last_month_start, -1m) are for named
+  calendar periods only ("this month", "last month", "in January").
+- Vague words ("quickly", "recently", "a lot", "빠르게", "최근", "오래된"): use the reading given under
+  "vague words" in the dictionary; if there is none, pick a reasonable reading yourself. Either way write it
+  into spec.defaults_used as "word = reading" (the user sees it and can correct it) — do not ask about it.
+- A question with several parts: answer every part you can express in one spec (e.g. the average plus
+  count_if measures for the follow-up part); never drop the main part because a side part is vague.
+- Clarify only when no default reading would give a fair answer (e.g. which of two different records, or a
+  field the dictionary lacks); then use kind=clarify with 2-5 options.
 - Write `interpretation` in the question's language: one sentence restating what will be counted/listed."""
 
 
@@ -109,6 +124,9 @@ def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], 
         out.append(f"* {s.name}: {s.description}")
         if s.default_date_field:
             out.append(f"  (a bare date refers to {s.default_date_field})")
+        if s.vague_terms:
+            out.append("  vague words (default readings): " +
+                       "; ".join(f"'{w}' = {r}" for w, r in s.vague_terms))
         for fname, fd in s.fields.items():
             out.append(_render_field(fname, fd, observed.get((s.name, fname))))
     out.append(f"* event log (QuerySpec source=events, entity_type = the record type): {EVENT_SCHEMA.description}")

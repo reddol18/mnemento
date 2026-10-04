@@ -74,6 +74,9 @@ the unseen column.
   average the time between two events but cannot filter on it. Haiku said so (clarify); opus found a workaround that
   happened to hit an accepted reading at 100 records and failed at 1,000.
 - **Vague criteria** ("quickly viewed", D5) make the haiku interpreter ask back instead of choosing a default.
+- Both are addressed after this measurement ([ADR-0018](docs/adr/0018-elapsed-filter-and-vague-defaults.md): an
+  `elapsed` condition, and default readings for vague words shown as warnings). W5 prompted the change, so its
+  score here cannot show the gain; that needs new unseen questions, which have not been measured yet.
 - **A harness formatter bug** cost Mnemento D3 at 1,000 records: it answered "187 records, showing 50", the benchmark
   recorded 50 because the plan carried `limit: 50` from the format hint. Scored as measured.
 - One fictional domain and generator, 37 questions, 3 repetitions, a format hint that tells every system the expected
@@ -194,7 +197,7 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
 - **계측**: 질문마다 단계별 시간, LLM 호출 수, 입력·출력 토큰, 비용을 기록합니다.
 - **조회 로그**: 모든 질문을 로컬 DB에 남깁니다(질문, 해석, QuerySpec, SQL과 파라미터, 결과 수, 근거 id, 경고, 시간, 비용). `query_log` 도구로 최근 질문, 경고·오류가 붙은 질문, 같은 질문인데 SQL이 달라진 것(`diverging`)을 볼 수 있습니다. 최대 10,000행 또는 50MB, `MNEMENTO_QUERY_LOG=off`로 끕니다([ADR-0015](docs/adr/0015-query-log.md)).
 
-- **벤치마크(v3, 최신)**: opus 기준으로 **개발에 쓰지 않은 문항의 정확도는 Claude Code 자체 메모리와 같다**(100건 27/27 동률, 1,000건 24/27 동률). 1,000건에서는 **6배 빠르고 비용은 1/8**이다. 개발 문항에서 앞선 부분은 그 문항으로 고쳤기 때문에 과적합일 수 있다. 남은 약점은 경과 시간 조건 필터를 표현할 수 없다는 점과 모호한 기준이다. 문항별 결과는 [여기](docs/bench/results-by-question.md).
+- **벤치마크(v3, 최신)**: opus 기준으로 **개발에 쓰지 않은 문항의 정확도는 Claude Code 자체 메모리와 같다**(100건 27/27 동률, 1,000건 24/27 동률). 1,000건에서는 **6배 빠르고 비용은 1/8**이다. 개발 문항에서 앞선 부분은 그 문항으로 고쳤기 때문에 과적합일 수 있다. 남은 약점은 경과 시간 조건 필터를 표현할 수 없다는 점과 모호한 기준이다(측정 이후 [ADR-0018](docs/adr/0018-elapsed-filter-and-vague-defaults.md)로 보완. W5가 계기였으므로 개선 효과는 새 미노출 문항으로 측정해야 하며, 아직 측정하지 않았다). 문항별 결과는 [여기](docs/bench/results-by-question.md).
 - **이력 — 벤치마크(v2, 100건, 같은 형식 힌트, haiku·opus 2×2)**: opus 기준으로는 Claude Code 자체 메모리가 더 정확했다(B1-opus 83/87 > M-opus 75/87). Mnemento는 2.6배 빠르고 입력 토큰은 1/6이었다. haiku 기준으로는 Mnemento가 앞섰다(64 대 54/87). Mnemento의 약점 5가지는 [작업 0005](docs/tasks/0005-v1.1-fixes.md)에서 고친 뒤 새 평가셋(v3)으로 다시 잰다.
 - **이력 — 벤치마크(v0, 축소 측정: 12/20문항·3회 반복·haiku 한 모델)**:
   - 기록 100건에서는 Claude Code 자체 메모리(B1)가 더 정확했다(28 대 23/36). 대신 Mnemento가 3.6배 빠르고 입력 토큰은 약 1/23이었다.
