@@ -1,0 +1,56 @@
+n=100 M-haiku D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D3 rep0: OK  ok                                               30.4s in=6369
+n=100 M-haiku D4 rep0: OK  ok                                               60.6s in=6446
+n=100 M-haiku D5 rep0: BAD number 0.8114 != 34.23                           64.2s in=6384
+n=100 M-haiku D6 rep0: OK  ok                                               25.2s in=6373
+n=100 M-haiku D7 rep0: BAD number 0 != 4                                    26.6s in=6375
+n=100 M-haiku U1 rep0: OK  ok                                               11.2s in=6366
+n=100 M-haiku U2 rep0: OK  ok                                                8.2s in=6378
+n=100 M-haiku U3 rep0: OK  ok                                                8.5s in=6368
+n=100 M-haiku U4 rep0: OK  ok                                               38.6s in=6371
+n=100 M-haiku U5 rep0: OK  ok                                               12.9s in=6386
+n=100 M-haiku U6 rep0: OK  ok                                               93.1s in=6378
+n=100 M-haiku U7 rep0: OK  ok                                                6.6s in=6371
+n=100 M-haiku U8 rep0: OK  ok                                               13.0s in=6357
+n=100 M-haiku H1 rep0: OK  ok (alternative reading)                         49.4s in=6385
+n=100 M-haiku H2 rep0: OK  ok                                               29.5s in=6419
+n=100 M-haiku H3 rep0: OK  ok                                               69.7s in=6397
+n=100 M-haiku H4 rep0: OK  ok                                               13.6s in=6406
+n=100 M-haiku H5 rep0: OK  ok                                               24.3s in=6380
+n=100 M-haiku V1 rep0: OK  ok                                               18.2s in=6389
+n=100 M-haiku V2 rep0: OK  ok                                                7.9s in=6371
+n=100 M-haiku V3 rep0: OK  ok                                               20.5s in=6390
+n=100 M-haiku V4 rep0: OK  ok                                               41.9s in=6374
+n=100 M-haiku V5 rep0: OK  ok                                               16.4s in=6403
+n=100 M-haiku V7 rep0: OK  ok                                               17.7s in=6383
+n=100 M-haiku V8 rep0: OK  ok                                               18.1s in=6367
+n=100 M-haiku V9 rep0: OK  ok                                               38.0s in=6374
+n=100 M-opus D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-opus D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-opus D3 rep0: OK  ok                                                6.5s in=7524
+n=100 M-opus D4 rep0: OK  ok                                                7.4s in=7613
+n=100 M-opus D5 rep0: OK  ok                                               12.2s in=7537
+n=100 M-opus D6 rep0: OK  ok                                                6.9s in=7531
+n=100 M-opus D7 rep0: OK  ok                                                5.1s in=7529
+n=100 M-opus U1 rep0: OK  ok                                                6.9s in=7522
+n=100 M-opus U2 rep0: OK  ok                                                9.5s in=15115
+n=100 M-opus U3 rep0: OK  ok                                                5.9s in=7522
+n=100 M-opus U4 rep0: OK  ok                                                6.1s in=7525
+n=100 M-opus U5 rep0: OK  ok                                                6.7s in=7544
+n=100 M-opus U6 rep0: OK  ok                                                6.0s in=7533
+n=100 M-opus U7 rep0: OK  ok                                                5.2s in=7522
+n=100 M-opus U8 rep0: OK  ok                                                5.9s in=7511
+n=100 M-opus H1 rep0: OK  ok (alternative reading)                         11.7s in=7540
+n=100 M-opus H2 rep0: OK  ok                                                5.2s in=7580
+n=100 M-opus H3 rep0: OK  ok                                                5.7s in=7555
+n=100 M-opus H4 rep0: OK  ok                                                5.3s in=7566
+n=100 M-opus H5 rep0: OK  ok                                                6.2s in=7532
+n=100 M-opus V1 rep0: OK  ok                                                6.5s in=7546
+n=100 M-opus V2 rep0: OK  ok                                                4.7s in=7527
+n=100 M-opus V3 rep0: OK  ok                                                6.1s in=7549
+n=100 M-opus V4 rep0: OK  ok                                                5.8s in=7531
+n=100 M-opus V5 rep0: OK  ok                                                6.0s in=7564
+n=100 M-opus V7 rep0: OK  ok                                                5.6s in=7541
+n=100 M-opus V8 rep0: OK  ok                                                4.3s in=7519
+n=100 M-opus V9 rep0: OK  ok                                                6.9s in=7530
