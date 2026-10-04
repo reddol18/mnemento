@@ -127,6 +127,8 @@ def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], 
         if s.vague_terms:
             out.append("  vague words (default readings): " +
                        "; ".join(f"'{w}' = {r}" for w, r in s.vague_terms))
+        for other, note in s.relations:
+            out.append(f"  related to {other}: {note}")
         for fname, fd in s.fields.items():
             out.append(_render_field(fname, fd, observed.get((s.name, fname))))
     out.append(f"* event log (QuerySpec source=events, entity_type = the record type): {EVENT_SCHEMA.description}")

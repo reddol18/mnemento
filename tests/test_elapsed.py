@@ -172,3 +172,16 @@ def test_files_do_not_override_a_user_organized_database(tmp_path):
     assert led.schemas.get("application").version == v
     assert any("organized by the user" in n for n in led.schemas.load_notes)
     led.close()
+
+
+def test_relations_round_trip_render_and_validation():
+    """ADR-0017 (moved to step 3): relation notes reach the interpreter so one event is counted from one type."""
+    base = {"name": "trade", "version": 1, "description": "a trade",
+            "fields": {"side": {"type": "string", "description": "buy or sell"}}}
+    s = SchemaDef.from_dict({**base, "relations": [{"type": "decision", "note": "count trades from trade"}]})
+    assert s.relations == (("decision", "count trades from trade"),)
+    assert SchemaDef.from_dict(s.to_dict()) == s and s.with_version(2).relations == s.relations
+    assert "related to decision: count trades from trade" in render_dictionary([s], {})
+    for bad in ([{"type": "decision"}], [{"type": "Bad Type", "note": "x"}], {"decision": "x"}):
+        with pytest.raises(SchemaDefinitionError):
+            SchemaDef.from_dict({**base, "relations": bad})

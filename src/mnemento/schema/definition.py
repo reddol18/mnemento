@@ -39,7 +39,7 @@ FORMATS = {"date", "date-time"}
 _FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
                "implies"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field",
-                "vague_terms"}
+                "vague_terms", "relations"}
 
 FORMAT_CHECKER = FormatChecker(formats=())
 FORMAT_CHECKER.checks("date")(is_calendar_date)
@@ -104,6 +104,9 @@ class SchemaDef:
     default_date_field: str | None = None  # the date a bare "on 10/2" refers to
     # vague words and the reading used unless the user says otherwise (ADR-0018), e.g. "빠르게 열람"
     vague_terms: tuple[tuple[str, str], ...] = ()
+    # how this type relates to others, shown to the interpreter (ADR-0017: count each event from one type),
+    # e.g. (("decision", "a trade and its decision may be the same event; count trades from trade"),)
+    relations: tuple[tuple[str, str], ...] = ()
 
     # ---- construction ---------------------------------------------------------------
 
@@ -142,8 +145,14 @@ class SchemaDef:
         if not isinstance(vague, dict) or not all(isinstance(k, str) and k and isinstance(v, str) and v.strip()
                                                   for k, v in vague.items()):
             raise SchemaDefinitionError(f"{name}: vague_terms must map words to non-empty readings")
+        relations = data.get("relations", [])
+        if not isinstance(relations, list) or not all(
+                isinstance(r, dict) and set(r) == {"type", "note"} and isinstance(r["type"], str)
+                and NAME_RE.match(r["type"]) and isinstance(r["note"], str) and r["note"].strip() for r in relations):
+            raise SchemaDefinitionError(f"{name}: relations must be a list of {{type, note}}")
         schema = cls(name, version, description, fields, tuple(copy.deepcopy(examples)),
-                     tuple(keywords), default_date_field, tuple(vague.items()))
+                     tuple(keywords), default_date_field, tuple(vague.items()),
+                     tuple((r["type"], r["note"]) for r in relations))
         schema._check_json_schema()
         for i, ex in enumerate(schema.examples):
             if not isinstance(ex, dict) or not isinstance(ex.get("doc"), dict):
@@ -166,13 +175,15 @@ class SchemaDef:
             d["default_date_field"] = self.default_date_field
         if self.vague_terms:
             d["vague_terms"] = dict(self.vague_terms)
+        if self.relations:
+            d["relations"] = [{"type": t, "note": n} for t, n in self.relations]
         if self.examples:
             d["examples"] = copy.deepcopy(list(self.examples))
         return d
 
     def with_version(self, version: int) -> "SchemaDef":
         return SchemaDef(self.name, version, self.description, self.fields, self.examples,
-                         self.keywords, self.default_date_field, self.vague_terms)
+                         self.keywords, self.default_date_field, self.vague_terms, self.relations)
 
     # ---- JSON Schema --------------------------------------------------------------------
 
