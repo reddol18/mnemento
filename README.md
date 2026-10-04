@@ -42,6 +42,9 @@ Measured on the frozen version `2c56c658bc5f10f9` (v1.1). v1.2 (names of referen
 dates and event-time precision — [ADR-0013](docs/adr/0013-date-precision.md), a benchmark formatter fix) came from
 using Mnemento on real records afterwards and is **not re-measured**; v1.3 (store first, organize later —
 [ADR-0014](docs/adr/0014-store-first-organize-later.md)) was only checked with a regression run on dev questions.
+Later changes (task 0008) are checked the same way. In its step 2 the benchmark converter for Mnemento's answers was
+fixed — an average question answered with extra count measures was recorded as the record count (it cost M-haiku two
+of the D5 misses at 1,000 records below). The fix changes the frozen hash; the scores below stay as measured.
 Same fictional job-search history rendered three ways (ADR-0011), the **same answer-format hint for every system**,
 evaluation set v3 (own seed; reference date Monday 2027-02-01 so weeks and month ends matter), **28 dev questions +
 9 unseen questions written by the directing agent before measuring**, 3 repetitions, prompts and rules frozen
@@ -205,6 +208,6 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
   - 한계: D4는 형식 힌트가 B0·B1에만 주어진 하네스 편향이 있다. 10,000건에서는 생성기 별칭이 중복된다. 자세한 내용은 위 표와 [결과 노트](bench/results/v0-reduced-haiku/NOTES.md)에 있다.
 
 설치(Claude Code): 위 `claude mcp add ...` 한 줄. 개발: `uv sync && uv run pytest`.
-현재 상태: v1.3(벤치마크 3회는 v1.1 기준). v1.2는 실제 기록으로 써 보며 나온 개선(답에 회사명 표시, 날짜·시각 정밀도)이고, v1.3은 "먼저 저장하고 나중에 정리"(스키마에 없는 필드·값도 저장하고 바로 조회, 정리는 사용자 승인)이다. v1.3은 회귀 측정만 했다. 기획서는 [docs/PLAN.md](docs/PLAN.md), 설계 결정은 [docs/adr/](docs/adr/).
+현재 상태: v1.3(벤치마크 3회는 v1.1 기준). v1.2는 실제 기록으로 써 보며 나온 개선(답에 회사명 표시, 날짜·시각 정밀도)이고, v1.3은 "먼저 저장하고 나중에 정리"(스키마에 없는 필드·값도 저장하고 바로 조회, 정리는 사용자 승인)이다. v1.3은 회귀 측정만 했다. 이후 변경(작업 0008)도 회귀로만 확인하며, 그 ② 단계에서 벤치 답 변환기의 결함(평균을 묻는 질문에 개수 측정값이 함께 있으면 레코드 수를 기록)을 고쳤다. 이 결함 때문에 위 v3 표의 1,000건 M-haiku D5 오답 중 2건이 생겼다. frozen hash는 바뀌었고, 표의 점수는 측정한 그대로 둔다. 기획서는 [docs/PLAN.md](docs/PLAN.md), 설계 결정은 [docs/adr/](docs/adr/).
 
 License: MIT

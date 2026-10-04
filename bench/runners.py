@@ -75,6 +75,9 @@ def run_m(q: Question, keeper: Keeper, now, narrate: bool = False, hint: bool = 
             "wall_ms": ans.trace["totals"]["total_ms"], "trace": ans.trace, "text": ans.text}
 
 
+_AVERAGES = ("avg", "avg_days_between", "avg_hours_between_events")
+
+
 def to_answer(ans, q: Question) -> dict[str, Any]:
     """Mechanical formatting of a KeeperAnswer into the shared answer object (no LLM)."""
     out: dict[str, Any] = {"number": None, "ids": [], "groups": [],
@@ -119,9 +122,16 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
         else:
             value = g["n"]
         out["groups"].append({"period": period, "category": cats[0] if cats else None, "n": g["n"], "value": value})
-    # a single number for averages: n-weighted over groups
-    if measures and not count_if:
-        pairs = [(g["n"], g["measures"].get(measures[0]["name"])) for g in groups]
+    # a single number for averages: n-weighted over groups. When the question asks for an average, take the
+    # first average-type measure even if count_if measures were added for another part of the question
+    # (task 0008 ②: v1.5 D5 had the right average next to count_if measures and was recorded as the count)
+    avg_name = None
+    if "number = average" in q.format:
+        avg_name = next((m["name"] for m in measures if m.get("agg") in _AVERAGES), None)
+    if avg_name is None and measures and not count_if:
+        avg_name = measures[0]["name"]
+    if avg_name:
+        pairs = [(g["n"], g["measures"].get(avg_name)) for g in groups]
         pairs = [(n, v) for n, v in pairs if v is not None and n]
         if pairs:
             out["number"] = round(sum(n * v for n, v in pairs) / sum(n for n, _ in pairs), 4)

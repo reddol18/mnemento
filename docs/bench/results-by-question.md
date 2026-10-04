@@ -49,7 +49,7 @@ Misses:
 - D4 · B1-opus · 1,000: 2027-01/top10: 0.51 ≠ 0.49
 - D5 · M-haiku · 100: asked what counts as 'quickly viewed' (clarify) instead of choosing a default
 - D5 · B1-haiku · 100: number 26.85 ≠ 34.23
-- D5 · M-haiku · 1,000: asked what counts as 'quickly viewed' (clarify) instead of choosing a default
+- D5 · M-haiku · 1,000: 1 of 3 asked what counts as 'quickly viewed' (clarify); in the other 2 the answer held the right average (35.09 h) next to count_if measures, and the benchmark converter recorded the record count (1000, 382) — harness bug found and fixed in task 0008 step 2, scored as measured
 - D5 · B1-haiku · 1,000: number 27 ≠ 35.09
 - D6 · B1-haiku · 100: number 4 ≠ 3
 - D6 · B1-opus · 100: number 1 ≠ 3

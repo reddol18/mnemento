@@ -574,3 +574,22 @@ def test_report_counts_no_answer_apart():
     s = summarize(rows, {})
     assert s[0]["no_answer"] == 1
     assert "no answer / clarify" in render(s, {"model": "x", "run": "r", "frozen_hash": "h"})
+
+
+def test_converter_takes_the_average_next_to_count_if_measures():
+    """Regression (step-2 D5): an average question answered with extra count_if measures for a follow-up part
+    must report the average, not the record count."""
+    from types import SimpleNamespace
+
+    from bench.questions import Question
+
+    spec = {"mode": "aggregate", "measures": [
+        {"name": "avg_hours", "agg": "avg_hours_between_events"}, {"name": "total", "agg": "count"},
+        {"name": "passed", "agg": "count_if", "where": [{"field": "status", "op": "eq", "value": "passed"}]}]}
+    ans = SimpleNamespace(status="answered", evidence=[], warnings=[], text="", spec=spec, result={
+        "mode": "aggregate", "total": 31,
+        "groups": [{"group": {}, "n": 31, "measures": {"avg_hours": 34.23, "total": 31, "passed": 3}}]})
+    avg_q = Question("D5", "dev", "q", "number = average hours from application to first view", "number", {})
+    assert to_answer(ans, avg_q)["number"] == 34.23
+    count_q = Question("X", "dev", "q", "number = count", "number", {})
+    assert to_answer(ans, count_q)["number"] == 31  # other formats keep the old rule

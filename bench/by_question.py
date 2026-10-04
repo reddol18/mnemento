@@ -30,13 +30,23 @@ DIAGNOSED = {
     ("v3-haiku-opus", "M-haiku", "D7"): "read '패스' (skipped) as status passed (cleared screening) instead of withdrawn",
 }
 
+# diagnoses for one scale only, (run, system, question, records) -> one line; checked before DIAGNOSED
+DIAGNOSED_AT = {
+    ("v3-haiku-opus", "M-haiku", "D5", 1000):
+        "1 of 3 asked what counts as 'quickly viewed' (clarify); in the other 2 the answer held the right average "
+        "(35.09 h) next to count_if measures, and the benchmark converter recorded the record count (1000, 382) — "
+        "harness bug found and fixed in task 0008 step 2, scored as measured",
+}
+
 V2 = ("v2-100-2x2", "v2", 20261204, [(100, s) for s in ("M-haiku", "M-opus", "B1-haiku", "B1-opus")])
 V3 = ("v3-haiku-opus", "v3", 20270201,
       [(100, s) for s in ("M-haiku", "M-opus", "B1-haiku", "B1-opus")]
       + [(1000, s) for s in ("M-haiku", "M-opus", "B1-haiku", "B1-opus")])
 
 
-def _reason(run: str, system: str, q: str, fails: list[dict]) -> str:
+def _reason(run: str, system: str, q: str, fails: list[dict], scale: int | None = None) -> str:
+    if (run, system, q, scale) in DIAGNOSED_AT:
+        return DIAGNOSED_AT[(run, system, q, scale)]
     for key in ((run, system, q), (run, system.split("-")[0], q)):
         if key in DIAGNOSED:
             return DIAGNOSED[key]
@@ -67,7 +77,7 @@ def table(run: str, eval_set: str, seed: int, columns: list[tuple[int, str]]) ->
                 cells.append(f"{ok}/{len(got)}" if ok == len(got) else f"**{ok}/{len(got)}**")
                 fails = [r for r in got if not r["correct"]]
                 if fails:
-                    notes.append(f"- {q.id} · {s} · {n:,}: {_reason(run, s, q.id, fails)}")
+                    notes.append(f"- {q.id} · {s} · {n:,}: {_reason(run, s, q.id, fails, n)}")
             text = q.text if len(q.text) <= 40 else q.text[:38] + "…"
             out.append(f"| {q.id} | {text} | " + " | ".join(cells) + " |")
         out += ["", "Misses:" if notes else "No misses.", *notes, ""]
