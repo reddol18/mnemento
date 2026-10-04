@@ -81,8 +81,18 @@ class SchemaRegistry:
         return self._storage.list_schema_names()
 
     def load_dir(self, directory: str | Path) -> list[SchemaDef]:
-        """Register every `*.json` schema definition in `directory` (sorted by file name)."""
+        """Register every `*.json` schema definition in `directory` (sorted by file name).
+
+        A file older than the database's latest version is skipped: the database moved on (e.g. the user
+        approved organizing drafts, ADR-0014), and the stored version stays in force."""
         out = []
+        names = set(self.names())
         for path in sorted(Path(directory).glob("*.json")):
-            out.append(self.register(json.loads(path.read_text(encoding="utf-8"))))
+            d = json.loads(path.read_text(encoding="utf-8"))
+            if d.get("name") in names:
+                latest = self.get(d["name"])
+                if int(d.get("version", 1)) < latest.version:
+                    out.append(latest)
+                    continue
+            out.append(self.register(d))
         return out

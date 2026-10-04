@@ -175,3 +175,19 @@ def test_application_status_values():
     s = SchemaDef.from_dict(json.loads((SCHEMA_DIR / "application.json").read_text(encoding="utf-8")))
     assert s.fields["status"].enum == ("applied", "viewed", "passed", "rejected", "withdrawn")
     assert s.fields["applied_at"].format == "date"
+
+
+def test_load_dir_keeps_a_database_that_moved_ahead(tmp_path):
+    """After an approved organize the database holds v(n+1); restarting with the v(n) files must not fail."""
+    import json as _json
+
+    from mnemento import Ledger
+
+    d = {"name": "note", "version": 1, "description": "a note", "fields": {"title": {"type": "string", "description": "title"}}}
+    (tmp_path / "note.json").write_text(_json.dumps(d), encoding="utf-8")
+    led = Ledger.open(tmp_path / "s.db")
+    led.schemas.load_dir(tmp_path)
+    led.schemas.bump({**d, "fields": {**d["fields"], "body": {"type": "string", "description": "body"}}})
+    assert [s.version for s in led.schemas.load_dir(tmp_path)] == [2]
+    assert led.schemas.get("note").version == 2
+    led.close()
