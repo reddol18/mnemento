@@ -1,0 +1,64 @@
+n=100 M-haiku D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-haiku D3 rep0: OK  ok                                               43.0s in=5303
+n=100 M-haiku D4 rep0: OK  ok                                               56.2s in=5381
+n=100 M-haiku D5 rep0: BAD no number                                        43.1s in=5317
+n=100 M-haiku D6 rep0: OK  ok                                               16.4s in=5309
+n=100 M-haiku D7 rep0: BAD number 0 != 4                                    26.6s in=5307
+n=100 M-haiku U1 rep0: OK  ok                                               15.9s in=5301
+n=100 M-haiku U2 rep0: OK  ok                                               10.0s in=5309
+n=100 M-haiku U3 rep0: OK  ok                                                7.6s in=5304
+n=100 M-haiku U4 rep0: OK  ok                                               15.7s in=5304
+n=100 M-haiku U5 rep0: OK  ok                                                7.9s in=5318
+n=100 M-haiku U6 rep0: OK  ok                                               26.5s in=5314
+n=100 M-haiku U7 rep0: OK  ok                                               13.8s in=5303
+n=100 M-haiku U8 rep0: OK  ok                                                8.4s in=5291
+n=100 M-haiku H1 rep0: OK  ok (alternative reading)                         24.2s in=5320
+n=100 M-haiku H2 rep0: OK  ok                                               21.7s in=5350
+n=100 M-haiku H3 rep0: OK  ok                                               40.1s in=5329
+n=100 M-haiku H4 rep0: OK  ok                                               10.0s in=5340
+n=100 M-haiku H5 rep0: BAD number 12 != 17                                  13.7s in=5314
+n=100 M-haiku V1 rep0: OK  ok                                               17.5s in=5324
+n=100 M-haiku V2 rep0: OK  ok                                                6.6s in=5307
+n=100 M-haiku V3 rep0: OK  ok                                               20.7s in=5324
+n=100 M-haiku V4 rep0: OK  ok                                                9.4s in=5309
+n=100 M-haiku V5 rep0: OK  ok                                               12.2s in=5337
+n=100 M-haiku V7 rep0: OK  ok                                               32.0s in=5317
+n=100 M-haiku V8 rep0: OK  ok                                                9.9s in=5298
+n=100 M-haiku V9 rep0: OK  ok                                               14.8s in=5310
+n=100 M-opus D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-opus D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-opus D3 rep0: OK  ok                                                5.0s in=6190
+n=100 M-opus D4 rep0: OK  ok                                                7.9s in=6279
+n=100 M-opus D5 rep0: OK  ok                                                6.9s in=6204
+n=100 M-opus D6 rep0: OK  ok                                                6.6s in=6196
+n=100 M-opus D7 rep0: OK  ok                                                4.6s in=6194
+n=100 M-opus U1 rep0: OK  ok                                                6.0s in=6186
+n=100 M-opus U2 rep0: OK  ok                                                9.3s in=12445
+n=100 M-opus U3 rep0: OK  ok                                                4.4s in=6188
+n=100 M-opus U4 rep0: OK  ok                                                6.9s in=6189
+n=100 M-opus U5 rep0: OK  ok                                                5.1s in=6211
+n=100 M-opus U6 rep0: OK  ok                                                6.6s in=6198
+n=100 M-opus U7 rep0: OK  ok                                                4.9s in=6188
+n=100 M-opus U8 rep0: OK  ok                                                5.0s in=6177
+n=100 M-opus H1 rep0: OK  ok (alternative reading)                          7.4s in=6206
+n=100 M-opus H2 rep0: OK  ok                                                5.2s in=6243
+n=100 M-opus H3 rep0: OK  ok                                                5.7s in=6219
+n=100 M-opus H4 rep0: OK  ok                                                5.1s in=6233
+n=100 M-opus H5 rep0: OK  ok                                                7.1s in=6197
+n=100 M-opus V1 rep0: OK  ok                                                5.1s in=6210
+n=100 M-opus V2 rep0: OK  ok                                                4.7s in=6193
+n=100 M-opus V3 rep0: OK  ok                                                5.7s in=6214
+n=100 M-opus V4 rep0: OK  ok                                                4.7s in=6196
+n=100 M-opus V5 rep0: OK  ok                                                5.7s in=6227
+n=100 M-opus V7 rep0: OK  ok                                                6.4s in=6205
+n=100 M-opus V8 rep0: OK  ok                                                4.5s in=6185
+n=100 M-opus V9 rep0: OK  ok                                                6.5s in=6196
+exit=0
+Model `haiku` via Claude Code CLI · run `v1.3-regression` · frozen `559476b2ccabf9b0` · git `3853828723adcd58069506f0032687931128dd5b+dirty`
+
+| scale | system | accuracy dev | accuracy unseen | time mean / p95 (s) | excl. CLI overhead (s) | LLM calls/q | input tok/q (excl. overhead) | output tok/q | cost/q (USD) | no answer / clarify |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 100 | M-haiku | 25/28 (89%) | — | 18.7 / 43.1 | 17.1 / 41.5 | 0.93 | 4,937 (2,592) | 2,042 | 0.0201 | 1 |
+| 100 | M-opus | 28/28 (100%) | — | 5.5 / 7.9 | 3.6 / 5.7 | 0.96 | 5,985 (3,549) | 309 | 0.0256 | 0 |
+
