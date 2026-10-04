@@ -191,3 +191,22 @@ def test_load_dir_keeps_a_database_that_moved_ahead(tmp_path):
     assert [s.version for s in led.schemas.load_dir(tmp_path)] == [2]
     assert led.schemas.get("note").version == 2
     led.close()
+
+
+def test_load_dir_may_skip_file_versions(tmp_path):
+    """A database at v1 started with a v3 file takes v3 directly (no v2 file ever existed for it)."""
+    import json as _json
+
+    from mnemento import Ledger
+
+    d = {"name": "note", "version": 1, "description": "a note",
+         "fields": {"title": {"type": "string", "description": "title"}}}
+    (tmp_path / "note.json").write_text(_json.dumps(d), encoding="utf-8")
+    led = Ledger.open(tmp_path / "g.db")
+    led.schemas.load_dir(tmp_path)
+    d3 = {**d, "version": 3, "fields": {**d["fields"], "body": {"type": "string", "description": "body"}}}
+    (tmp_path / "note.json").write_text(_json.dumps(d3), encoding="utf-8")
+    assert [s.version for s in led.schemas.load_dir(tmp_path)] == [3]
+    with pytest.raises(SchemaDefinitionError):  # direct registration still needs latest + 1
+        led.schemas.register({**d3, "version": 5, "description": "other"})
+    led.close()

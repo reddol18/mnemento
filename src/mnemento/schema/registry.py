@@ -18,7 +18,7 @@ class SchemaRegistry:
         self._tz = tz
         self._cache: dict[tuple[str, int], SchemaDef] = {}
 
-    def register(self, definition: SchemaDef | dict[str, Any]) -> SchemaDef:
+    def register(self, definition: SchemaDef | dict[str, Any], *, allow_gap: bool = False) -> SchemaDef:
         """Register a new schema or a new version of an existing one.
 
         - The first registration starts the history at whatever version the definition has (a new
@@ -26,6 +26,8 @@ class SchemaRegistry:
         - A new version must be exactly latest + 1 and contain only additive changes;
           destructive changes raise BreakingSchemaChangeError (migration tooling is v2).
         - Re-registering a definition identical to the latest version is a no-op.
+        - allow_gap (schema files): the file's version may be more than latest + 1 — a database that skipped
+          intermediate file versions takes the newest one directly (still additive only).
         """
         schema = definition if isinstance(definition, SchemaDef) else SchemaDef.from_dict(definition)
         with self._storage.transaction():
@@ -33,7 +35,7 @@ class SchemaRegistry:
             if latest is not None:
                 if schema.to_dict() == latest.to_dict():
                     return latest
-                if schema.version != latest.version + 1:
+                if schema.version != latest.version + 1 and not (allow_gap and schema.version > latest.version):
                     raise SchemaDefinitionError(
                         f"{schema.name}: next version must be {latest.version + 1}, "
                         f"got {schema.version}"
@@ -104,5 +106,5 @@ class SchemaRegistry:
                             + (" (organized by the user)" if organized else ""))
                     out.append(latest)
                     continue
-            out.append(self.register(d))
+            out.append(self.register(d, allow_gap=True))
         return out
