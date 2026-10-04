@@ -76,6 +76,7 @@ def create_server(keeper: Keeper) -> MCPServer:
         entity_id: str | None = None,
         match: dict[str, Any] | None = None,
         at: str | None = None,
+        at_precision: str = "time",
         text: str | None = None,
         evidence: str | None = None,
     ) -> dict[str, Any]:
@@ -85,7 +86,8 @@ def create_server(keeper: Keeper) -> MCPServer:
         + payload, and the target by entity_id or match (field values, e.g. {"platform": "saramin",
         "posting_id": "10000001"}). Reference fields may hold a name (e.g. a company name).
         Free text: text="사람인 10000001 가상테크 열람" — the Keeper structures it.
-        at: when it happened (ISO 8601 with offset); defaults to now. by: your agent name.
+        at: when it happened (ISO 8601 with offset); defaults to now. at_precision: time | date (only the
+        day is known) | unknown. by: your agent name.
         evidence: why you believe it (quote, mail subject...).
         Returns status recorded | clarify (ask the user, nothing stored) | rejected | error.
         """
@@ -94,7 +96,7 @@ def create_server(keeper: Keeper) -> MCPServer:
         if not entity_type or not kind:
             raise ToolError("give either text, or entity_type and kind")
         req = {"entity_type": entity_type, "kind": kind, "payload": payload or {},
-               "entity_id": entity_id, "match": match or {}, "at": at}
+               "entity_id": entity_id, "match": match or {}, "at": at, "at_precision": at_precision}
         return keeper.record({k: v for k, v in req.items() if v is not None}, by=by, evidence=evidence).to_dict()
 
     @mcp.tool()

@@ -612,3 +612,109 @@ def test_event_counts_report_the_records(demo):
             "filters": [{"field": "kind", "op": "eq", "value": "retracted"}]}
     ans = keeper(demo)[0].ask("무효 처리한 기록?", spec=spec, now=NOW)
     assert ans.result["groups"][0]["entity_ids"] == ["app_o15"]
+
+
+
+# ---- v1.2 (task 0006) -------------------------------------------------------------------------
+
+def test_lists_and_groups_show_referenced_names(demo):
+    spec = {"entity_type": "application", "mode": "list", "list_fields": ["company_id", "status"],
+            "filters": [{"field": "company_id", "op": "eq", "value": "co_gasangtech"}]}
+    ans = keeper(demo)[0].ask("가상테크 지원 목록", spec=spec, now=NOW)
+    assert "company_id=co_gasangtech ((주)가상테크)" in ans.text
+    assert ans.result["labels"] == {"co_gasangtech": "(주)가상테크"}
+    grouped = {"entity_type": "application", "mode": "aggregate", "group_by": [{"field": "company_id"}],
+               "having": [{"measure": "count", "op": "gte", "value": 1}],
+               "filters": [{"field": "company_id", "op": "in", "value": ["co_gasangtech", "co_samplelabs"]}]}
+    text = keeper(demo)[0].ask("회사별", spec=grouped, now=NOW).text
+    assert "company_id=co_samplelabs (샘플랩스 주식회사)" in text
+
+
+def _dated_ledger(tmp_path):
+    from mnemento import Ledger
+    from mnemento.demo import SCHEMA_DIR
+
+    led = Ledger.open(tmp_path / "p.db")
+    led.schemas.load_dir(SCHEMA_DIR)
+    base = {"company_id": "co_x", "platform": "saramin", "status": "applied"}
+    # exact: applied 10/1 10:00, viewed 10/1 13:00
+    led.record_event("a_exact", "created", {**base, "applied_at": "2026-10-01"}, "2026-10-01T10:00:00+09:00", "a",
+                     entity_type="application")
+    led.record_event("a_exact", "status_changed", {"to": "viewed"}, "2026-10-01T13:00:00+09:00", "a")
+    # date only: viewed "on 10/2", time unknown
+    led.record_event("a_date", "created", {**base, "applied_at": "2026-10-01"}, "2026-10-01T00:00:00+09:00", "a",
+                     entity_type="application", at_precision="date")
+    led.record_event("a_date", "status_changed", {"to": "viewed"}, "2026-10-02T00:00:00+09:00", "a",
+                     at_precision="date")
+    # application date never recorded
+    led.record_event("a_none", "created", base, "2026-10-03T09:00:00+09:00", "a", entity_type="application",
+                     at_precision="unknown")
+    return led
+
+
+def test_unknown_application_date_is_allowed_and_reported(tmp_path):
+    led = _dated_ledger(tmp_path)
+    assert "applied_at" not in led.get_entity("a_none").doc
+    spec = {"entity_type": "application", "mode": "count",
+            "filters": [{"field": "applied_at", "op": "eq", "value": "2026-10-01"}]}
+    ans = Keeper(led, ScriptedLLM()).ask("10/1 지원?", spec=spec, now=NOW)
+    assert ans.result["total"] == 2
+    assert any("1 application record(s) have no applied_at" in w for w in ans.warnings)
+    led.close()
+
+
+def test_event_time_measures_use_exact_times_only(tmp_path):
+    led = _dated_ledger(tmp_path)
+    k = Keeper(led, ScriptedLLM())
+    hours = {"entity_type": "application", "mode": "aggregate",
+             "measures": [{"name": "h", "agg": "avg_hours_between_events", "event_from": {"kind": "created"},
+                           "event_to": {"kind": "status_changed", "to": "viewed"}}]}
+    ans = k.ask("열람까지 몇 시간?", spec=hours, now=NOW)
+    assert ans.result["groups"][0]["measures"]["h"] == 3.0  # a_date (00:00 -> 00:00 next day) is not counted
+    assert any("without an exact time" in w for w in ans.warnings)
+    order = {"entity_type": "application", "mode": "list", "descending": True,
+             "filters": [{"field": "status", "op": "eq", "value": "viewed"}],
+             "order_by_event": {"kind": "status_changed", "to": "viewed"}}
+    rows = k.ask("최근 열람 순", spec=order, now=NOW).result["rows"]
+    assert [r["id"] for r in rows] == ["a_exact", "a_date"]  # inexact last, not first
+    assert [e.at_precision for e in led.history("a_date")] == ["date", "date"]
+    led.close()
+
+
+def test_at_precision_validation_and_old_databases(tmp_path):
+    import sqlite3
+
+    from mnemento.errors import InvalidEventError
+
+    led = _dated_ledger(tmp_path)
+    with pytest.raises(InvalidEventError):
+        led.record_event("a_exact", "updated", {"reason": "x"}, "2026-10-04T10:00:00+09:00", "a", at_precision="hour")
+    led.close()
+    con = sqlite3.connect(tmp_path / "p.db")  # a database from before ADR-0013
+    con.execute("ALTER TABLE events DROP COLUMN at_precision")
+    con.commit()
+    con.close()
+    from mnemento import Ledger
+
+    led = Ledger.open(tmp_path / "p.db")
+    assert {e.at_precision for e in led.history("a_date")} == {"time"}  # old events: exact by definition
+    led.close()
+
+
+def test_record_tool_passes_at_precision(tmp_path):
+    led = _dated_ledger(tmp_path)
+    k = Keeper(led, ScriptedLLM())
+    res = k.record({"entity_type": "application", "kind": "status_changed", "entity_id": "a_none",
+                    "payload": {"to": "viewed"}, "at": "2026-10-03T00:00:00+09:00", "at_precision": "date"},
+                   by="agent_a")
+    assert res.status == "recorded" and led.history("a_none")[-1].at_precision == "date"
+    led.close()
+
+
+
+def test_list_without_fields_shows_who_and_status(demo):
+    # dogfooding: the interpreter often leaves list_fields empty; the answer must still be readable
+    spec = {"entity_type": "application", "mode": "list",
+            "filters": [{"field": "company_id", "op": "eq", "value": "co_gasangtech"}]}
+    text = keeper(demo)[0].ask("가상테크 지원", spec=spec, now=NOW).text
+    assert "- app_o02 (company_id=co_gasangtech ((주)가상테크), status=viewed)" in text

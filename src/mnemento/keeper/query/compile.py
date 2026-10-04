@@ -115,7 +115,7 @@ class Compiler:
             if spec.order_by_event is not None:
                 direction = "DESC" if spec.descending else "ASC"
                 when = self._event_time(spec.order_by_event, "MAX" if spec.descending else "MIN")
-                order = f"{when} {direction}, id"
+                order = f"{when} {direction} NULLS LAST, id"  # records without an exact time go last
             else:
                 order = self._order(spec, default=self.default_order)
             order_params, self.params = self.params, []
@@ -178,7 +178,8 @@ class Compiler:
     def _event_time(self, ref: EventRef, agg: str = "MIN") -> str:
         """Earliest (MIN) or latest (MAX) UTC time of a matching, non-voided event of the entity."""
         conds = ["ev.entity_id = entities.id", f"ev.kind = {self._bind_raw(ref.kind)}",
-                 "ev.id IN (SELECT value FROM json_each(entities.event_ids))"]
+                 "ev.id IN (SELECT value FROM json_each(entities.event_ids))",
+                 "ev.at_precision = 'time'"]  # only exact event times (ADR-0013)
         if ref.to is not None:
             conds.append(f"json_extract(ev.payload, '$.to') = {self._bind_raw(ref.to)}")
         return f"(SELECT {agg}(ev.at_utc) FROM events ev WHERE {' AND '.join(conds)})"

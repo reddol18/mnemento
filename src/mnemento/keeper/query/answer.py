@@ -62,9 +62,44 @@ def _num(v: Any) -> Any:
     return v
 
 
+def ref_labels(schema: SchemaDef, result: QueryResult, get_entity) -> dict[str, str]:
+    """Names of the records that reference fields point to (company name, posting title), so answers
+    are readable: co_031 -> its name."""
+    refs = [f for f, fd in schema.fields.items() if fd.ref]
+    ids = {r[f] for r in result.rows for f in refs if isinstance(r.get(f), str)}
+    ids |= {v for g in result.groups for k, v in g["group"].items() if k in refs and isinstance(v, str)}
+    labels = {}
+    for i in sorted(ids):
+        e = get_entity(i)
+        name = e and (e.doc.get("name") or e.doc.get("title"))
+        if name:
+            labels[i] = name
+    return labels
+
+
 def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: datetime,
                  resolved_dates: dict[str, str], fetch) -> list[str]:
     out: list[str] = []
+    if spec.source == "entities":
+        # ADR-0013: records whose date is unknown cannot match a date condition — say how many
+        dated = {f.field for f in spec.filters if schema.fields.get(f.field) and schema.fields[f.field].format}
+        dated |= {g.field for g in spec.group_by if schema.fields.get(g.field) and schema.fields[g.field].format}
+        for fname in sorted(dated):
+            rows = fetch(f"SELECT COUNT(*) AS n FROM entities WHERE type = ? AND retracted = 0 "
+                         f"AND json_extract(doc, '$.{fname}') IS NULL", [spec.entity_type])
+            missing = rows[0]["n"] if rows else 0
+            if missing and not any(f.field == fname and f.op == "missing" for f in spec.filters):
+                out.append(f"{missing} {spec.entity_type} record(s) have no {fname} (not recorded) and "
+                           f"could not be counted by it.")
+        uses_event_time = spec.order_by_event is not None or any(
+            m.agg == "avg_hours_between_events" for m in spec.measures)
+        if uses_event_time:
+            rows = fetch("SELECT COUNT(DISTINCT entity_id) AS n FROM events WHERE entity_type = ? "
+                         "AND at_precision != 'time'", [spec.entity_type])
+            inexact = rows[0]["n"] if rows else 0
+            if inexact:
+                out.append(f"{inexact} record(s) have events without an exact time; they are left out of "
+                           f"time-based ordering and durations (ADR-0013).")
     today = now.date()
     if result.total == 0:
         out.append("No matching records. If you expected some, they may not have been recorded yet.")
@@ -113,11 +148,16 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
     return out
 
 
-def _group_label(group: dict[str, Any]) -> str:
-    return " / ".join(f"{k}={v}" for k, v in group.items()) or "all"
+def _group_label(group: dict[str, Any], labels: dict[str, str] | None = None) -> str:
+    labels = labels or {}
+    return " / ".join(f"{k}={v}" + (f" ({labels[v]})" if isinstance(v, str) and v in labels else "")
+                      for k, v in group.items()) or "all"
 
 
-def render_text(spec: QuerySpec, result: QueryResult, notes: list[str]) -> str:
+def render_text(spec: QuerySpec, result: QueryResult, notes: list[str],
+                labels: dict[str, str] | None = None, default_fields: list[str] | None = None) -> str:
+    labels = labels or {}
+    named = lambda v: f"{v} ({labels[v]})" if isinstance(v, str) and v in labels else f"{v}"  # noqa: E731
     lines = []
     if spec.interpretation:
         lines.append(f"Interpretation: {spec.interpretation}")
@@ -129,7 +169,7 @@ def render_text(spec: QuerySpec, result: QueryResult, notes: list[str]) -> str:
     elif result.mode == "list":
         shown = len(result.rows)
         lines.append(f"Answer: {result.total} record(s)" + (f", showing {shown}" if shown < result.total else ""))
-        keys = spec.list_fields
+        keys = spec.list_fields or default_fields or []  # no fields asked for: who/what and the status
         for r in result.rows:
             if spec.source == "events":
                 what = r["kind"] + (f" {r['payload'].get('to')}" if r["kind"] == "status_changed" else "")
@@ -138,7 +178,7 @@ def render_text(spec: QuerySpec, result: QueryResult, notes: list[str]) -> str:
                 lines.append(f"- {r['id']} {r['entity_id']}: {what} at {r['at']} by {r['by']}"
                              + (f" — evidence: {r['evidence']}" if r.get("evidence") else ""))
                 continue
-            extra = ", ".join(f"{k}={r.get(k)}" for k in keys if k in r)
+            extra = ", ".join(f"{k}={named(r.get(k))}" for k in keys if k in r)
             lines.append(f"- {r['id']}" + (f" ({extra})" if extra else ""))
     else:
         lines.append(f"Answer: {len(result.groups)} group(s), {result.total} record(s)")
@@ -150,7 +190,7 @@ def render_text(spec: QuerySpec, result: QueryResult, notes: list[str]) -> str:
                     ms.append(f"{k}={v}/{g['n']} ({v / g['n']:.0%})")
                 else:
                     ms.append(f"{k}={v}")
-            lines.append(f"- {_group_label(g['group'])}: n={g['n']}" + (f", {', '.join(ms)}" if ms else "")
+            lines.append(f"- {_group_label(g['group'], labels)}: n={g['n']}" + (f", {', '.join(ms)}" if ms else "")
                          + f"  [evidence: {', '.join(g['ids'][:10])}{' …' if len(g['ids']) > 10 else ''}]")
     for n in notes:
         lines.append(f"Note: {n}")

@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS events (
     by              TEXT    NOT NULL,
     evidence        TEXT,
     schema_version  INTEGER NOT NULL,
-    target_event_id TEXT
+    target_event_id TEXT,
+    at_precision    TEXT    NOT NULL DEFAULT 'time'
 );
 CREATE INDEX IF NOT EXISTS ix_events_entity ON events (entity_id, seq);
 CREATE INDEX IF NOT EXISTS ix_events_target ON events (target_event_id);
@@ -107,6 +108,9 @@ class SQLiteStorage(Storage):
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.executescript(_DDL)
+        ev_cols = {r["name"] for r in self._conn.execute("PRAGMA table_xinfo(events)")}
+        if "at_precision" not in ev_cols:  # before ADR-0013 every event time was exact
+            self._conn.execute("ALTER TABLE events ADD COLUMN at_precision TEXT NOT NULL DEFAULT 'time'")
         cols = {r["name"] for r in self._conn.execute("PRAGMA table_xinfo(entities)")}
         if "reached" not in cols:  # database created before ADR-0012: add, then rebuild from events
             self._conn.execute("ALTER TABLE entities ADD COLUMN reached TEXT NOT NULL DEFAULT '[]'")
@@ -181,11 +185,11 @@ class SQLiteStorage(Storage):
     def append_event(self, event: Event) -> Event:
         cur = self._conn.execute(
             "INSERT INTO events (id, entity_id, entity_type, kind, payload, at, at_utc, "
-            "recorded_at, by, evidence, schema_version, target_event_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "recorded_at, by, evidence, schema_version, target_event_id, at_precision) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (event.id, event.entity_id, event.entity_type, event.kind, _dumps(event.payload),
              event.at, event.at_utc, event.recorded_at, event.by, event.evidence,
-             event.schema_version, event.target_event_id),
+             event.schema_version, event.target_event_id, event.at_precision),
         )
         return replace(event, seq=cur.lastrowid)
 
@@ -359,6 +363,7 @@ def _event_from_row(row: sqlite3.Row) -> Event:
         recorded_at=row["recorded_at"], by=row["by"], evidence=row["evidence"],
         schema_version=row["schema_version"], target_event_id=row["target_event_id"],
         seq=row["seq"],
+        at_precision=row["at_precision"],
     )
 
 

@@ -33,6 +33,7 @@ class Event:
     schema_version: int
     target_event_id: str | None = None  # for corrected/retracted
     seq: int | None = None  # assigned by storage on append
+    at_precision: str = "time"  # time | date (day known, at = 00:00) | unknown (at = recording time), ADR-0013
 
 
 @dataclass

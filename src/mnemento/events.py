@@ -105,7 +105,18 @@ def replay(entity_id: str, entity_type: str, events: Iterable[Event]) -> EntityS
             corrections[e.target_event_id] = e.payload["payload"]  # type: ignore[index]
 
     data = [e for e in events if e.kind in DATA_KINDS and e.id not in voided]
-    data.sort(key=lambda e: (e.kind != CREATED, e.at_utc, _seq(e)))
+    # An event whose time is unknown (ADR-0013) has only a placeholder `at` (when it was recorded). Order it
+    # right after the latest event of known time recorded before it, not by the placeholder — otherwise an
+    # undated "viewed" recorded today would land after a dated "rejected on 9/18".
+    sort_at: dict[str, str] = {}
+    known = ""
+    for e in events:  # recording order
+        if getattr(e, "at_precision", "time") == "unknown":
+            sort_at[e.id] = known
+        else:
+            sort_at[e.id] = e.at_utc
+            known = max(known, e.at_utc)
+    data.sort(key=lambda e: (e.kind != CREATED, sort_at[e.id], _seq(e)))
 
     doc: dict[str, Any] | None = None
     applied: list[str] = []

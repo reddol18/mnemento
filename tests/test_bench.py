@@ -328,13 +328,13 @@ def test_run_refuses_changed_frozen_files(tmp_path, monkeypatch):
 def test_converter_limit_and_having():
     from types import SimpleNamespace
 
-    q = Question("X", "unseen", "t", "number = 3; ids = those", "ids", {})
+    q = Question("X", "unseen", "t", "number = 3 (or fewer); ids = those", "ids", {})
     listed = SimpleNamespace(status="answered", text="", warnings=[], evidence=["a", "b", "c"],
                              spec={"limit": 3}, result={"mode": "list", "total": 10,
                                                         "rows": [{"id": "a"}, {"id": "b"}, {"id": "c"}]})
-    assert to_answer(listed, q)["number"] == 3  # explicit limit: what is shown
-    listed.spec = {}
-    assert to_answer(listed, q)["number"] == 10  # default limit: the total
+    assert to_answer(listed, q)["number"] == 3  # a fixed count was asked for: what is shown
+    q_total = Question("Y", "dev", "t", "number = how many; ids = those (at most 50)", "ids", {})
+    assert to_answer(listed, q_total)["number"] == 10  # regression (v3 D3): a display limit must not cut the count
     grouped = SimpleNamespace(status="answered", text="", warnings=[], evidence=["x"],
                               spec={"having": [{"measure": "count", "op": "gte", "value": 2}]},
                               result={"mode": "aggregate", "total": 5, "groups": [

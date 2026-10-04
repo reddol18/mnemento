@@ -57,6 +57,7 @@ class Ledger:
         evidence: str | None = None,
         *,
         entity_type: str | None = None,
+        at_precision: str = "time",
     ) -> Event:
         """Append one event and update the entity's current state.
 
@@ -72,6 +73,8 @@ class Ledger:
         if kind in ev.META_KINDS and not (evidence and evidence.strip()):
             raise InvalidEventError(f"{kind} requires evidence (why)")
         at_dt = parse_instant(at)
+        if at_precision not in ("time", "date", "unknown"):
+            raise InvalidEventError("at_precision must be time, date or unknown (ADR-0013)")
 
         with self.storage.transaction():
             existing = self.storage.get_entity(entity_id)
@@ -109,6 +112,7 @@ class Ledger:
                 evidence=evidence,
                 schema_version=schema.version,
                 target_event_id=target,
+                at_precision=at_precision,
             )
             if kind == ev.CORRECTED:
                 # the replacement payload must itself be a well-formed payload for the target kind

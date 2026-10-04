@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import re
+
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -90,8 +92,10 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
     if mode in ("count", "list"):
         out["number"] = res["total"]
         rows_shown = len(res.get("rows") or [])
-        if mode == "list" and "limit" in (ans.spec or {}) and rows_shown < res["total"]:
-            out["number"] = rows_shown  # an explicit limit ("the latest three") answers with what is shown
+        # a fixed count is asked for ("the latest three": format "number = 3") -> what is shown; otherwise the
+        # total, even if the plan carried a display limit (v3 D3: limit 50 from the hint cut 187 to 50)
+        if mode == "list" and re.search(r"number = \d", q.format) and rows_shown < res["total"]:
+            out["number"] = rows_shown
         rows = res.get("rows") or []
         if rows and "entity_id" in rows[0]:  # events: report the records they belong to
             out["ids"] = list(dict.fromkeys(r["entity_id"] for r in rows))[:MAX_LISTED_IDS]

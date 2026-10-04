@@ -11,7 +11,7 @@ from ...timeutil import now as tz_now
 from ..identity import IdentityResolver
 from ..llm import LLMAdapter, LLMError
 from ..trace import Trace
-from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, execute, narration_payload, render_text,
+from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, execute, narration_payload, ref_labels, render_text,
                      warnings_for)
 from .cache import PlanCache
 from .compile import compile_spec
@@ -129,12 +129,15 @@ class QueryPipeline:
                     notes.append(f"'{name}' matched {info['matches']} by {info['rule']}.")
                 else:
                     notes.append(f"'{name}' matches no recorded entity (exact name, alias or identifier).")
-            text = render_text(spec, result, notes)
+            labels = ref_labels(schema, result, self.ledger.storage.get_entity) if spec.source == "entities" else {}
+            default_fields = [f for f, fd in schema.fields.items() if fd.ref] + (
+                ["status"] if "status" in schema.fields else [])
+            text = render_text(spec, result, notes, labels, default_fields)
         ans = KeeperAnswer(
             "answered", question, text, spec=dump_spec(spec), sql=compiled.sql, params=compiled.params,
             result={"mode": result.mode, "total": result.total,
                     "groups": result.groups if result.mode != "list" else [],
-                    "rows": result.rows},
+                    "rows": result.rows, "labels": labels},
             evidence=result.evidence, warnings=notes,
             resolved={"dates": compiled.resolved_dates, "names": resolved_names, "now": now.isoformat()},
         )

@@ -41,6 +41,9 @@ class RecordRequest(BaseModel):
                     "status_changed: {to, from?}; corrected: {target, payload}; retracted: {} or {target}.")
     at: str | None = Field(default=None, description="When it happened, ISO 8601 with offset. "
                                                      "Defaults to now.")
+    at_precision: Literal["time", "date", "unknown"] = Field(
+        default="time", description="time: `at` is exact; date: only the day is known (at = 00:00); "
+                                    "unknown: when it happened is not known (ADR-0013).")
 
 
 @dataclass
@@ -145,7 +148,8 @@ class Recorder:
 
         try:
             event = self.ledger.record_event(entity_id, req.kind, payload, at, by, evidence,
-                                             entity_type=req.entity_type)
+                                             entity_type=req.entity_type,
+                                             at_precision=req.at_precision if req.at else "time")
         except ConflictError as exc:
             current = self.ledger.get_entity(entity_id)
             status = current.doc.get("status") if current else None

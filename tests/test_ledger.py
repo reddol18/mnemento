@@ -32,7 +32,7 @@ def saramin_on_1002(ledger):
     "doc",
     [
         {"company_id": "co_x", "platform": "saramin", "status": "pending", "applied_at": "2026-10-02"},
-        {"company_id": "co_x", "platform": "saramin", "status": "applied"},  # missing applied_at
+        {"platform": "saramin", "status": "applied", "applied_at": "2026-10-02"},  # missing company_id
         {"company_id": "co_x", "platform": "saramin", "status": "applied", "applied_at": "10/02"},
         {"company_id": "co_x", "platform": "saramin", "status": "applied", "applied_at": "2026-10-02",
          "salary": 1},  # field not in the dictionary
@@ -51,7 +51,7 @@ def test_schema_violation_rejects_update(ledger):
     with pytest.raises(DocumentValidationError):
         ledger.record_event("app_saramin_1", "updated", {"platform": "linkedin"}, T1, "agent")
     with pytest.raises(DocumentValidationError):  # removing a required field
-        ledger.record_event("app_saramin_1", "updated", {"applied_at": None}, T1, "agent")
+        ledger.record_event("app_saramin_1", "updated", {"company_id": None}, T1, "agent")
     assert n_events(ledger) == before
     assert ledger.get_entity("app_saramin_1").doc["platform"] == "saramin"
 
@@ -329,3 +329,18 @@ def test_find_non_indexed_field(ledger):
     make_app(ledger, 1, reason="fit")
     make_app(ledger, 2)
     assert [s.id for s in ledger.find("application", {"reason": "fit"})] == ["app_saramin_1"]
+
+
+def test_unknown_time_events_keep_their_place_in_replay(ledger):
+    # regression (dogfooding): viewed (time unknown, recorded today) then rejected on 9/18 (date known) must
+    # replay as applied -> viewed -> rejected, not rejected -> viewed (which conflicts)
+    now = "2026-10-04T12:00:00+09:00"
+    doc = {"company_id": "co_x", "platform": "saramin", "status": "applied"}
+    ledger.record_event("a1", "created", doc, now, "imp", entity_type="application", at_precision="unknown")
+    ledger.record_event("a1", "status_changed", {"from": "applied", "to": "viewed"}, now, "imp",
+                        at_precision="unknown")
+    ledger.record_event("a1", "status_changed", {"to": "rejected"}, "2026-09-18T00:00:00+09:00", "imp",
+                        at_precision="date")
+    state = ledger.get_entity("a1")
+    assert state.doc["status"] == "rejected" and state.reached == ["applied", "viewed", "rejected"]
+    assert ledger.rebuild_entity("a1") == state
