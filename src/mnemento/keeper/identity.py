@@ -1,6 +1,8 @@
 """Identity resolution v0 (ADR-0006).
 
-Order: ① external identifier (business number) ② normalized name + alias dictionary.
+Order: ① external identifier — fields marked `identifier` in the schema (stock code, business number), matched
+against identifier-like tokens anywhere in the text, so "바이오주(900001)" finds the record with code 900001
+② normalized name + alias dictionary.
 Anything weaker only produces *candidates* — never an automatic match or merge; the caller must
 ask back.
 """
@@ -51,11 +53,31 @@ def normalize_business_number(value: str) -> str:
     return re.sub(r"\D", "", value)
 
 
+_ID_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]|[A-Za-z0-9]")
+
+
+def _id_key(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return re.sub(r"[^0-9a-z]", "", unicodedata.normalize("NFKC", value).lower()) or None
+
+
+def identifier_tokens(text: str) -> set[str]:
+    """Identifier-like tokens of a text (letters/digits, hyphens ignored): '바이오주(900001)' -> {'900001'},
+    '123-45-67890' -> {'1234567890'}. Single digits and short numbers are not identifiers."""
+    out = set()
+    for tok in _ID_TOKEN.findall(unicodedata.normalize("NFKC", text)):
+        key = _id_key(tok)
+        if key and len(key) >= 4:
+            out.add(key)
+    return out
+
+
 @dataclass
 class Resolution:
     query: str
     matches: list[str] = field(default_factory=list)  # certain matches (rule ① or ②)
-    rule: str | None = None  # "business_number" | "normalized_name" | "alias"
+    rule: str | None = None  # "identifier:<field>" | "business_number" (unmarked schemas) | "normalized_name" | "alias"
     candidates: list[dict[str, Any]] = field(default_factory=list)  # uncertain, ask back
 
     @property
@@ -86,13 +108,22 @@ class IdentityResolver:
             res.matches, res.rule = found, ("identifier" if found else None)
             return res
         entities = self.ledger.find(self.entity_type)  # personal scale: in-memory scan is fine
-        digits = normalize_business_number(name_or_number)
-        if len(digits) == 10:
-            res.matches = [e.id for e in entities
-                           if normalize_business_number(e.doc.get("business_number", "")) == digits]
-            if res.matches:
-                res.rule = "business_number"
-                return res
+        id_fields = [n for n, f in schema.fields.items() if f.identifier]
+        if id_fields:
+            tokens = identifier_tokens(name_or_number)
+            for fname in id_fields:
+                hits = [e.id for e in entities if _id_key(e.doc.get(fname)) in tokens]
+                if hits:
+                    res.matches, res.rule = hits, f"identifier:{fname}"
+                    return res
+        else:  # schemas without identifier marks: the business number rule of v0
+            digits = normalize_business_number(name_or_number)
+            if len(digits) == 10:
+                res.matches = [e.id for e in entities
+                               if normalize_business_number(e.doc.get("business_number", "")) == digits]
+                if res.matches:
+                    res.rule = "business_number"
+                    return res
 
         key = normalize_name(name_or_number)
         if not key:

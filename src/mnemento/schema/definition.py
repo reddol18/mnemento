@@ -37,7 +37,7 @@ FIELD_TYPES = {"string", "integer", "number", "boolean", "array"}
 ITEM_TYPES = {"string", "integer", "number", "boolean"}
 FORMATS = {"date", "date-time"}
 _FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
-               "implies"}
+               "implies", "identifier"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field",
                 "vague_terms", "relations"}
 
@@ -61,6 +61,7 @@ class FieldDef:
     implies: dict[str, tuple[str, ...]] | None = None  # status -> earlier statuses it passed through
     draft: bool = False  # ADR-0014: seen in stored records, not registered (no description yet)
     draft_values: tuple[Any, ...] = ()  # ADR-0014: values seen outside `enum`, not registered
+    identifier: bool = False  # external identifier (stock code, business number): same value = same entity
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"type": self.type, "description": self.description}
@@ -80,6 +81,8 @@ class FieldDef:
             d["required"] = True
         if self.indexed:
             d["indexed"] = True
+        if self.identifier:
+            d["identifier"] = True
         return d
 
     def json_schema(self) -> dict[str, Any]:
@@ -317,4 +320,8 @@ def _parse_field(schema_name: str, fname: str, fdef: Any) -> FieldDef:
                 isinstance(v, list) and set(v) <= set(enum) for v in implies.values()):
             raise SchemaDefinitionError(f"{where}: implies must map enum values to lists of enum values")
         implies = {k: tuple(v) for k, v in implies.items()}
-    return FieldDef(fname, ftype, description, enum, fmt, required, indexed, items, ref, labels, implies)
+    identifier = fdef.get("identifier", False)
+    if not isinstance(identifier, bool) or (identifier and (ftype != "string" or enum is not None)):
+        raise SchemaDefinitionError(f"{where}: identifier must be true/false on a free string field")
+    return FieldDef(fname, ftype, description, enum, fmt, required, indexed, items, ref, labels, implies,
+                    identifier=identifier)

@@ -13,7 +13,8 @@
       "type": "string",
       "description": "Exchange code (6 characters) or fund standard code. External identifier: the same code is the same security.",
       "required": true,
-      "indexed": true
+      "indexed": true,
+      "identifier": true
     },
     "name": {
       "type": "string",

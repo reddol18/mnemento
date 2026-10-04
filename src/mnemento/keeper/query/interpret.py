@@ -55,7 +55,9 @@ Rules:
 - Dates: YYYY-MM-DD, or relative tokens resolved by the system: @today, @today-Nd, @this_week_start,
   @this_month_start, @last_month_start, @this_year_start (offsets like +7d, -1m allowed).
   Prefer tokens for words like today/yesterday/this month/last month.
-- To filter a reference field (one with "ref") by the referenced record's name, use op "name_is" with the name.
+- To filter a reference field (one with "ref") by the referenced record's name, use op "name_is" with the name
+  exactly as the question writes it, including any code or number given with it (e.g. "바이오주(900001)"):
+  the Keeper matches identifiers first.
 - Current state vs history: op "eq"/"in" on status tests the CURRENT status only. Whether a record EVER
   reached a status ("was viewed", "got to", "ever", "~된 적", "~까지 간", "열람된 지원") uses op "reached"
   on status — e.g. viewed-then-rejected records count as "viewed".

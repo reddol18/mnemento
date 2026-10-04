@@ -215,7 +215,9 @@ class QueryPipeline:
                 continue
             ref = schema.fields[f.field].ref
             res = IdentityResolver(self.ledger, ref).resolve(str(f.value))
-            if res.status == "match" or (res.status == "ambiguous" and res.rule == "business_number"):
+            # several records sharing one external identifier: all of them are meant (same company)
+            if res.status == "match" or (res.status == "ambiguous" and res.rule is not None
+                                         and (res.rule == "business_number" or res.rule.startswith("identifier:"))):
                 resolved[str(f.value)] = {"matches": res.matches, "rule": res.rule}
                 new_filters.append(Filter(field=f.field, op="in", value=res.matches))
             elif res.status == "ambiguous":

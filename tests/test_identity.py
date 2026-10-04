@@ -62,7 +62,7 @@ def test_business_number_is_strongest(tmp_path):
     led.record_event("co_b", "created", {"name": "베타", "normalized_name": "베타"}, t, "a",
                      entity_type="company")
     res = IdentityResolver(led, "company").resolve("0000000001")
-    assert res.matches == ["co_a"] and res.rule == "business_number"
+    assert res.matches == ["co_a"] and res.rule == "identifier:business_number"
     led.close()
 
 
@@ -82,3 +82,30 @@ def test_name_resolution_in_query(resolver):
     ans = k.ask("가상텍 지원했나?", spec={**spec, "filters": [
         {"field": "company_id", "op": "name_is", "value": "가상텍"}]}, now=datetime.fromisoformat(DEMO_NOW))
     assert ans.status == "clarify" and ans.options[0].startswith("co_gasangtech")
+
+
+def test_business_number_inside_a_sentence_and_identifier_validation(tmp_path):
+    """Step 3b: the identifier rule is general — a business number written inside a sentence matches."""
+    import pytest
+
+    from mnemento import Ledger
+    from mnemento.errors import SchemaDefinitionError
+    from mnemento.keeper.identity import IdentityResolver
+    from mnemento.schema.definition import SchemaDef
+
+    from .conftest import SCHEMA_DIR
+
+    led = Ledger.open(tmp_path / "i.db")
+    led.schemas.load_dir(SCHEMA_DIR)
+    t = "2026-10-01T09:00:00+09:00"
+    led.record_event("co_x", "created", {"name": "가상솔루션", "normalized_name": "가상솔루션", "business_number": "111-22-33333"}, t, "a",
+                     entity_type="company")
+    res = IdentityResolver(led, "company").resolve("사업자번호 111-22-33333인 회사")
+    assert res.matches == ["co_x"] and res.rule == "identifier:business_number"
+    base = {"name": "x", "version": 1, "description": "x"}
+    with pytest.raises(SchemaDefinitionError):
+        SchemaDef.from_dict({**base, "fields": {"k": {"type": "string", "description": "k", "enum": ["a"],
+                                                      "identifier": True}}})
+    with pytest.raises(SchemaDefinitionError):
+        SchemaDef.from_dict({**base, "fields": {"k": {"type": "integer", "description": "k", "identifier": True}}})
+    led.close()

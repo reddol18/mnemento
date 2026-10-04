@@ -121,3 +121,21 @@ def test_stop_loss_question_and_no_record(led):
     why = k.ask("샘플전자 왜 팔았어", spec={"entity_type": "decision", "mode": "list", "filters": [
         {"field": "security_id", "op": "name_is", "value": "없는종목"}]}, now=NOW)
     assert why.result["total"] == 0 and any("matches no recorded entity" in w for w in why.warnings)
+
+
+def test_identifier_in_the_text_finds_the_security(led):
+    """Step 3b: a code written with a nickname ("바이오주(900001)") resolves by the identifier field first."""
+    from mnemento.keeper.identity import IdentityResolver, identifier_tokens
+
+    run_import(led, SOURCE)
+    r = IdentityResolver(led, "security")
+    for text in ("바이오주(900001)", "900001", "가상 바이오 900001 종목"):
+        res = r.resolve(text)
+        assert res.matches == ["sec_900001"] and res.rule == "identifier:code", text
+    assert r.resolve("바이오주").status in ("candidates", "none")  # a nickname alone is never matched
+    assert identifier_tokens("10/2 사람인 지원 3곳") == set()  # dates and small numbers are not identifiers
+    k = Keeper(led, ScriptedLLM())
+    ans = k.ask("바이오주(900001) 몇 번 샀어?", spec={"entity_type": "trade", "mode": "count", "filters": [
+        {"field": "security_id", "op": "name_is", "value": "바이오주(900001)"},
+        {"field": "side", "op": "eq", "value": "buy"}]}, now=NOW)
+    assert ans.result["total"] == 2 and any("identifier:code" in w for w in ans.warnings)
