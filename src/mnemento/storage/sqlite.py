@@ -93,6 +93,31 @@ CREATE TABLE IF NOT EXISTS query_cache (
     created_at TEXT NOT NULL,
     hits       INTEGER NOT NULL DEFAULT 0
 );
+
+-- one row per question asked (ADR-0015). Local only; bounded by QueryLog's retention limits.
+CREATE TABLE IF NOT EXISTS query_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    asked_at        TEXT    NOT NULL,
+    caller          TEXT    NOT NULL,
+    question        TEXT    NOT NULL,
+    question_norm   TEXT    NOT NULL,
+    path            TEXT    NOT NULL,
+    status          TEXT    NOT NULL,
+    interpretation  TEXT,
+    spec            TEXT,
+    sql             TEXT,
+    params          TEXT,
+    result_total    INTEGER,
+    evidence        TEXT,
+    warnings        TEXT,
+    stages_ms       TEXT,
+    llm             TEXT,
+    error           TEXT,
+    schema_versions TEXT,
+    diverging       INTEGER NOT NULL DEFAULT 0,
+    size            INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_query_log_norm ON query_log (question_norm);
 """
 
 
@@ -339,6 +364,27 @@ class SQLiteStorage(Storage):
                 "INSERT INTO query_cache (key, plan, created_at) VALUES (?, ?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET plan = excluded.plan, created_at = excluded.created_at",
                 (key, plan, created_at))
+
+    def insert_query_log(self, row: dict[str, Any]) -> int:
+        cols = list(row)
+        with self.transaction():
+            cur = self._conn.execute(
+                f"INSERT INTO query_log ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+                [row[c] for c in cols])
+        return cur.lastrowid
+
+    def mark_query_log_diverging(self, question_norm: str) -> None:
+        with self.transaction():
+            self._conn.execute("UPDATE query_log SET diverging = 1 WHERE question_norm = ?", (question_norm,))
+
+    def delete_query_log(self, ids: list[int]) -> int:
+        n = 0
+        with self.transaction():
+            for i in range(0, len(ids), 500):
+                chunk = ids[i:i + 500]
+                n += self._conn.execute(
+                    f"DELETE FROM query_log WHERE id IN ({', '.join('?' for _ in chunk)})", chunk).rowcount
+        return n
 
     def delete_all_entities(self) -> None:
         self._conn.execute("DELETE FROM entities")

@@ -23,8 +23,18 @@ class Keeper:
 
     # read
     def ask(self, question: str, *, spec: QuerySpec | dict | None = None, now: datetime | None = None,
-            narrate: bool = False, hint: str | None = None) -> KeeperAnswer:
-        return self.pipeline.ask(question, spec=spec, now=now, narrate=narrate, hint=hint)
+            narrate: bool = False, hint: str | None = None, caller: str | None = None) -> KeeperAnswer:
+        return self.pipeline.ask(question, spec=spec, now=now, narrate=narrate, hint=hint, caller=caller)
+
+    def query_log(self, view: str = "recent", *, n: int = 20, since: str | None = None,
+                  path: str | None = None) -> dict[str, Any]:
+        """Look back at earlier questions (ADR-0015)."""
+        if self.pipeline.query_log is None:
+            return {"view": view, "disabled": True, "entries": []}
+        return self.pipeline.query_log.find(view, n=n, since=since, path=path)
+
+    def purge_query_log(self, before: str | None = None) -> int:
+        return self.pipeline.query_log.purge(before) if self.pipeline.query_log is not None else 0
 
     def get_entity(self, entity_id: str) -> dict[str, Any] | None:
         e = self.ledger.get_entity(entity_id)

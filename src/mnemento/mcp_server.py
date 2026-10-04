@@ -9,6 +9,7 @@ Configuration (environment variables):
   MNEMENTO_EFFORT   CLI effort level (low|medium|high...; default: CLI default)
   MNEMENTO_THINKING_TOKENS  thinking budget for the LLM (0 disables thinking)
   MNEMENTO_TZ       user time zone (default: Asia/Seoul)
+  MNEMENTO_QUERY_LOG  off | on (default) | <max rows> — local log of every question (ADR-0015)
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ToolError
 
 from .keeper import ClaudeCLIAdapter, Keeper
@@ -36,12 +38,22 @@ INSTRUCTIONS = """Mnemento is a shared, structured record book. Use it instead o
   then call record again. A reply may also carry `questions` ("is applicant_count the same as applicants?").
 - list_schemas shows the registered fields and the drafts. Organizing drafts (descriptions, labels, indexes,
   merging look-alike names) is done with propose_schema and then apply_schema_proposal — the latter only after
-  the user explicitly agrees."""
+  the user explicitly agrees.
+- query_log looks back at earlier questions: the SQL that answered them, warnings, errors, and questions whose
+  interpretation changed between askings (diverging). It is kept in the local database only."""
 
 
 def _int_env(name: str) -> int | None:
     v = os.environ.get(name)
     return int(v) if v not in (None, "") else None
+
+
+def _client_name(ctx: Context | None) -> str | None:
+    try:
+        info = ctx.request_context.session.client_params.client_info  # type: ignore[union-attr]
+        return f"{info.name}/{info.version}" if getattr(info, "version", None) else info.name
+    except Exception:  # noqa: BLE001 — no request context, or the client did not say
+        return None
 
 
 def build_keeper() -> Keeper:
@@ -63,14 +75,38 @@ def create_server(keeper: Keeper) -> MCPServer:
     mcp = MCPServer("mnemento", instructions=INSTRUCTIONS, version="0.1.0")
 
     @mcp.tool()
-    def query(question: str, spec: dict[str, Any] | None = None, narrate: bool = False) -> dict[str, Any]:
+    def query(question: str, spec: dict[str, Any] | None = None, narrate: bool = False,
+              by: str | None = None, ctx: Context | None = None) -> dict[str, Any]:
         """Answer a question from the record book with evidence.
 
         question: natural-language question (e.g. "10/2 사람인 지원 몇 곳?").
         spec: optional structured QuerySpec; when given, no LLM is used.
         narrate: also write a prose answer with the LLM (it only sees aggregates).
+        by: your agent name (optional; kept in the local query log).
         """
-        return keeper.ask(question, spec=spec, narrate=narrate).to_dict()
+        return keeper.ask(question, spec=spec, narrate=narrate, caller=by or _client_name(ctx)).to_dict()
+
+    @mcp.tool()
+    def query_log(view: str = "recent", n: int = 20, since: str | None = None,
+                  path: str | None = None) -> dict[str, Any]:
+        """Look back at earlier questions: interpretation, QuerySpec, SQL and parameters, result count,
+        evidence ids, warnings, stage times, tokens and cost.
+
+        view: recent (last n) | warnings (answers that carried warnings) | errors |
+              diverging (the same question pattern answered with different SQL — the interpretation moved) |
+              path (only questions answered by `path`: fast | cache | llm | structured | entity | none).
+        since: only entries asked at or after this time (ISO 8601).
+        """
+        try:
+            return keeper.query_log(view, n=n, since=since, path=path)
+        except ValueError as exc:
+            raise ToolError(str(exc)) from exc
+
+    @mcp.tool()
+    def purge_query_log(before: str | None = None) -> dict[str, Any]:
+        """Delete query log entries asked before `before` (ISO 8601), or all of them when omitted.
+        Only when the user asks for it. Recorded facts are not touched."""
+        return {"deleted": keeper.purge_query_log(before)}
 
     @mcp.tool()
     def record(

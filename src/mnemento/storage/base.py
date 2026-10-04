@@ -142,6 +142,16 @@ class Storage(ABC):
     @abstractmethod
     def put_cached_plan(self, key: str, plan: str, created_at: str) -> None: ...
 
+    # ---- query log (ADR-0015); reads go through fetch_all ----------------------------------
+    @abstractmethod
+    def insert_query_log(self, row: dict[str, Any]) -> int: ...
+
+    @abstractmethod
+    def mark_query_log_diverging(self, question_norm: str) -> None: ...
+
+    @abstractmethod
+    def delete_query_log(self, ids: list[int]) -> int: ...
+
     @abstractmethod
     def delete_all_entities(self) -> None:
         """Drop the derived current-state table contents (used by full rebuilds/tests)."""

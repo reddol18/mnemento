@@ -16,6 +16,7 @@ from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, execute, narration_payload,
 from ..drafts import effective_schema
 from .cache import PlanCache
 from .compile import compile_spec
+from .log import QueryLog
 from .interpret import (Clarification, InterpretError, dump_spec, interpret, observed_values,
                         select_schemas)
 from .rules import parse_simple
@@ -41,11 +42,18 @@ class KeeperAnswer:
         return {k: v for k, v in self.__dict__.items()}
 
 
+_FROM_ENV = object()
+
+
 class QueryPipeline:
-    def __init__(self, ledger: Ledger, llm: LLMAdapter | None = None, use_cache: bool = True):
+    def __init__(self, ledger: Ledger, llm: LLMAdapter | None = None, use_cache: bool = True,
+                 query_log: QueryLog | None | object = _FROM_ENV):
         self.ledger = ledger
         self.llm = llm
         self.cache: PlanCache | None = PlanCache(ledger.storage) if use_cache else None
+        # ADR-0015: every answer is logged locally unless MNEMENTO_QUERY_LOG=off (or query_log=None)
+        self.query_log: QueryLog | None = (QueryLog.from_env(ledger.storage) if query_log is _FROM_ENV
+                                           else query_log)  # type: ignore[assignment]
 
     def _schemas(self):
         """Registered schemas plus drafts (fields/values stored but not organized yet) — ADR-0014: what is
@@ -53,11 +61,33 @@ class QueryPipeline:
         return {n: effective_schema(self.ledger, n) for n in self.ledger.schemas.names()}
 
     def ask(self, question: str, *, spec: QuerySpec | dict | None = None, now: datetime | None = None,
-            narrate: bool = False, hint: str | None = None) -> KeeperAnswer:
+            narrate: bool = False, hint: str | None = None, caller: str | None = None) -> KeeperAnswer:
         """`hint`: how the asker wants the answer shaped (passed to the interpreter only; plans
-        interpreted with a hint are not cached, since the same words may come with another hint)."""
-        trace = Trace()
+        interpreted with a hint are not cached, since the same words may come with another hint).
+        `caller`: who asked (agent or client name) — kept in the query log only."""
         now = now or tz_now(self.ledger.tz)
+        try:
+            ans = self._ask(question, spec=spec, now=now, narrate=narrate, hint=hint)
+        except Exception as exc:
+            self._log(KeeperAnswer("error", question, f"{type(exc).__name__}: {exc}",
+                                   spec=dump_spec(spec) if isinstance(spec, QuerySpec) else spec), caller, now)
+            raise
+        self._log(ans, caller, now)
+        return ans
+
+    def _log(self, ans: KeeperAnswer, caller: str | None, now: datetime) -> None:
+        if self.query_log is None:
+            return
+        try:  # straight from the table: building schema objects would cost more than the log itself
+            versions = {r["name"]: r["v"] for r in self.ledger.storage.fetch_all(
+                "SELECT name, MAX(version) AS v FROM schemas GROUP BY name")}
+        except Exception:  # noqa: BLE001
+            versions = {}
+        self.query_log.write(ans, caller=caller, now=now, schema_versions=versions)
+
+    def _ask(self, question: str, *, spec: QuerySpec | dict | None, now: datetime, narrate: bool,
+             hint: str | None) -> KeeperAnswer:
+        trace = Trace()
         schemas = self._schemas()
 
         # ---- ① interpretation -------------------------------------------------------------

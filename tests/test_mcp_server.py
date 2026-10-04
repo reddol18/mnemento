@@ -8,7 +8,8 @@ from mnemento.demo import open_demo
 from mnemento.keeper import Keeper, ScriptedLLM
 from mnemento.mcp_server import create_server
 
-EXPECTED_TOOLS = {"record", "query", "get_entity", "history", "list_schemas", "propose_schema"}
+EXPECTED_TOOLS = {"record", "query", "get_entity", "history", "list_schemas", "propose_schema",
+                  "apply_schema_proposal", "query_log", "purge_query_log"}
 
 
 @pytest.fixture

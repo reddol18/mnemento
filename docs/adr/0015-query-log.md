@@ -12,7 +12,7 @@
    | `id`, `asked_at` | 기록 id, 질문 시각(오프셋 포함) |
    | `caller` | 호출자(MCP 클라이언트 이름 또는 `by`; 모르면 `unknown`) |
    | `question`, `question_norm` | 원문, 패턴(날짜·숫자를 빈칸으로 바꾼 캐시 키와 같은 정규화) |
-   | `path` | `fast` · `cache` · `llm` · `structured` · `entity` |
+   | `path` | `fast` · `cache` · `llm` · `structured` · `entity` · `none`(LLM이 없어 해석하지 못함) |
    | `status` | `answered` · `clarify` · `error` |
    | `interpretation`, `spec` | 해석 문장, QuerySpec(JSON) |
    | `sql`, `params` | 실제로 실행한 SQL과 바인딩 값 |
@@ -25,7 +25,7 @@
 3. **MCP 도구 `query_log`**
    - `recent(n)` — 최근 N건
    - `with_warnings(since?)` — 경고가 붙은 것
-   - `diverging(since?)` — 같은 `question_norm`인데 SQL(또는 결과 개수)이 서로 다른 묶음: LLM 해석이 흔들리는 질문을 찾는다
+   - `diverging(since?)` — 같은 `question_norm`인데 SQL이 서로 다른 묶음: LLM 해석이 흔들리는 질문을 찾는다. 결과 개수만 다른 것은 넣지 않는다 — 날짜가 다르면(같은 패턴, 다른 params) 또는 기록이 늘면 개수는 정상적으로 달라진다. 묶음에는 변형별 결과 개수를 함께 보여 준다
    - `errors(since?)`, `by_path(path)` — 실패와 경로별 분포
    - 결과에는 기본으로 SQL과 근거 id를 담고, 원문 질문 외의 기록 내용(문서)은 담지 않는다.
 4. **보존 정책**: 로컬 DB에만 둔다(공개 저장소·벤치 결과에 섞지 않음). 기본 상한 **10,000행 또는 50MB** 중 먼저 닿는 쪽. 넘으면 오래된 것부터 지우되, `diverging`·`error` 행은 상한의 20%까지 우선 보존한다. 환경 변수 `MNEMENTO_QUERY_LOG=off|on|N`으로 끄거나 상한을 바꾼다. `purge_query_log(before)` 명령으로 수동 정리.
@@ -39,3 +39,8 @@
 
 ## 결과
 - 실사용 정확도를 사후에 검증할 수 있다(`diverging`은 회귀 측정의 실사용판). 쓰기 비용은 조회당 한 행.
+
+## 구현 메모 (작업 0008 ①)
+- 스키마 버전은 schemas 테이블에서 바로 읽는다(스키마 객체를 만들면 조회당 약 8ms — 로그 자체보다 비쌌다).
+- 조회당 추가 시간: 중앙값 +0.34ms(로그 10,000행 상태, 파일 DB).
+- 상한 검사는 50건 쓸 때마다 한다. 상한을 넘으면 90%까지 줄인다.
