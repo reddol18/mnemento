@@ -31,11 +31,9 @@ def saramin_on_1002(ledger):
 @pytest.mark.parametrize(
     "doc",
     [
-        {"company_id": "co_x", "platform": "saramin", "status": "pending", "applied_at": "2026-10-02"},
         {"platform": "saramin", "status": "applied", "applied_at": "2026-10-02"},  # missing company_id
-        {"company_id": "co_x", "platform": "saramin", "status": "applied", "applied_at": "10/02"},
-        {"company_id": "co_x", "platform": "saramin", "status": "applied", "applied_at": "2026-10-02",
-         "salary": 1},  # field not in the dictionary
+        {"company_id": "co_x", "platform": "saramin", "status": "applied", "applied_at": "10/02"},  # bad date
+        {"company_id": 7, "platform": "saramin", "status": "applied", "applied_at": "2026-10-02"},  # wrong type
     ],
 )
 def test_schema_violation_rejects_create(ledger, doc):
@@ -48,8 +46,8 @@ def test_schema_violation_rejects_create(ledger, doc):
 def test_schema_violation_rejects_update(ledger):
     make_app(ledger, 1)
     before = n_events(ledger)
-    with pytest.raises(DocumentValidationError):
-        ledger.record_event("app_saramin_1", "updated", {"platform": "linkedin"}, T1, "agent")
+    with pytest.raises(DocumentValidationError):  # wrong type for a registered field
+        ledger.record_event("app_saramin_1", "updated", {"platform": 3}, T1, "agent")
     with pytest.raises(DocumentValidationError):  # removing a required field
         ledger.record_event("app_saramin_1", "updated", {"company_id": None}, T1, "agent")
     assert n_events(ledger) == before
@@ -142,10 +140,13 @@ def test_status_changed_from_mismatch_is_conflict(ledger):
     assert ledger.get_entity("app_saramin_1").doc["status"] == "applied"
 
 
-def test_status_changed_to_unknown_value_rejected(ledger):
+def test_unknown_values_and_fields_are_stored(ledger):
+    # ADR-0014: store first, organize later — values outside an enum and unregistered fields are kept as given
     make_app(ledger, 1)
-    with pytest.raises(DocumentValidationError):
-        ledger.record_event("app_saramin_1", "status_changed", {"to": "ghosted"}, T2, "a")
+    ledger.record_event("app_saramin_1", "status_changed", {"to": "ghosted"}, T2, "a")
+    ledger.record_event("app_saramin_1", "updated", {"salary": 1}, T3, "a")
+    doc = ledger.get_entity("app_saramin_1").doc
+    assert doc["status"] == "ghosted" and doc["salary"] == 1
 
 
 def test_backfilled_event_applies_in_occurrence_order(ledger):
@@ -204,9 +205,10 @@ def test_latest_correction_wins(ledger):
 
 def test_invalid_correction_rejected(ledger):
     created = make_app(ledger, 1)
-    with pytest.raises(DocumentValidationError):
+    with pytest.raises(DocumentValidationError):  # the replacement drops a required field
         ledger.record_event("app_saramin_1", "corrected",
-                            {"target": created.id, "payload": {**created.payload, "status": "x"}},
+                            {"target": created.id, "payload": {k: v for k, v in created.payload.items()
+                                                               if k != "company_id"}},
                             T3, "a", evidence="fix")
     with pytest.raises(InvalidEventError):  # requires evidence
         ledger.record_event("app_saramin_1", "corrected",

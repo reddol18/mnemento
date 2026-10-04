@@ -79,24 +79,57 @@ def test_conflict_from_backfill_becomes_clarification(k):
 
 
 def test_schema_violation_rejected(k):
-    res = k.record({"entity_type": "application", "kind": "status_changed", "entity_id": "app_o05",
-                    "payload": {"to": "ghosted"}}, by="agent_a")
-    assert res.status == "rejected" and any("ghosted" in e for e in res.errors)
+    res = k.record({"entity_type": "application", "kind": "updated", "entity_id": "app_o05",
+                    "payload": {"applied_at": "10/02"}}, by="agent_a")
+    assert res.status == "rejected" and any("applied_at" in e for e in res.errors)
 
 
-def test_unknown_fields_are_not_stored_and_become_a_proposal(k):
-    req = {"entity_type": "application", "kind": "updated", "entity_id": "app_o05",
-           "payload": {"recruiter_type": "search_firm"}}
-    first = k.record(req, by="agent_a")
-    assert first.status == "rejected" and first.proposals == []  # seen once: not yet
-    second = k.record({**req, "entity_id": "app_o06"}, by="agent_b")
-    assert second.status == "rejected"
-    [prop] = second.proposals
-    assert prop["kind"] == "extend_schema" and prop["entity_type"] == "application"
-    assert prop["to_version"] == 4 and "recruiter_type" in prop["add_fields"]
-    assert "not applied" in prop["status"]
-    assert k.ledger.schemas.get("application").version == 3  # never applied automatically
-    assert "recruiter_type" not in k.ledger.get_entity("app_o05").doc
+def test_store_first_then_organize(k):
+    """ADR-0014 a-d: an unknown platform and an unknown field are stored and queryable at once; organizing
+    (descriptions, labels, index, merge) needs the user's answer and keeps history."""
+    from mnemento.errors import SchemaDefinitionError
+
+    led = k.ledger
+    base = {"entity_type": "application", "kind": "created", "at": AT,
+            "payload": {"company_id": "co_v13", "status": "applied", "applied_at": "2026-10-03"}}
+    # a. a platform value outside the list is stored, not rewritten
+    r = k.record({**base, "entity_id": "app_r1", "payload": {**base["payload"], "platform": "remember"}}, by="a")
+    assert r.status == "recorded" and r.entity["platform"] == "remember" and r.drafts["values"] == {"platform": "remember"}
+    # b. an unregistered field is stored on the record
+    r = k.record({**base, "entity_id": "app_n1", "payload": {**base["payload"], "platform": "saramin",
+                                                            "applicants": 25}}, by="a")
+    assert r.status == "recorded" and led.get_entity("app_n1").doc["applicants"] == 25
+    assert r.drafts["fields"] == ["applicants"]
+    # d. a look-alike name is stored too, with a question — never merged automatically
+    r = k.record({**base, "entity_id": "app_n2", "payload": {**base["payload"], "platform": "saramin",
+                                                            "applicant_count": 40}}, by="a")
+    assert r.status == "recorded" and any("applicants" in q for q in r.questions)
+    assert led.get_entity("app_n2").doc["applicant_count"] == 40
+
+    # c. organize: proposal -> refuses without consent / descriptions / labels -> applies with them
+    [prop] = k.propose_schema("application")
+    assert set(prop["register_fields"]) == {"applicants", "applicant_count"}
+    assert prop["register_values"] == {"platform": {"remember": 1}}
+    assert {"field": "applicant_count", "into": "applicants"} in prop["merge_suggestions"]
+    with pytest.raises(SchemaDefinitionError):
+        k.apply_schema_proposal(prop["id"], approved_by="", user_answer="")
+    with pytest.raises(SchemaDefinitionError):  # labels for remember are required
+        k.apply_schema_proposal(prop["id"], approved_by="user", user_answer="네",
+                                descriptions={"applicants": "지원자 수"}, merges={"applicant_count": "applicants"})
+    out = k.apply_schema_proposal(prop["id"], approved_by="user", user_answer="네, 정리해 주세요",
+                                  descriptions={"applicants": "Number of applicants shown on the posting (지원자 수)"},
+                                  labels={"platform": {"remember": ["리멤버"]}},
+                                  merges={"applicant_count": "applicants"}, index=["applicants"])
+    schema = led.schemas.get("application")
+    assert out["version"] == schema.version == 4 and out["moved_values"] == 1
+    assert "remember" in schema.fields["platform"].enum and schema.fields["platform"].labels["remember"] == ("리멤버",)
+    assert schema.fields["applicants"].indexed
+    assert led.get_entity("app_n2").doc == {**led.get_entity("app_n2").doc, "applicants": 40}
+    assert "applicant_count" not in led.get_entity("app_n2").doc
+    assert [e.kind for e in led.history("app_n2")][-1] == "migrated"  # history kept, nothing deleted
+    [change] = led.storage.schema_changes("application")
+    assert change["approved_by"] == "user" and change["user_answer"] == "네, 정리해 주세요"
+    assert k.propose_schema("application") == []  # nothing left to organize
 
 
 def test_propose_new_schema_from_samples(k):

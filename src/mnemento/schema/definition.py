@@ -15,7 +15,9 @@ A definition is a small JSON document:
     }
 
 It is compiled into a JSON Schema (draft 2020-12) for validation. Unknown fields are rejected
-(`additionalProperties: false`) so that every stored field is described in the dictionary.
+(`additionalProperties: false`) for the *registered* view of the dictionary. Writes are checked leniently
+(ADR-0014): fields and enum values the dictionary does not know yet are stored and surface as drafts; only
+violations of registered fields (missing required field, wrong type, bad date) are rejected.
 """
 
 from __future__ import annotations
@@ -56,6 +58,8 @@ class FieldDef:
     ref: str | None = None  # this field holds the id of an entity of type `ref`
     labels: dict[str, tuple[str, ...]] | None = None  # enum value -> natural-language synonyms
     implies: dict[str, tuple[str, ...]] | None = None  # status -> earlier statuses it passed through
+    draft: bool = False  # ADR-0014: seen in stored records, not registered (no description yet)
+    draft_values: tuple[Any, ...] = ()  # ADR-0014: values seen outside `enum`, not registered
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"type": self.type, "description": self.description}
@@ -181,8 +185,17 @@ class SchemaDef:
         except Exception as exc:  # jsonschema.SchemaError
             raise SchemaDefinitionError(f"{self.name}: {exc}") from exc
 
-    def validation_errors(self, doc: dict[str, Any]) -> list[str]:
-        validator = Draft202012Validator(self.json_schema(), format_checker=FORMAT_CHECKER)
+    def lenient_json_schema(self) -> dict[str, Any]:
+        """Write-time schema (ADR-0014): unknown fields allowed, enums not enforced; types, formats and
+        required fields of registered fields still are."""
+        js = self.json_schema()
+        js["additionalProperties"] = True
+        js["properties"] = {n: {k: v for k, v in p.items() if k != "enum"} for n, p in js["properties"].items()}
+        return js
+
+    def validation_errors(self, doc: dict[str, Any], lenient: bool = False) -> list[str]:
+        schema = self.lenient_json_schema() if lenient else self.json_schema()
+        validator = Draft202012Validator(schema, format_checker=FORMAT_CHECKER)
         errors = sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path))
         out = []
         for e in errors:
@@ -190,8 +203,8 @@ class SchemaDef:
             out.append(f"{where}: {e.message}")
         return out
 
-    def validate(self, doc: dict[str, Any]) -> None:
-        errors = self.validation_errors(doc)
+    def validate(self, doc: dict[str, Any], lenient: bool = False) -> None:
+        errors = self.validation_errors(doc, lenient)
         if errors:
             raise DocumentValidationError(self.name, errors)
 

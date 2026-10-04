@@ -117,14 +117,44 @@ def create_server(keeper: Keeper) -> MCPServer:
 
     @mcp.tool()
     def list_schemas(name: str | None = None) -> dict[str, Any]:
-        """Record types with their fields, descriptions and allowed values."""
+        """Record types with their fields, descriptions and allowed values, plus drafts (unregistered fields
+        and values already in use) and the history of organize approvals."""
         return {"schemas": keeper.list_schemas(name)}
+
+    @mcp.tool()
+    def apply_schema_proposal(
+        proposal_id: str,
+        approved_by: str,
+        user_answer: str,
+        descriptions: dict[str, str] | None = None,
+        labels: dict[str, dict[str, list[str]]] | None = None,
+        merges: dict[str, str] | None = None,
+        index: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Organize unregistered (draft) fields and values — ONLY with the user's explicit consent.
+
+        Never call this on your own initiative. First show the user the proposal from propose_schema (its
+        `question`), ask whether to apply it, and call this only after they answer yes. Pass who approved
+        (approved_by) and the user's own words (user_answer); both are kept in the schema history.
+        descriptions: {field: description} for every field being registered (required).
+        labels: {field: {value: [natural-language names]}} for every new enum value (required, e.g.
+        {"platform": {"remember": ["리멤버"]}}).
+        merges: {draft_field: target_field} to fold look-alike names together (values move with history kept).
+        index: fields to index. The data itself was already stored when it was written; this only organizes it.
+        """
+        try:
+            return keeper.apply_schema_proposal(proposal_id, approved_by=approved_by, user_answer=user_answer,
+                                                descriptions=descriptions, labels=labels, merges=merges, index=index)
+        except Exception as exc:  # SchemaDefinitionError, BreakingSchemaChangeError
+            raise ToolError(str(exc)) from exc
 
     @mcp.tool()
     def propose_schema(entity_type: str | None = None, samples: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Schema proposals (never applied automatically).
 
-        Without samples: additive extensions for fields that write requests keep using.
+        Without samples: how to organize drafts — fields and enum values that records already use but the
+        dictionary has not registered (they are stored and queryable; organizing adds descriptions, labels,
+        indexes, and merges look-alike names). Ask the user before apply_schema_proposal.
         With samples and a new entity_type: a first schema draft for a new kind of record.
         """
         try:

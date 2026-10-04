@@ -13,6 +13,7 @@ from ..llm import LLMAdapter, LLMError
 from ..trace import Trace
 from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, execute, narration_payload, ref_labels, render_text,
                      warnings_for)
+from ..drafts import effective_schema
 from .cache import PlanCache
 from .compile import compile_spec
 from .interpret import (Clarification, InterpretError, dump_spec, interpret, observed_values,
@@ -47,7 +48,9 @@ class QueryPipeline:
         self.cache: PlanCache | None = PlanCache(ledger.storage) if use_cache else None
 
     def _schemas(self):
-        return {n: self.ledger.schemas.get(n) for n in self.ledger.schemas.names()}
+        """Registered schemas plus drafts (fields/values stored but not organized yet) — ADR-0014: what is
+        stored can be asked about right away."""
+        return {n: effective_schema(self.ledger, n) for n in self.ledger.schemas.names()}
 
     def ask(self, question: str, *, spec: QuerySpec | dict | None = None, now: datetime | None = None,
             narrate: bool = False, hint: str | None = None) -> KeeperAnswer:

@@ -120,7 +120,7 @@ class Ledger:
                 ev.check_payload(target_kind, payload["payload"])
 
             state = ev.replay(entity_id, etype, [*history, event])
-            schema.validate(state.doc)  # raises before anything is written
+            schema.validate(state.doc, lenient=True)  # raises before anything is written (ADR-0014)
 
             stored = self.storage.append_event(event)
             state.last_event_seq = stored.seq

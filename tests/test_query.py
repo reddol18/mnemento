@@ -718,3 +718,56 @@ def test_list_without_fields_shows_who_and_status(demo):
             "filters": [{"field": "company_id", "op": "eq", "value": "co_gasangtech"}]}
     text = keeper(demo)[0].ask("가상테크 지원", spec=spec, now=NOW).text
     assert "- app_o02 (company_id=co_gasangtech ((주)가상테크), status=viewed)" in text
+
+
+
+# ---- v1.3: drafts are queryable at once (ADR-0014) ---------------------------------------------------
+
+def test_drafts_are_queryable_with_missing_warning(tmp_path):
+    from mnemento import Ledger
+    from mnemento.demo import seed
+
+    led = Ledger.open(tmp_path / "d.db")
+    seed(led)
+    k = Keeper(led, ScriptedLLM())
+    k.record({"entity_type": "application", "kind": "updated", "entity_id": "app_o05", "payload": {"applicants": 25}},
+             by="a")
+    k.record({"entity_type": "application", "kind": "updated", "entity_id": "app_o06", "payload": {"applicants": 3}},
+             by="a")
+    k.record({"entity_type": "application", "kind": "created", "entity_id": "app_rm", "at": "2026-10-03T09:00:00+09:00",
+              "payload": {"company_id": "co_v20", "platform": "remember", "status": "applied",
+                          "applied_at": "2026-10-03"}}, by="a")
+    spec = {"entity_type": "application", "mode": "count",
+            "filters": [{"field": "applicants", "op": "gte", "value": 10}]}
+    ans = k.ask("지원자 10명 이상?", spec=spec, now=NOW)
+    assert ans.status == "answered" and ans.evidence == ["app_o05"]
+    assert any("have no applicants (unregistered draft field)" in w for w in ans.warnings)
+    assert "json_extract(doc, '$.applicants')" in ans.sql  # no index for a draft: read from the document
+    ans = k.ask("리멤버 지원?", spec={"entity_type": "application", "mode": "count",
+                                    "filters": [{"field": "platform", "op": "eq", "value": "remember"}]}, now=NOW)
+    assert ans.evidence == ["app_rm"]
+    bad = k.ask("x", spec={"entity_type": "application", "mode": "count",
+                           "filters": [{"field": "platform", "op": "eq", "value": "linkedin"}]}, now=NOW)
+    assert bad.status == "error"  # values never seen are still rejected (no hallucinated values)
+    led.close()
+
+
+def test_interpreter_sees_drafts_marked(tmp_path):
+    from mnemento import Ledger
+    from mnemento.demo import seed
+    from mnemento.keeper.drafts import effective_schema
+    from mnemento.keeper.query.interpret import render_dictionary
+
+    led = Ledger.open(tmp_path / "d.db")
+    seed(led)
+    before = render_dictionary([effective_schema(led, "application")], {})
+    assert "UNREGISTERED" not in before and "draft" not in before  # no drafts: same dictionary as before
+    k = Keeper(led, ScriptedLLM())
+    k.record({"entity_type": "application", "kind": "updated", "entity_id": "app_o05", "payload": {"applicants": 25}},
+             by="a")
+    k.record({"entity_type": "application", "kind": "updated", "entity_id": "app_o06",
+              "payload": {"platform": "remember"}}, by="a")
+    text = render_dictionary([effective_schema(led, "application")], {})
+    assert "- applicants (integer)" in text and "UNREGISTERED (draft)" in text
+    assert "unregistered values in use (draft): remember" in text
+    led.close()

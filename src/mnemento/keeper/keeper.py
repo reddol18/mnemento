@@ -7,7 +7,8 @@ from typing import Any
 
 from ..ledger import Ledger
 from .llm import LLMAdapter
-from .proposals import draft_schema, pending_extensions
+from .drafts import draft_dictionary
+from .proposals import apply_proposal, draft_schema, organize_proposals
 from .query.pipeline import KeeperAnswer, QueryPipeline
 from .query.spec import QuerySpec
 from .record import Recorder, RecordRequest, RecordResult
@@ -42,8 +43,15 @@ class Keeper:
         ]
 
     def list_schemas(self, name: str | None = None) -> list[dict[str, Any]]:
+        """Registered dictionary + drafts (stored but not yet organized) + organize approvals (ADR-0014)."""
         names = [name] if name else self.ledger.schemas.names()
-        return [self.ledger.schemas.get(n).to_dict() for n in names]
+        out = []
+        for n in names:
+            d = self.ledger.schemas.get(n).to_dict()
+            d["drafts"] = draft_dictionary(self.ledger, n)
+            d["organize_history"] = self.ledger.storage.schema_changes(n)
+            out.append(d)
+        return out
 
     # write
     def record(self, request: RecordRequest | dict[str, Any], *, by: str, evidence: str | None = None,
@@ -63,4 +71,12 @@ class Keeper:
             if entity_type in self.ledger.schemas.names():
                 raise ValueError(f"{entity_type} already exists; omit samples to see extension proposals")
             return [draft_schema(entity_type, samples)]
-        return pending_extensions(self.ledger, entity_type)
+        return organize_proposals(self.ledger, entity_type)
+
+    def apply_schema_proposal(self, proposal_id: str, *, approved_by: str, user_answer: str,
+                              descriptions: dict[str, str] | None = None,
+                              labels: dict[str, dict[str, list[str]]] | None = None,
+                              merges: dict[str, str] | None = None, index: list[str] | None = None) -> dict[str, Any]:
+        """Organize drafts — only with the user's explicit consent (approved_by + their answer are recorded)."""
+        return apply_proposal(self.ledger, proposal_id, approved_by=approved_by, user_answer=user_answer,
+                              descriptions=descriptions, labels=labels, merges=merges, index=index)

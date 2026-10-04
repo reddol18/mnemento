@@ -19,7 +19,7 @@ from ..ledger import ENTITY_ID_RE, Ledger
 from ..timeutil import format_instant, now as tz_now
 from .identity import IdentityResolver
 from .llm import LLMAdapter, LLMError
-from .proposals import pending_extensions
+from .drafts import write_questions
 from .query.interpret import render_dictionary, select_schemas
 from .trace import Trace
 
@@ -56,6 +56,8 @@ class RecordResult:
     options: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     proposals: list[dict[str, Any]] = field(default_factory=list)
+    questions: list[str] = field(default_factory=list)  # "did you mean ...?" (ADR-0014, never auto-merged)
+    drafts: dict[str, Any] = field(default_factory=dict)  # unregistered fields/values this write used
     request: dict[str, Any] | None = None
     trace: dict[str, Any] = field(default_factory=dict)
 
@@ -96,20 +98,14 @@ class Recorder:
         at = req.at or format_instant(now)
         payload = dict(req.payload)
 
-        # unknown fields: never stored, but remembered for schema proposals (PLAN 5-1 B)
-        if req.kind in (ev.CREATED, ev.UPDATED):
-            unknown = {k: v for k, v in payload.items() if k not in schema.fields}
-            unknown_match = {k: v for k, v in req.match.items() if k not in schema.fields}
-            if unknown or unknown_match:
-                with self.ledger.storage.transaction():
-                    self.ledger.storage.note_unknown_fields(req.entity_type, {**unknown, **unknown_match},
-                                                            format_instant(now), by)
-                return RecordResult(
-                    "rejected",
-                    f"{req.entity_type} has no field(s) {sorted({**unknown, **unknown_match})}. Nothing was stored. "
-                    "Remove them, or ask for a schema extension.",
-                    errors=[f"unknown field: {k}" for k in sorted({**unknown, **unknown_match})],
-                    proposals=pending_extensions(self.ledger, req.entity_type), request=reqd)
+        # ADR-0014: fields and enum values the dictionary does not know are stored as given (they become
+        # drafts, organized later with the user's approval). Matching by an unregistered field is not possible.
+        if req.kind != ev.CREATED:
+            unknown_match = [k for k in req.match if k not in schema.fields]
+            if unknown_match:
+                return RecordResult("rejected", f"cannot find the target by unregistered field(s) {unknown_match}; "
+                                                "use entity_id or registered fields",
+                                    errors=[f"unknown match field: {k}" for k in unknown_match], request=reqd)
 
         # reference fields given by name -> ids (ADR-0006: certain matches only)
         for container in (payload, req.match):
@@ -168,8 +164,16 @@ class Recorder:
             return RecordResult("rejected", str(exc), entity_id=entity_id, errors=[str(exc)], request=reqd)
         state = self.ledger.get_entity(entity_id)
         note = "" if req.at else " (time of occurrence not given; recorded as now)"
-        return RecordResult("recorded", f"Recorded {req.kind} on {entity_id}{note}.", entity_id=entity_id,
-                            event_id=event.id, entity=state.as_json() if state else None, request=reqd)
+        questions, drafts = write_questions(self.ledger, req.entity_type, payload) if req.kind in (
+            ev.CREATED, ev.UPDATED) else ([], {})
+        if drafts and (drafts.get("fields") or drafts.get("values")):
+            note += (f" Unregistered (draft) — fields: {drafts['fields'] or 'none'}, values: {drafts['values'] or 'none'};"
+                     " stored and queryable, organize later with propose_schema.")
+        else:
+            drafts = {}
+        return RecordResult("recorded", f"Recorded {req.kind} on {entity_id}{note}", entity_id=entity_id,
+                            event_id=event.id, entity=state.as_json() if state else None, questions=questions,
+                            drafts=drafts, request=reqd)
 
     def _is_entity(self, value: str, etype: str) -> bool:
         e = self.ledger.get_entity(value) if ENTITY_ID_RE.match(value) else None

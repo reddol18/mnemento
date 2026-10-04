@@ -11,7 +11,7 @@ LLM agents forget between sessions. Mnemento gives them one place to **write fac
 - **Event log + current state** — every answer can cite the records it counted
 - **MCP server** — plug into Claude Code / Claude Desktop
 
-> Status: v1.2 — storage core, question pipeline, MCP server, measured three times against Claude Code's own memory
+> Status: v1.3 — storage core, question pipeline, MCP server, measured three times against Claude Code's own memory
 > (benchmarks on v1.1).
 >
 > **Latest result (v3, opus, questions the system was not developed on):** the same accuracy as Claude Code's own
@@ -39,7 +39,8 @@ LLM agents forget between sessions. Mnemento gives them one place to **write fac
 
 Measured on the frozen version `2c56c658bc5f10f9` (v1.1). v1.2 (names of referenced records in answers, unknown
 dates and event-time precision — [ADR-0013](docs/adr/0013-date-precision.md), a benchmark formatter fix) came from
-using Mnemento on real records afterwards and is **not re-measured**.
+using Mnemento on real records afterwards and is **not re-measured**; v1.3 (store first, organize later —
+[ADR-0014](docs/adr/0014-store-first-organize-later.md)) was only checked with a regression run on dev questions.
 Same fictional job-search history rendered three ways (ADR-0011), the **same answer-format hint for every system**,
 evaluation set v3 (own seed; reference date Monday 2027-02-01 so weeks and month ends matter), **28 dev questions +
 9 unseen questions written by the directing agent before measuring**, 3 repetitions, prompts and rules frozen
@@ -199,6 +200,6 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
   - 한계: D4는 형식 힌트가 B0·B1에만 주어진 하네스 편향이 있다. 10,000건에서는 생성기 별칭이 중복된다. 자세한 내용은 위 표와 [결과 노트](bench/results/v0-reduced-haiku/NOTES.md)에 있다.
 
 설치(Claude Code): 위 `claude mcp add ...` 한 줄. 개발: `uv sync && uv run pytest`.
-현재 상태: v1.2(저장소 코어, 질문 파이프라인, MCP 서버, 벤치마크 3회는 v1.1 기준). v1.2는 실제 기록으로 써 보며 나온 개선(답에 회사명 표시, 날짜·시각 정밀도)이다. 기획서는 [docs/PLAN.md](docs/PLAN.md), 설계 결정은 [docs/adr/](docs/adr/).
+현재 상태: v1.3(벤치마크 3회는 v1.1 기준). v1.2는 실제 기록으로 써 보며 나온 개선(답에 회사명 표시, 날짜·시각 정밀도)이고, v1.3은 "먼저 저장하고 나중에 정리"(스키마에 없는 필드·값도 저장하고 바로 조회, 정리는 사용자 승인)이다. v1.3은 회귀 측정만 했다. 기획서는 [docs/PLAN.md](docs/PLAN.md), 설계 결정은 [docs/adr/](docs/adr/).
 
 License: MIT

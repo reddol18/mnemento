@@ -130,10 +130,12 @@ EVENT_SCHEMA = SchemaDef.from_dict({
                                 "status_changed: the status moved; corrected: an earlier event was corrected "
                                 "because it was wrong (target = that event); retracted: a record or event was "
                                 "invalidated (e.g. a duplicate).",
-                 "enum": ["created", "updated", "status_changed", "corrected", "retracted"], "indexed": True,
+                 "enum": ["created", "updated", "status_changed", "corrected", "retracted", "migrated"],
+                 "indexed": True,
                  "labels": {"created": ["최초 기록", "등록"], "updated": ["수정", "보완", "추가 기록"],
                             "status_changed": ["상태 변경"], "corrected": ["정정", "바로잡음", "잘못 기록"],
-                            "retracted": ["무효", "철회", "취소 처리", "중복"]}},
+                            "retracted": ["무효", "철회", "취소 처리", "중복"],
+                            "migrated": ["정리", "이행", "필드 이동"]}},
         "by": {"type": "string", "description": "Agent that recorded the event.", "indexed": True},
         "entity_type": {"type": "string", "description": "Record type.", "indexed": True},
         "entity_id": {"type": "string", "description": "Record id.", "indexed": True},

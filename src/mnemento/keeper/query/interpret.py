@@ -87,10 +87,15 @@ def _render_field(name: str, fd, observed: list[str] | None) -> str:
     if fd.implies:
         line += "\n      history: " + "; ".join(f"{k} implies it went through {', '.join(v)}"
                                          for k, v in fd.implies.items()) + " (use op reached)"
+    if fd.draft:
+        line += "\n      UNREGISTERED (draft): stored in some records, no description yet; only records that have it count"
     if fd.enum:
         labels = fd.labels or {}
-        vals = [f"{v}" + (f" [{'/'.join(labels[v])}]" if v in labels else "") for v in fd.enum]
+        registered = [v for v in fd.enum if v not in fd.draft_values]
+        vals = [f"{v}" + (f" [{'/'.join(labels[v])}]" if v in labels else "") for v in registered]
         line += f"\n      allowed: {', '.join(vals)}"
+        if fd.draft_values:
+            line += f"\n      unregistered values in use (draft): {', '.join(map(str, fd.draft_values))}"
     elif observed:
         line += f"\n      observed values: {', '.join(observed)}"
     return line

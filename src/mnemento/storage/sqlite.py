@@ -75,6 +75,17 @@ CREATE TABLE IF NOT EXISTS schema_observations (
 );
 CREATE INDEX IF NOT EXISTS ix_obs_type_field ON schema_observations (entity_type, field);
 
+-- schema organize approvals (ADR-0014): who approved which proposal, with the user's own answer
+CREATE TABLE IF NOT EXISTS schema_changes (
+    entity_type TEXT NOT NULL,
+    version     INTEGER NOT NULL,
+    proposal_id TEXT NOT NULL,
+    approved_by TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    applied_at  TEXT NOT NULL,
+    summary     TEXT NOT NULL CHECK (json_valid(summary))
+);
+
 -- interpreted question patterns -> QuerySpec templates (derived data; safe to clear)
 CREATE TABLE IF NOT EXISTS query_cache (
     key        TEXT PRIMARY KEY,
@@ -301,6 +312,18 @@ class SQLiteStorage(Storage):
             d["agents"] = json.loads(d["agents"])
             out.append(d)
         return out
+
+    def record_schema_change(self, change: dict[str, Any]) -> None:
+        self._conn.execute(
+            "INSERT INTO schema_changes (entity_type, version, proposal_id, approved_by, user_answer, applied_at, "
+            "summary) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (change["entity_type"], change["version"], change["proposal_id"], change["approved_by"],
+             change["user_answer"], change["applied_at"], _dumps(change.get("summary", {}))))
+
+    def schema_changes(self, entity_type: str | None = None) -> list[dict[str, Any]]:
+        where, params = ("WHERE entity_type = ?", [entity_type]) if entity_type else ("", [])
+        rows = self._conn.execute(f"SELECT * FROM schema_changes {where} ORDER BY applied_at", params).fetchall()
+        return [{**dict(r), "summary": json.loads(r["summary"])} for r in rows]
 
     def get_cached_plan(self, key: str) -> str | None:
         row = self._conn.execute("SELECT plan FROM query_cache WHERE key = ?", (key,)).fetchone()

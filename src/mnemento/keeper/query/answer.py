@@ -81,16 +81,22 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
                  resolved_dates: dict[str, str], fetch) -> list[str]:
     out: list[str] = []
     if spec.source == "entities":
-        # ADR-0013: records whose date is unknown cannot match a date condition — say how many
-        dated = {f.field for f in spec.filters if schema.fields.get(f.field) and schema.fields[f.field].format}
-        dated |= {g.field for g in spec.group_by if schema.fields.get(g.field) and schema.fields[g.field].format}
-        for fname in sorted(dated):
+        # ADR-0013/0014: records without a field the question relies on cannot match it — say how many.
+        # (Optional fields, unknown dates, fields added later or still drafts.)
+        presence = {"exists", "missing"}
+        used = {f.field for f in spec.filters if f.op not in presence}
+        used |= {g.field for g in spec.group_by}
+        for m in spec.measures:
+            used |= {x for x in (m.field, m.field_end) if x}
+            used |= {w.field for w in m.where if w.op not in presence}
+        for fname in sorted(f for f in used if f in schema.fields):
             rows = fetch(f"SELECT COUNT(*) AS n FROM entities WHERE type = ? AND retracted = 0 "
                          f"AND json_extract(doc, '$.{fname}') IS NULL", [spec.entity_type])
             missing = rows[0]["n"] if rows else 0
-            if missing and not any(f.field == fname and f.op == "missing" for f in spec.filters):
-                out.append(f"{missing} {spec.entity_type} record(s) have no {fname} (not recorded) and "
-                           f"could not be counted by it.")
+            if missing:
+                tag = " (unregistered draft field)" if schema.fields[fname].draft else ""
+                out.append(f"{missing} {spec.entity_type} record(s) have no {fname}{tag} and could not be "
+                           f"counted by it.")
         uses_event_time = spec.order_by_event is not None or any(
             m.agg == "avg_hours_between_events" for m in spec.measures)
         if uses_event_time:

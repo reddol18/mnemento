@@ -128,6 +128,13 @@ class Storage(ABC):
     def unknown_field_stats(self, entity_type: str | None = None) -> list[dict[str, Any]]:
         """[{entity_type, field, count, samples: [...], first_seen, last_seen, agents: [...]}]"""
 
+    # ---- schema organize approvals (ADR-0014) --------------------------------------------
+    @abstractmethod
+    def record_schema_change(self, change: dict[str, Any]) -> None: ...
+
+    @abstractmethod
+    def schema_changes(self, entity_type: str | None = None) -> list[dict[str, Any]]: ...
+
     # ---- query plan cache (PLAN 2-1 principle 4) -----------------------------------------
     @abstractmethod
     def get_cached_plan(self, key: str) -> str | None: ...

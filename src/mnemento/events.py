@@ -19,8 +19,9 @@ UPDATED = "updated"
 STATUS_CHANGED = "status_changed"
 CORRECTED = "corrected"
 RETRACTED = "retracted"
+MIGRATED = "migrated"  # schema organize: values moved between fields (ADR-0014, like updated)
 
-DATA_KINDS = frozenset({CREATED, UPDATED, STATUS_CHANGED})
+DATA_KINDS = frozenset({CREATED, UPDATED, STATUS_CHANGED, MIGRATED})
 META_KINDS = frozenset({CORRECTED, RETRACTED})
 KINDS = DATA_KINDS | META_KINDS
 
@@ -35,7 +36,7 @@ def check_payload(kind: str, payload: Any) -> None:
         raise InvalidEventError("payload must be an object")
     if kind == CREATED:
         return
-    if kind == UPDATED:
+    if kind in (UPDATED, MIGRATED):
         if not payload:
             raise InvalidEventError("updated payload must set at least one field")
     elif kind == STATUS_CHANGED:
@@ -61,8 +62,8 @@ def apply_data_event(doc: dict[str, Any] | None, kind: str, payload: dict[str, A
     if doc is None:
         raise ConflictError(f"{event_id}: {kind} before created")
     new = dict(doc)
-    if kind == UPDATED:
-        check_payload(UPDATED, payload)
+    if kind in (UPDATED, MIGRATED):
+        check_payload(kind, payload)
         for k, v in payload.items():
             if v is None:
                 new.pop(k, None)
