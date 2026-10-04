@@ -1,0 +1,153 @@
+{
+  "name": "trade",
+  "version": 1,
+  "description": "One executed or settled trade: a buy (tranche) or a sell, in the paper (mock) account or the real account. The decision behind it is a separate decision record.",
+  "keywords": [
+    "체결",
+    "매수",
+    "매도",
+    "거래",
+    "trade"
+  ],
+  "default_date_field": "traded_at",
+  "fields": {
+    "source_key": {
+      "type": "string",
+      "required": true,
+      "indexed": true,
+      "description": "Import key (source file + position, e.g. paper:<code>:tranche1:buy). The same key is the same record: re-running the import never adds it twice."
+    },
+    "security_id": {
+      "type": "string",
+      "ref": "security",
+      "description": "The security traded.",
+      "required": true,
+      "indexed": true
+    },
+    "account": {
+      "type": "string",
+      "enum": [
+        "paper",
+        "real"
+      ],
+      "required": true,
+      "indexed": true,
+      "description": "paper: the mock-trading account; real: the user's real holdings.",
+      "labels": {
+        "paper": [
+          "모의",
+          "모의투자",
+          "모의매매"
+        ],
+        "real": [
+          "실계좌",
+          "실제",
+          "실투자"
+        ]
+      }
+    },
+    "side": {
+      "type": "string",
+      "enum": [
+        "buy",
+        "sell"
+      ],
+      "required": true,
+      "indexed": true,
+      "description": "buy or sell.",
+      "labels": {
+        "buy": [
+          "매수",
+          "샀"
+        ],
+        "sell": [
+          "매도",
+          "팔",
+          "정리"
+        ]
+      }
+    },
+    "traded_at": {
+      "type": "string",
+      "format": "date",
+      "indexed": true,
+      "description": "Trade date (fill date; for funds the settlement date of the order)."
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Order date when it differs (fund orders settle days later)."
+    },
+    "settled_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Settlement date (funds)."
+    },
+    "tranche": {
+      "type": "integer",
+      "description": "Tranche number of a split purchase (1회차 = 1)."
+    },
+    "units": {
+      "type": "number",
+      "description": "Shares or fund units."
+    },
+    "price": {
+      "type": "number",
+      "description": "Fill price per share, or the fund NAV used."
+    },
+    "amount": {
+      "type": "integer",
+      "description": "Money paid (buy) or received (sell), KRW."
+    },
+    "planned_amount": {
+      "type": "integer",
+      "description": "Planned amount before the fill, KRW."
+    },
+    "estimated_amount": {
+      "type": "integer",
+      "description": "Estimated proceeds before settlement, KRW."
+    },
+    "cost": {
+      "type": "integer",
+      "description": "Sell: what the sold units had cost, KRW."
+    },
+    "pnl": {
+      "type": "integer",
+      "description": "Sell: realized profit (negative = loss), KRW."
+    },
+    "return_pct": {
+      "type": "number",
+      "description": "Sell: realized return in percent (negative = loss)."
+    },
+    "sell_ratio": {
+      "type": "number",
+      "description": "Sell: share of the holding sold (0-1)."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why it was sold, as written in the source."
+    },
+    "condition": {
+      "type": "string",
+      "description": "Execution condition of the tranche, as written."
+    },
+    "trade_type": {
+      "type": "string",
+      "description": "Source's trade type (e.g. buy_tranche, accumulation_tranche)."
+    },
+    "source_status": {
+      "type": "string",
+      "description": "Status text as written in the source."
+    },
+    "note": {
+      "type": "string",
+      "description": "Source note on the trade, as written."
+    }
+  },
+  "relations": [
+    {
+      "type": "decision",
+      "note": "A trade and the decision behind it may describe the same event. Count buys and sells from trade; ask 'why' from decision."
+    }
+  ]
+}

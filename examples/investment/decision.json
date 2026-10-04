@@ -1,0 +1,90 @@
+{
+  "name": "decision",
+  "version": 1,
+  "description": "One investment judgement or decision as written in the source (buy, hold, wait, exit, rule change, roster change), with its date. The text is the source's own words.",
+  "keywords": [
+    "판단",
+    "결정",
+    "결심",
+    "이유",
+    "왜",
+    "decision"
+  ],
+  "default_date_field": "decided_at",
+  "fields": {
+    "source_key": {
+      "type": "string",
+      "required": true,
+      "indexed": true,
+      "description": "Import key (source file + position, e.g. paper:<code>:tranche1:buy). The same key is the same record: re-running the import never adds it twice."
+    },
+    "security_id": {
+      "type": "string",
+      "ref": "security",
+      "indexed": true,
+      "description": "The security it is about; empty for portfolio-wide decisions."
+    },
+    "security_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Securities a portfolio-wide decision applies to, when the source lists them."
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date",
+      "indexed": true,
+      "description": "Date of the decision as stated by the source."
+    },
+    "topic": {
+      "type": "string",
+      "indexed": true,
+      "description": "The source's own label for the note (e.g. user_decision, exit_decision, exit_plan, observe_hold, tranche_order, roster_closed)."
+    },
+    "decided_by": {
+      "type": "string",
+      "enum": [
+        "user"
+      ],
+      "indexed": true,
+      "description": "user: the source text says the user decided (사용자 판단/결정/지시). Empty when the text does not say.",
+      "labels": {
+        "user": [
+          "사용자",
+          "내가",
+          "내 판단"
+        ]
+      }
+    },
+    "text": {
+      "type": "string",
+      "required": true,
+      "description": "The decision in the source's words (structured notes as their JSON text)."
+    },
+    "text_format": {
+      "type": "string",
+      "enum": [
+        "json"
+      ],
+      "description": "json: `text` is a structured note."
+    },
+    "rejected_tranches": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "description": "Tranche numbers this decision cancelled."
+    },
+    "price_then": {
+      "type": "number",
+      "description": "Price noted with the decision."
+    }
+  },
+  "relations": [
+    {
+      "type": "trade",
+      "note": "Decisions explain trades; how many times something was bought or sold is counted from trade, not decision."
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "security",
+  "version": 1,
+  "description": "A stock, ETF or fund the user holds, watches or trades (id sec_<code>).",
+  "keywords": [
+    "종목",
+    "펀드",
+    "ETF",
+    "security"
+  ],
+  "fields": {
+    "code": {
+      "type": "string",
+      "description": "Exchange code (6 characters) or fund standard code. External identifier: the same code is the same security.",
+      "required": true,
+      "indexed": true
+    },
+    "name": {
+      "type": "string",
+      "description": "Name as written in the source (fund or company name).",
+      "required": true,
+      "indexed": true
+    },
+    "asset_type": {
+      "type": "string",
+      "description": "Asset type when the source states it (e.g. ETF). Left empty otherwise — never guessed."
+    }
+  }
+}
