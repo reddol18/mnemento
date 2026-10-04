@@ -15,6 +15,11 @@ dependencies = [
     "tzdata>=2026.4",
 ]
 
+[project.urls]
+Homepage = "https://github.com/reddol18/mnemento"
+Repository = "https://github.com/reddol18/mnemento"
+Issues = "https://github.com/reddol18/mnemento/issues"
+
 [project.scripts]
 mnemento-mcp = "mnemento.mcp_server:main"
 

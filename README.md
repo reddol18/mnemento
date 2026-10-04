@@ -153,7 +153,7 @@ dev/unseen split and every raw answer: [report](bench/results/v0-reduced-haiku/r
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
 
 ```bash
-git clone https://github.com/<you>/mnemento.git
+git clone https://github.com/reddol18/mnemento.git
 claude mcp add mnemento -e MNEMENTO_DB="$HOME/.mnemento/mnemento.db" -- uv --directory /path/to/mnemento run mnemento-mcp
 ```
 
