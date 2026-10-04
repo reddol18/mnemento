@@ -139,3 +139,29 @@ def test_identifier_in_the_text_finds_the_security(led):
         {"field": "security_id", "op": "name_is", "value": "바이오주(900001)"},
         {"field": "side", "op": "eq", "value": "buy"}]}, now=NOW)
     assert ans.result["total"] == 2 and any("identifier:code" in w for w in ans.warnings)
+
+
+def test_state_records_change_with_updated_events_at_the_source_date(led):
+    """Step 3b: criteria are state — a change is `updated` (only the changed fields), dated by the source."""
+    rep = ImportReport()
+    base = {"security_id": "sec_900001", "source_key": "criteria:900001", "trigger_price": 12000,
+            "band_basis_date": "2026-07-24", "observe_only": True}
+    kw = dict(entity_type="buy_criteria", entity_id="crit_1", at="2026-07-24T00:00:00+09:00", at_precision="date",
+              by=BY, evidence="fixture", now=NOW.isoformat(), change_kind="updated")
+    led.schemas.register({"name": "buy_criteria", "version": 1, "description": "criteria", "fields": {
+        "security_id": {"type": "string", "description": "s", "ref": "security"},
+        "source_key": {"type": "string", "description": "k"},
+        "trigger_price": {"type": "number", "description": "t"},
+        "band_basis_date": {"type": "string", "format": "date", "description": "d"},
+        "observe_only": {"type": "boolean", "description": "o"}}})
+    assert upsert(led, rep, doc=base, **kw) == "created"
+    assert upsert(led, rep, doc=base, **kw) == "unchanged"
+    new = {k: v for k, v in base.items() if k != "observe_only"} | {"trigger_price": 11500,
+                                                                   "band_basis_date": "2026-08-05"}
+    assert upsert(led, rep, doc=new, change_at="2026-08-05T00:00:00+09:00", **kw) == "updated"
+    last = led.history("crit_1")[-1]
+    assert last.kind == "updated" and last.at_precision == "date" and last.at.startswith("2026-08-05")
+    assert last.payload == {"trigger_price": 11500, "band_basis_date": "2026-08-05", "observe_only": None}
+    assert led.get_entity("crit_1").doc == new and rep.updated == {"buy_criteria": 1}
+    with pytest.raises(ValueError):
+        upsert(led, rep, doc=new, **{**kw, "change_kind": "deleted"})
