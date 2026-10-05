@@ -36,6 +36,29 @@ LLM agents forget between sessions. Mnemento gives them one place to **write fac
 - Each answer carries a trace: per-stage time, LLM calls, input/output tokens and cost.
 - Every question is kept in a local query log (question, interpretation, QuerySpec, SQL and parameters, result count, evidence ids, warnings, timings, cost). The `query_log` tool shows recent questions, those with warnings or errors, and questions whose SQL changed between askings (`diverging`). Bounded to 10,000 rows / 50 MB; `MNEMENTO_QUERY_LOG=off` turns it off ([ADR-0015](docs/adr/0015-query-log.md)).
 
+## Beyond job search: investment records (fictional example)
+
+The same record book holds a second domain without new query code — only new schemas
+([examples/investment](examples/investment): `security`, `trade`, `decision`; task 0008 step 3).
+
+```
+"가상바이오(900001) 몇 번 샀어?"           -> trade, count, security resolved by its code (identifier)  -> 2
+"올해 손절한 종목은?"                       -> trade, sell, pnl < 0, this year                            -> list
+"왜 그 종목은 안 사기로 했지?"              -> the reason where it was written, quoted as recorded        -> text + evidence
+```
+
+- **Identifiers first**: a field marked `identifier` (a stock code, a business registration number) is matched
+  wherever it appears in the question — "nickname(900001)" finds the security even if the nickname is unknown
+  ([ADR-0019](docs/adr/0019-identifier-fields.md)). Names alone that only look similar are offered as candidates, never
+  linked.
+- **Relation notes**: a schema can say how it relates to another ("a trade and the decision behind it may be the same
+  event — count buys from trade"); the interpreter is shown related types and counts each event from one type.
+- **Copies of files you keep elsewhere**: `mnemento.importer` makes repeated imports safe — the same source key is the
+  same record, a changed fact becomes a `corrected` event, a changed state (e.g. buy criteria) an `updated` event at
+  the source's own date, and records that disappeared from the source are reported, never deleted.
+- Used locally on the author's own investment records (trades, decisions, buy criteria, holdings); none of that data is
+  in this repository. Daily valuations are left for time series (planned, [ADR-0016](docs/adr/0016-schema-kind-entity-series.md)).
+
 ## Benchmark (v3, latest)
 
 Measured on the frozen version `2c56c658bc5f10f9` (v1.1). v1.2 (names of referenced records in answers, unknown
@@ -199,6 +222,7 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
 - **동일 회사 판정**: 사업자번호 → 정규화 이름·별칭. 비슷한 이름은 후보로만 제시하고 자동 병합하지 않습니다.
 - **계측**: 질문마다 단계별 시간, LLM 호출 수, 입력·출력 토큰, 비용을 기록합니다.
 - **조회 로그**: 모든 질문을 로컬 DB에 남깁니다(질문, 해석, QuerySpec, SQL과 파라미터, 결과 수, 근거 id, 경고, 시간, 비용). `query_log` 도구로 최근 질문, 경고·오류가 붙은 질문, 같은 질문인데 SQL이 달라진 것(`diverging`)을 볼 수 있습니다. 최대 10,000행 또는 50MB, `MNEMENTO_QUERY_LOG=off`로 끕니다([ADR-0015](docs/adr/0015-query-log.md)).
+- **두 번째 도메인(투자 기록, 가상 예시)**: 질의 코드는 그대로 두고 스키마만 더해 투자 기록(종목·체결·판단)을 담습니다([examples/investment](examples/investment)). 질문에 종목 코드·사업자번호 같은 식별자가 있으면 그것으로 먼저 찾습니다([ADR-0019](docs/adr/0019-identifier-fields.md)). 스키마 간 관계 설명으로 같은 사건을 두 번 세지 않습니다. `mnemento.importer`로 다른 곳에 두는 파일을 여러 번 가져와도 안전합니다(바뀐 사실은 정정, 바뀐 상태는 원본 날짜의 갱신, 사라진 기록은 보고만). 작성자의 실제 투자 기록으로 로컬에서 쓰고 있으며, 그 데이터는 저장소에 없습니다.
 
 - **벤치마크(v3, 최신)**: opus 기준으로 **개발에 쓰지 않은 문항의 정확도는 Claude Code 자체 메모리와 같다**(100건 27/27 동률, 1,000건 24/27 동률). 1,000건에서는 **6배 빠르고 비용은 1/8**이다. 개발 문항에서 앞선 부분은 그 문항으로 고쳤기 때문에 과적합일 수 있다. 남은 약점은 경과 시간 조건 필터를 표현할 수 없다는 점과 모호한 기준이다(측정 이후 [ADR-0018](docs/adr/0018-elapsed-filter-and-vague-defaults.md)로 보완. W5가 계기였으므로 개선 효과는 새 미노출 문항으로 측정해야 하며, 아직 측정하지 않았다). 문항별 결과는 [여기](docs/bench/results-by-question.md).
 - **이력 — 벤치마크(v2, 100건, 같은 형식 힌트, haiku·opus 2×2)**: opus 기준으로는 Claude Code 자체 메모리가 더 정확했다(B1-opus 83/87 > M-opus 75/87). Mnemento는 2.6배 빠르고 입력 토큰은 1/6이었다. haiku 기준으로는 Mnemento가 앞섰다(64 대 54/87). Mnemento의 약점 5가지는 [작업 0005](docs/tasks/0005-v1.1-fixes.md)에서 고친 뒤 새 평가셋(v3)으로 다시 잰다.

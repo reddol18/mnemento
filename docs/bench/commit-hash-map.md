@@ -26,3 +26,32 @@ link). Nothing else changed: file contents, authors, dates and the `Co-Authored-
 | `438f3bb` (438f3bba18a1a4bc9457d282cd6bb4bf7dc4628e) | `41e4bb3` (41e4bb329467a791ec0f1093b121225c15d8525c) | feat(bench): eval set v3 unseen answer keys (W1-W9), v3 plan, no-answer column |
 | `ae52f74` (ae52f747c313bb00512af6ff78cb134ad8d4e58d) | `92d4633` (92d46333fa4c46c1a6d261b2e5e498118b19c08e) | docs(bench): v3 results, per-question tables, README for publication |
 | `c3d9b84` (c3d9b84e6cc0857d4cf48a4a42f05daee4fc1b06) | `4052d5d` (4052d5d10af1545d392a8f67fb77cec027ec8d52) | docs(bench): v3 B1-haiku results, README complete |
+
+# Commit hash map (history rewrite, 2026-10-05)
+
+Before publishing task 0008, example strings that named real securities (a code and a nickname from the author's own
+records) were replaced by fictional ones ("바이오주(900001)", "샘플펀드(900002)") in three files — ADR-0019,
+`keeper/identity.py` docstrings and one example in the interpreter's system prompt — and in one commit message. Nothing
+else changed. Commits before `9e892aa` have identical contents, so their benchmark frozen hashes stay valid. From
+`9e892aa` on, the interpreter prompt differs by that example string: the step-3b regression (`v1.8-regression`, frozen
+`245233b797a2ec1c`) measured the earlier text and was re-run on the rewritten code (`v1.9-regression`).
+
+| old commit | new commit | subject |
+|---|---|---|
+| `5f0e36e` | `5293617` | docs: v2 roadmap (task 0008) and ADRs 0015-0017 |
+| `1fbc03f` | `3f4144e` | fix(schema): starting with older schema files keeps a database that moved ahead |
+| `a3ef66d` | `8880398` | feat: query log (ADR-0015, task 0008 step 1) |
+| `81cdaa2` | `018a6de` | docs(bench): query-log regression — dev questions on eval set v3, M-haiku 27/28, M-opus 28/28 |
+| `f8080a0` | `903e166` | feat(query): elapsed-time conditions and default readings for vague words (ADR-0018, task 0008 step 2) |
+| `f439963` | `5a3f972` | fix(schema): schema files may skip versions when loaded |
+| `1994b28` | `c5a8711` | docs(bench): step-2 regression — dev questions on eval set v3, M-haiku 27/28, M-opus 27/28 |
+| `0051462` | `2d8e448` | fix(bench): converter reports the average when count measures come along |
+| `b27a544` | `d316bc1` | feat(schema): relation notes between record types (ADR-0017, task 0008 step 3) |
+| `341be5e` | `5b09c59` | docs(bench): step-2 regression rerun with the fixed converter — M-haiku 26/28, M-opus 28/28 |
+| `157eaf0` | `c30f3d9` | feat: idempotent import helper and example investment schemas (task 0008 step 3a) |
+| `a7f34c4` | `86c81e3` | docs(bench): step-3a regression — dev questions on eval set v3, M-haiku 27/28, M-opus 28/28 |
+| `03fa4c2` | `9e892aa` | feat(identity): external identifier fields are matched first (ADR-0019, task 0008 step 3b) |
+| `0f4d31c` | `86a5a04` | feat(importer): change_kind — state records change with updated events at the source's date |
+| `3ff961b` | `5d39bdb` | fix(importer): vanished records only among the records a source owns |
+| `1e059f8` | `398dd3a` | fix(query): relation-linked types are shown to the interpreter; plan cache keyed by interpreter |
+| `2ba9723` | `0634344` | docs(bench): step-3b regression — dev questions on eval set v3, M-haiku 26/28, M-opus 28/28 |
