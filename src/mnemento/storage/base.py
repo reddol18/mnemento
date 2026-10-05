@@ -152,6 +152,28 @@ class Storage(ABC):
     @abstractmethod
     def delete_query_log(self, ids: list[int]) -> int: ...
 
+    # ---- series (ADR-0016); reads for queries go through fetch_all ------------------------
+    @abstractmethod
+    def get_series_point(self, type_: str, key: str, t: str) -> dict[str, Any] | None: ...
+
+    @abstractmethod
+    def put_series_point(self, type_: str, key: str, t: str, doc: dict[str, Any], batch_id: str) -> None: ...
+
+    @abstractmethod
+    def delete_series_point(self, type_: str, key: str, t: str) -> None: ...
+
+    @abstractmethod
+    def insert_batch(self, batch: dict[str, Any]) -> None: ...
+
+    @abstractmethod
+    def get_batch(self, batch_id: str) -> dict[str, Any] | None: ...
+
+    @abstractmethod
+    def list_batches(self, type_: str | None = None) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def mark_batch_reverted(self, batch_id: str, at: str) -> None: ...
+
     @abstractmethod
     def delete_all_entities(self) -> None:
         """Drop the derived current-state table contents (used by full rebuilds/tests)."""

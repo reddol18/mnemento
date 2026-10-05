@@ -118,6 +118,31 @@ CREATE TABLE IF NOT EXISTS query_log (
     size            INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_query_log_norm ON query_log (question_norm);
+
+-- series (ADR-0016): one row per (type, key, time point) holding several measures; re-ingesting a point updates
+-- it, and the batch that did so keeps the previous values so the whole batch can be reverted
+CREATE TABLE IF NOT EXISTS series_points (
+    type     TEXT NOT NULL,
+    key      TEXT NOT NULL,
+    t        TEXT NOT NULL,
+    doc      TEXT NOT NULL CHECK (json_valid(doc)),
+    batch_id TEXT NOT NULL,
+    PRIMARY KEY (type, key, t)
+);
+CREATE INDEX IF NOT EXISTS ix_series_type_t ON series_points (type, t);
+
+CREATE TABLE IF NOT EXISTS ingest_batches (
+    id          TEXT PRIMARY KEY,
+    type        TEXT NOT NULL,
+    at          TEXT NOT NULL,
+    by          TEXT NOT NULL,
+    source      TEXT NOT NULL,
+    inserted    INTEGER NOT NULL,
+    updated     INTEGER NOT NULL,
+    unchanged   INTEGER NOT NULL,
+    changes     TEXT NOT NULL CHECK (json_valid(changes)),
+    reverted_at TEXT
+);
 """
 
 
@@ -385,6 +410,42 @@ class SQLiteStorage(Storage):
                 n += self._conn.execute(
                     f"DELETE FROM query_log WHERE id IN ({', '.join('?' for _ in chunk)})", chunk).rowcount
         return n
+
+    # ---- series (ADR-0016) -------------------------------------------------------------------
+
+    def get_series_point(self, type_: str, key: str, t: str) -> dict[str, Any] | None:
+        row = self._conn.execute("SELECT doc, batch_id FROM series_points WHERE type = ? AND key = ? AND t = ?",
+                                 (type_, key, t)).fetchone()
+        return {"doc": json.loads(row["doc"]), "batch_id": row["batch_id"]} if row else None
+
+    def put_series_point(self, type_: str, key: str, t: str, doc: dict[str, Any], batch_id: str) -> None:
+        self._conn.execute(
+            "INSERT INTO series_points (type, key, t, doc, batch_id) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(type, key, t) DO UPDATE SET doc = excluded.doc, batch_id = excluded.batch_id",
+            (type_, key, t, _dumps(doc), batch_id))
+
+    def delete_series_point(self, type_: str, key: str, t: str) -> None:
+        self._conn.execute("DELETE FROM series_points WHERE type = ? AND key = ? AND t = ?", (type_, key, t))
+
+    def insert_batch(self, batch: dict[str, Any]) -> None:
+        self._conn.execute(
+            "INSERT INTO ingest_batches (id, type, at, by, source, inserted, updated, unchanged, changes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (batch["id"], batch["type"], batch["at"], batch["by"], batch["source"], batch["inserted"],
+             batch["updated"], batch["unchanged"], _dumps(batch["changes"])))
+
+    def get_batch(self, batch_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute("SELECT * FROM ingest_batches WHERE id = ?", (batch_id,)).fetchone()
+        return {**dict(row), "changes": json.loads(row["changes"])} if row else None
+
+    def list_batches(self, type_: str | None = None) -> list[dict[str, Any]]:
+        where, params = ("WHERE type = ?", [type_]) if type_ else ("", [])
+        rows = self._conn.execute(f"SELECT id, type, at, by, source, inserted, updated, unchanged, reverted_at "
+                                  f"FROM ingest_batches {where} ORDER BY at, id", params).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_batch_reverted(self, batch_id: str, at: str) -> None:
+        self._conn.execute("UPDATE ingest_batches SET reverted_at = ? WHERE id = ?", (at, batch_id))
 
     def delete_all_entities(self) -> None:
         self._conn.execute("DELETE FROM entities")

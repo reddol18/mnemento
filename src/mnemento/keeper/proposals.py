@@ -12,6 +12,7 @@ import json
 from ..ledger import Ledger
 from ..schema.definition import NAME_RE, SchemaDef
 from ..timeutil import is_calendar_date, is_instant
+from .kind import judge_kind
 
 def infer_field(samples: list[Any]) -> dict[str, Any]:
     vals = [s for s in samples if s is not None]
@@ -182,11 +183,13 @@ def draft_schema(name: str, samples: list[dict[str, Any]]) -> dict[str, Any]:
         if all(k in s and s[k] is not None for s in samples):
             f["required"] = True
         fields[k] = f
-    return {
-        "kind": "new_schema",
-        "draft": {"name": name, "version": 1, "description": "TODO: describe this record type.",
-                  "fields": fields},
-        "notes": ["enum_candidates are suggestions: turn them into `enum` or drop them.",
-                  "Mark fields used in filters as indexed: true.",
-                  "proposed — not applied; confirm by registering it."],
-    }
+    draft = {"name": name, "version": 1, "description": "TODO: describe this record type.", "fields": fields}
+    judged = judge_kind(samples)  # ADR-0016: entity or series, with the signals; the user confirms
+    if judged["kind"] == "series":
+        draft.update({"kind": "series", **judged["series"]})
+    notes = ["enum_candidates are suggestions: turn them into `enum` or drop them.",
+             "Mark fields used in filters as indexed: true.",
+             "proposed — not applied; confirm by registering it."]
+    if judged["question"]:
+        notes.insert(0, "kind undecided — ask the user: " + judged["question"])
+    return {"kind": "new_schema", "draft": draft, "record_kind": judged, "notes": notes}

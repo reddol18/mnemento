@@ -39,7 +39,9 @@ FORMATS = {"date", "date-time"}
 _FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
                "implies", "identifier"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field",
-                "vague_terms", "relations"}
+                "vague_terms", "relations", "kind", "series_key", "time_field", "granularity", "measures"}
+KINDS = ("entity", "series")
+GRANULARITIES = ("instant", "hour", "day", "week", "month")
 
 FORMAT_CHECKER = FormatChecker(formats=())
 FORMAT_CHECKER.checks("date")(is_calendar_date)
@@ -110,6 +112,12 @@ class SchemaDef:
     # how this type relates to others, shown to the interpreter (ADR-0017: count each event from one type),
     # e.g. (("decision", "a trade and its decision may be the same event; count trades from trade"),)
     relations: tuple[tuple[str, str], ...] = ()
+    # ADR-0016: entity = records with an event history; series = numeric measurements per (key..., time point)
+    kind: str = "entity"
+    series_key: tuple[str, ...] = ()
+    time_field: str | None = None
+    granularity: str | None = None
+    measures: tuple[str, ...] = ()
 
     # ---- construction ---------------------------------------------------------------
 
@@ -153,9 +161,33 @@ class SchemaDef:
                 isinstance(r, dict) and set(r) == {"type", "note"} and isinstance(r["type"], str)
                 and NAME_RE.match(r["type"]) and isinstance(r["note"], str) and r["note"].strip() for r in relations):
             raise SchemaDefinitionError(f"{name}: relations must be a list of {{type, note}}")
+        kind = data.get("kind", "entity")
+        if kind not in KINDS:
+            raise SchemaDefinitionError(f"{name}: kind must be one of {KINDS}")
+        series_key, time_field = tuple(data.get("series_key", [])), data.get("time_field")
+        granularity, measures = data.get("granularity"), tuple(data.get("measures", []))
+        if kind == "series":
+            if not series_key or not all(isinstance(k, str) and k in fields and fields[k].type in ("string", "integer")
+                                         and not fields[k].format for k in series_key):
+                raise SchemaDefinitionError(f"{name}: series_key must list string/integer fields of the schema")
+            if time_field not in fields or fields[time_field].format not in FORMATS:
+                raise SchemaDefinitionError(f"{name}: time_field must be a date or date-time field")
+            if granularity not in GRANULARITIES:
+                raise SchemaDefinitionError(f"{name}: granularity must be one of {GRANULARITIES}")
+            if (granularity in ("instant", "hour")) != (fields[time_field].format == "date-time"):
+                raise SchemaDefinitionError(f"{name}: granularity {granularity} does not fit a "
+                                            f"{fields[time_field].format} time_field")
+            if not measures or not all(isinstance(m, str) and m in fields and fields[m].type in ("integer", "number")
+                                       for m in measures):
+                raise SchemaDefinitionError(f"{name}: measures must list numeric fields of the schema")
+            if set(measures) & (set(series_key) | {time_field}):
+                raise SchemaDefinitionError(f"{name}: a measure cannot be a key or the time field")
+        elif series_key or time_field or granularity or measures:
+            raise SchemaDefinitionError(f"{name}: series_key/time_field/granularity/measures need kind series")
         schema = cls(name, version, description, fields, tuple(copy.deepcopy(examples)),
                      tuple(keywords), default_date_field, tuple(vague.items()),
-                     tuple((r["type"], r["note"]) for r in relations))
+                     tuple((r["type"], r["note"]) for r in relations),
+                     kind, series_key, time_field, granularity, measures)
         schema._check_json_schema()
         for i, ex in enumerate(schema.examples):
             if not isinstance(ex, dict) or not isinstance(ex.get("doc"), dict):
@@ -180,13 +212,17 @@ class SchemaDef:
             d["vague_terms"] = dict(self.vague_terms)
         if self.relations:
             d["relations"] = [{"type": t, "note": n} for t, n in self.relations]
+        if self.kind == "series":
+            d.update({"kind": "series", "series_key": list(self.series_key), "time_field": self.time_field,
+                      "granularity": self.granularity, "measures": list(self.measures)})
         if self.examples:
             d["examples"] = copy.deepcopy(list(self.examples))
         return d
 
     def with_version(self, version: int) -> "SchemaDef":
         return SchemaDef(self.name, version, self.description, self.fields, self.examples,
-                         self.keywords, self.default_date_field, self.vague_terms, self.relations)
+                         self.keywords, self.default_date_field, self.vague_terms, self.relations,
+                         self.kind, self.series_key, self.time_field, self.granularity, self.measures)
 
     # ---- JSON Schema --------------------------------------------------------------------
 
@@ -240,6 +276,10 @@ class SchemaDef:
     def breaking_changes_to(self, new: "SchemaDef") -> list[str]:
         """Changes from self -> new that could make an existing valid document invalid."""
         reasons: list[str] = []
+        if new.kind != self.kind:
+            reasons.append(f"kind changed {self.kind} -> {new.kind}")
+        if (new.series_key, new.time_field, new.granularity) != (self.series_key, self.time_field, self.granularity):
+            reasons.append("series key, time field or granularity changed")
         for fname, old in self.fields.items():
             nf = new.fields.get(fname)
             if nf is None:
