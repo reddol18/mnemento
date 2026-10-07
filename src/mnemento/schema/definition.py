@@ -39,8 +39,10 @@ FORMATS = {"date", "date-time"}
 _FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
                "implies", "identifier"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field",
-                "vague_terms", "relations", "kind", "series_key", "time_field", "granularity", "measures"}
+                "vague_terms", "relations", "kind", "series_key", "time_field", "granularity", "measures",
+                "status", "proposal"}
 KINDS = ("entity", "series")
+STATUSES = ("registered", "draft")
 GRANULARITIES = ("instant", "hour", "day", "week", "month")
 
 FORMAT_CHECKER = FormatChecker(formats=())
@@ -118,6 +120,14 @@ class SchemaDef:
     time_field: str | None = None
     granularity: str | None = None
     measures: tuple[str, ...] = ()
+    # ADR-0021: a draft type is created by the first record of a new kind; it has no fields and enforces nothing
+    # (every field is an ADR-0014 draft) until the user approves `proposal`, the schema the agent suggested
+    status: str = "registered"
+    proposal: dict[str, Any] | None = None
+
+    @property
+    def is_draft(self) -> bool:
+        return self.status == "draft"
 
     # ---- construction ---------------------------------------------------------------
 
@@ -137,9 +147,17 @@ class SchemaDef:
         description = data.get("description")
         if not isinstance(description, str) or not description.strip():
             raise SchemaDefinitionError(f"{name}: description is required")
-        raw_fields = data.get("fields")
-        if not isinstance(raw_fields, dict) or not raw_fields:
+        status = data.get("status", "registered")
+        if status not in STATUSES:
+            raise SchemaDefinitionError(f"{name}: status must be one of {STATUSES}")
+        proposal = data.get("proposal")
+        if proposal is not None and (status != "draft" or not isinstance(proposal, dict)):
+            raise SchemaDefinitionError(f"{name}: proposal is an object on draft types only")
+        raw_fields = data.get("fields", {} if status == "draft" else None)
+        if not isinstance(raw_fields, dict) or (not raw_fields and status != "draft"):
             raise SchemaDefinitionError(f"{name}: fields must be a non-empty object")
+        if status == "draft" and (raw_fields or data.get("kind", "entity") != "entity"):
+            raise SchemaDefinitionError(f"{name}: a draft type is an entity type without fields (they are drafts)")
         fields = {fname: _parse_field(name, fname, fdef) for fname, fdef in raw_fields.items()}
         examples = data.get("examples", [])
         if not isinstance(examples, list):
@@ -187,7 +205,8 @@ class SchemaDef:
         schema = cls(name, version, description, fields, tuple(copy.deepcopy(examples)),
                      tuple(keywords), default_date_field, tuple(vague.items()),
                      tuple((r["type"], r["note"]) for r in relations),
-                     kind, series_key, time_field, granularity, measures)
+                     kind, series_key, time_field, granularity, measures, status,
+                     copy.deepcopy(proposal) if proposal is not None else None)
         schema._check_json_schema()
         for i, ex in enumerate(schema.examples):
             if not isinstance(ex, dict) or not isinstance(ex.get("doc"), dict):
@@ -217,12 +236,17 @@ class SchemaDef:
                       "granularity": self.granularity, "measures": list(self.measures)})
         if self.examples:
             d["examples"] = copy.deepcopy(list(self.examples))
+        if self.is_draft:
+            d["status"] = "draft"
+            if self.proposal is not None:
+                d["proposal"] = copy.deepcopy(self.proposal)
         return d
 
     def with_version(self, version: int) -> "SchemaDef":
         return SchemaDef(self.name, version, self.description, self.fields, self.examples,
                          self.keywords, self.default_date_field, self.vague_terms, self.relations,
-                         self.kind, self.series_key, self.time_field, self.granularity, self.measures)
+                         self.kind, self.series_key, self.time_field, self.granularity, self.measures,
+                         self.status, self.proposal)
 
     # ---- JSON Schema --------------------------------------------------------------------
 
@@ -274,8 +298,11 @@ class SchemaDef:
     # ---- evolution (ADR-0005) -----------------------------------------------------------
 
     def breaking_changes_to(self, new: "SchemaDef") -> list[str]:
-        """Changes from self -> new that could make an existing valid document invalid."""
+        """Changes from self -> new that could make an existing valid document invalid. A draft type promised
+        nothing: approving it may add required fields and enums (stored records are checked when it is approved)."""
         reasons: list[str] = []
+        if self.is_draft:
+            return reasons
         if new.kind != self.kind:
             reasons.append(f"kind changed {self.kind} -> {new.kind}")
         if (new.series_key, new.time_field, new.granularity) != (self.series_key, self.time_field, self.granularity):

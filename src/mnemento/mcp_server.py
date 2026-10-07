@@ -37,6 +37,8 @@ INSTRUCTIONS = """Mnemento is a shared, structured record book. Use it instead o
   If the Keeper is unsure which record is meant (several matches, an unknown or similar company name, a
   contradiction with the current state), it stores nothing and returns "clarify" with options: ask the user,
   then call record again. A reply may also carry `questions` ("is applicant_count the same as applicants?").
+- A new kind of record: record it as usual with a new entity_type plus schema_draft (your suggested schema); it
+  is stored at once and the user approves the type later (apply_schema_proposal).
 - list_schemas shows the registered fields and the drafts. Organizing drafts (descriptions, labels, indexes,
   merging look-alike names) is done with propose_schema and then apply_schema_proposal — the latter only after
   the user explicitly agrees.
@@ -127,6 +129,8 @@ def create_server(keeper: Keeper) -> MCPServer:
         at_precision: str = "time",
         text: str | None = None,
         evidence: str | None = None,
+        schema_draft: dict[str, Any] | None = None,
+        new_type: bool = False,
     ) -> dict[str, Any]:
         """Record a fact. Either structured or free text.
 
@@ -139,6 +143,11 @@ def create_server(keeper: Keeper) -> MCPServer:
         evidence: why you believe it (quote, mail subject...).
         Fields or values the dictionary does not know are stored as given (drafts, queryable at once); the
         reply lists them under `drafts` and may ask under `questions` whether a new name means an existing one.
+        New kind of record (entity_type not in list_schemas, kind created): it is stored at once under a new draft
+        type. Send schema_draft with it — the schema you suggest: {"description", "keywords", "fields": {name:
+        {"type", "description", "enum", "labels", "required", "indexed", "format"}}}; you know best what each field
+        means now. The reply carries a proposal under `proposals`: ask the user, and on their yes call
+        apply_schema_proposal. If the name looks like an existing type you are asked first (new_type=true confirms).
         Returns status:
           recorded — stored (check `drafts` and `questions`);
           clarify  — nothing stored: the target is ambiguous (several matches), a referenced name (e.g. a
@@ -153,7 +162,8 @@ def create_server(keeper: Keeper) -> MCPServer:
         if not entity_type or not kind:
             raise ToolError("give either text, or entity_type and kind")
         req = {"entity_type": entity_type, "kind": kind, "payload": payload or {},
-               "entity_id": entity_id, "match": match or {}, "at": at, "at_precision": at_precision}
+               "entity_id": entity_id, "match": match or {}, "at": at, "at_precision": at_precision,
+               "schema_draft": schema_draft, "new_type": new_type or None}
         return keeper.record({k: v for k, v in req.items() if v is not None}, by=by, evidence=evidence).to_dict()
 
     @mcp.tool()
@@ -211,8 +221,10 @@ def create_server(keeper: Keeper) -> MCPServer:
         labels: dict[str, dict[str, list[str]]] | None = None,
         merges: dict[str, str] | None = None,
         index: list[str] | None = None,
+        type_description: str | None = None,
     ) -> dict[str, Any]:
-        """Organize unregistered (draft) fields and values — ONLY with the user's explicit consent.
+        """Organize unregistered (draft) fields and values, or register a new record type (proposal id type_...)
+        — ONLY with the user's explicit consent.
 
         Never call this on your own initiative. First show the user the proposal from propose_schema (its
         `question`), ask whether to apply it, and call this only after they answer yes. Pass who approved
@@ -221,11 +233,13 @@ def create_server(keeper: Keeper) -> MCPServer:
         labels: {field: {value: [natural-language names]}} for every new enum value (required, e.g.
         {"platform": {"remember": ["리멤버"]}}).
         merges: {draft_field: target_field} to fold look-alike names together (values move with history kept).
-        index: fields to index. The data itself was already stored when it was written; this only organizes it.
+        index: fields to index. type_description: a new type's description, if its proposal has none.
+        The data itself was already stored when it was written; this only organizes it.
         """
         try:
             return keeper.apply_schema_proposal(proposal_id, approved_by=approved_by, user_answer=user_answer,
-                                                descriptions=descriptions, labels=labels, merges=merges, index=index)
+                                                descriptions=descriptions, labels=labels, merges=merges, index=index,
+                                                type_description=type_description)
         except Exception as exc:  # SchemaDefinitionError, BreakingSchemaChangeError
             raise ToolError(str(exc)) from exc
 

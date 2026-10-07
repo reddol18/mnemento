@@ -98,7 +98,10 @@ class Keeper:
     def apply_schema_proposal(self, proposal_id: str, *, approved_by: str, user_answer: str,
                               descriptions: dict[str, str] | None = None,
                               labels: dict[str, dict[str, list[str]]] | None = None,
-                              merges: dict[str, str] | None = None, index: list[str] | None = None) -> dict[str, Any]:
-        """Organize drafts — only with the user's explicit consent (approved_by + their answer are recorded)."""
+                              merges: dict[str, str] | None = None, index: list[str] | None = None,
+                              type_description: str | None = None) -> dict[str, Any]:
+        """Organize drafts or register a new type — only with the user's explicit consent (approved_by + their answer
+        are recorded)."""
         return apply_proposal(self.ledger, proposal_id, approved_by=approved_by, user_answer=user_answer,
-                              descriptions=descriptions, labels=labels, merges=merges, index=index)
+                              descriptions=descriptions, labels=labels, merges=merges, index=index,
+                              type_description=type_description)

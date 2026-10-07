@@ -19,6 +19,8 @@ from ..ledger import ENTITY_ID_RE, Ledger
 from ..timeutil import format_instant, now as tz_now
 from .identity import IdentityResolver
 from .llm import LLMAdapter, LLMError
+from ..schema.definition import NAME_RE
+from . import newtype as nt
 from .drafts import write_questions
 from .query.interpret import render_dictionary, select_schemas
 from .trace import Trace
@@ -44,6 +46,11 @@ class RecordRequest(BaseModel):
     at_precision: Literal["time", "date", "unknown"] = Field(
         default="time", description="time: `at` is exact; date: only the day is known (at = 00:00); "
                                     "unknown: when it happened is not known (ADR-0013).")
+    schema_draft: dict[str, Any] | None = Field(
+        default=None, description="New record types only (ADR-0021): the schema you suggest for it — description, "
+                                  "fields with type/description, enum + labels, required, indexed. Kept for the "
+                                  "user to approve; the record is stored at once.")
+    new_type: bool = Field(default=False, description="Confirm a new type whose name looks like an existing one.")
 
 
 @dataclass
@@ -73,16 +80,18 @@ class Recorder:
     # ---- structured path ------------------------------------------------------------------
 
     def record(self, request: RecordRequest | dict[str, Any], *, by: str, evidence: str | None = None,
-               now: datetime | None = None, trace: Trace | None = None) -> RecordResult:
+               now: datetime | None = None, trace: Trace | None = None, allow_new_type: bool = True) -> RecordResult:
+        """allow_new_type: a structured request may create a new record type (ADR-0021); free text may not — the
+        model would invent types."""
         trace = trace or Trace()
         if not trace.path:
             trace.path = "structured"
         with trace.stage("record"):
-            res = self._record(request, by=by, evidence=evidence, now=now)
+            res = self._record(request, by=by, evidence=evidence, now=now, allow_new_type=allow_new_type)
         res.trace = trace.finish().to_dict()
         return res
 
-    def _record(self, request, *, by, evidence, now) -> RecordResult:
+    def _record(self, request, *, by, evidence, now, allow_new_type=True) -> RecordResult:
         try:
             req = request if isinstance(request, RecordRequest) else RecordRequest.model_validate(request)
         except ValidationError as exc:
@@ -92,8 +101,19 @@ class Recorder:
         try:
             schema = self.ledger.schemas.get(req.entity_type)
         except SchemaNotFoundError:
-            return RecordResult("rejected", f"Unknown record type {req.entity_type!r}.",
-                                errors=[f"known types: {self.ledger.schemas.names()}"], request=reqd)
+            schema, res = self._new_type(req, reqd, allow_new_type)
+            if res is not None:
+                return res
+        else:
+            if req.schema_draft is not None and not schema.is_draft:
+                return RecordResult("rejected", f"{req.entity_type} is already registered; schema_draft is for new "
+                                                "types (organize fields with propose_schema)", request=reqd)
+            if req.schema_draft is not None:
+                errs = nt.check_schema_draft(req.entity_type, req.schema_draft)
+                if errs:
+                    return RecordResult("rejected", "The suggested schema cannot be registered. Nothing was stored.",
+                                        errors=errs, request=reqd)
+                schema = nt.update_proposal(self.ledger, schema, req.schema_draft)
         now = now or tz_now(self.ledger.tz)
         at = req.at or format_instant(now)
         payload = dict(req.payload)
@@ -171,9 +191,42 @@ class Recorder:
                      " stored and queryable, organize later with propose_schema.")
         else:
             drafts = {}
+        proposals = []
+        if schema.is_draft:  # ADR-0021: the approval is asked for every time the type is written while a draft
+            prop = nt.type_proposal(self.ledger, self.ledger.schemas.get(req.entity_type))
+            proposals.append(prop)
+            questions.append(prop["question"] + f" (ask the user, then apply_schema_proposal('{prop['id']}'))")
+            note += f" {req.entity_type} is a new record type awaiting the user's approval."
         return RecordResult("recorded", f"Recorded {req.kind} on {entity_id}{note}", entity_id=entity_id,
                             event_id=event.id, entity=state.as_json() if state else None, questions=questions,
-                            drafts=drafts, request=reqd)
+                            drafts=drafts, proposals=proposals, request=reqd)
+
+    def _new_type(self, req: RecordRequest, reqd: dict[str, Any], allow: bool):
+        """ADR-0021: the first record of a new kind creates a draft type (or asks first)."""
+        known = self.ledger.schemas.names()
+        if not allow:
+            return None, RecordResult("rejected", f"Unknown record type {req.entity_type!r}.",
+                                      errors=[f"known types: {known}; a new type is created by a structured record"],
+                                      request=reqd)
+        if req.kind != ev.CREATED:
+            return None, RecordResult("rejected", f"Unknown record type {req.entity_type!r}: a new type starts with "
+                                                  "a created record.", errors=[f"known types: {known}"], request=reqd)
+        if not NAME_RE.match(req.entity_type):
+            return None, RecordResult("rejected", f"{req.entity_type!r} is not a valid type name (snake_case).",
+                                      request=reqd)
+        like = nt.similar_types(self.ledger, req.entity_type)
+        if like and not req.new_type:
+            return None, RecordResult(
+                "clarify", f"'{req.entity_type}' would be a new record type, but it looks like {like}. Is it the same "
+                           "kind of record? Nothing was stored.",
+                options=[*(f"record it as {t}" for t in like), f"create new type {req.entity_type} (new_type=true)"],
+                request=reqd)
+        if req.schema_draft is not None:
+            errs = nt.check_schema_draft(req.entity_type, req.schema_draft)
+            if errs:
+                return None, RecordResult("rejected", "The suggested schema cannot be registered. Nothing was stored.",
+                                          errors=errs, request=reqd)
+        return nt.create_draft_type(self.ledger, req.entity_type, req.payload, req.schema_draft), None
 
     def _is_entity(self, value: str, etype: str) -> bool:
         e = self.ledger.get_entity(value) if ENTITY_ID_RE.match(value) else None
@@ -237,7 +290,8 @@ class Recorder:
         if draft.kind == "clarify" or draft.request is None:
             return RecordResult("clarify", draft.clarify_question or "What exactly should be recorded?",
                                 options=draft.options, trace=trace.finish().to_dict())
-        return self.record(draft.request, by=by, evidence=evidence or f"text: {text}", now=now, trace=trace)
+        return self.record(draft.request, by=by, evidence=evidence or f"text: {text}", now=now, trace=trace,
+                           allow_new_type=False)
 
 
 class RecordDraft(BaseModel):

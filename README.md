@@ -33,6 +33,7 @@ LLM agents forget between sessions. Mnemento gives them one place to **write fac
 - The model never writes SQL and never sees your records; it gets field names, descriptions and allowed values.
 - Anything outside the schema dictionary is rejected (and the model is asked once more), so it cannot query fields that do not exist.
 - When a question or a write is ambiguous (which company? which record?), the Keeper stores nothing and returns `clarify` with options.
+- **A new kind of record over MCP**: `record` it with a new `entity_type` and the schema you suggest (`schema_draft`); it is stored and queryable at once under a draft type, and the user approves the type later with `apply_schema_proposal` — required fields, enums and indexes apply from then on. A new name that looks like an existing type is asked about first ([ADR-0021](docs/adr/0021-new-record-types-over-mcp.md)).
 - Each answer carries a trace: per-stage time, LLM calls, input/output tokens and cost.
 - Every question is kept in a local query log (question, interpretation, QuerySpec, SQL and parameters, result count, evidence ids, warnings, timings, cost). The `query_log` tool shows recent questions, those with warnings or errors, questions whose SQL changed between askings (`diverging`), and answers that found nothing (`empty`). An id filter naming no record is read as the import's source key or the record's name, or asked back — never answered with a silent 0 — and plans that found nothing are not cached ([ADR-0020](docs/adr/0020-id-filters-and-empty-plans.md)). Bounded to 10,000 rows / 50 MB; `MNEMENTO_QUERY_LOG=off` turns it off ([ADR-0015](docs/adr/0015-query-log.md)).
 
@@ -214,7 +215,7 @@ git clone https://github.com/reddol18/mnemento.git
 claude mcp add mnemento -e MNEMENTO_DB="$HOME/.mnemento/mnemento.db" -- uv --directory /path/to/mnemento run mnemento-mcp
 ```
 
-Tools: `query`, `record`, `get_entity`, `history`, `list_schemas`, `propose_schema`, `apply_schema_proposal`, `query_log`, `purge_query_log`.
+Tools: `query`, `record`, `record_series`, `revert_series_batch`, `get_entity`, `history`, `list_schemas`, `propose_schema`, `apply_schema_proposal`, `query_log`, `purge_query_log`.
 Natural-language interpretation uses the Claude Code CLI you are already logged into (`MNEMENTO_LLM=claude-cli`, default model `haiku`; set `MNEMENTO_MODEL` to change). With `MNEMENTO_LLM=none` only the fast path and structured `QuerySpec`s are answered.
 
 For Claude Desktop, add the same command to `claude_desktop_config.json`:
@@ -242,7 +243,7 @@ Layout: `src/mnemento/` — `storage/` (SQLite, WAL, append-only events), `schem
 LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이전트가 **사실을 한 장부에 기록**하고, **자연어로 물으면 정확한 조건 질의로, 근거와 함께** 답하게 해 주는 기록 관리 에이전트입니다.
 
 - **질문 처리**: ① 해석(정형 질문은 LLM 없이, 나머지는 LLM이 스키마 사전만 보고 `QuerySpec` 작성) → ② 질의(코드가 SQL 생성, LLM은 SQL을 쓰지 않음) → ③ 답변(근거 id 목록 + 표본 수·미완료 기간·결과 미확정 경고).
-- **기록**: 형식이 맞는 입력은 코드로 바로 검증·저장, 자유 서술은 LLM이 구조화한 뒤 같은 검증을 거칩니다. 대상이 여럿이거나 모르는 회사면 저장하지 않고 되묻습니다.
+- **기록**: 형식이 맞는 입력은 코드로 바로 검증·저장, 자유 서술은 LLM이 구조화한 뒤 같은 검증을 거칩니다. 대상이 여럿이거나 모르는 회사면 저장하지 않고 되묻습니다. 새 종류의 기록은 에이전트가 제안 스키마(`schema_draft`)와 함께 `record`하면 draft 종류로 바로 저장·조회되고, 사용자 승인(`apply_schema_proposal`) 뒤에 필수·enum·색인이 적용됩니다. 기존 종류와 이름이 비슷하면 먼저 묻습니다([ADR-0021](docs/adr/0021-new-record-types-over-mcp.md)).
 - **동일 회사 판정**: 사업자번호 → 정규화 이름·별칭. 비슷한 이름은 후보로만 제시하고 자동 병합하지 않습니다.
 - **계측**: 질문마다 단계별 시간, LLM 호출 수, 입력·출력 토큰, 비용을 기록합니다.
 - **조회 로그**: 모든 질문을 로컬 DB에 남깁니다(질문, 해석, QuerySpec, SQL과 파라미터, 결과 수, 근거 id, 경고, 시간, 비용). `query_log` 도구로 최근 질문, 경고·오류가 붙은 질문, 같은 질문인데 SQL이 달라진 것(`diverging`), 0건으로 끝난 답(`empty`)을 볼 수 있습니다. 기록에 없는 id로 거르는 해석은 0건으로 답하지 않고 원본 key·이름으로 읽거나 되묻고, 0건으로 끝난 해석은 캐시하지 않습니다([ADR-0020](docs/adr/0020-id-filters-and-empty-plans.md)). 최대 10,000행 또는 50MB, `MNEMENTO_QUERY_LOG=off`로 끕니다([ADR-0015](docs/adr/0015-query-log.md)).

@@ -131,6 +131,8 @@ def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], 
     out = []
     for s in schemas:
         out.append(f"* {s.name}: {s.description}")
+        if s.is_draft:
+            out.append("  NEW TYPE, not approved yet: every field below is as stored (draft)")
         if s.kind == "series":
             out.append(f"  SERIES (QuerySpec source=series): one point per {' + '.join(s.series_key)} and "
                        f"{s.time_field} ({s.granularity}); measures: {', '.join(s.measures)}")
