@@ -29,6 +29,8 @@ class ImportReport:
     updated: dict[str, int] = field(default_factory=dict)
     unchanged: dict[str, int] = field(default_factory=dict)
     vanished: list[str] = field(default_factory=list)  # in the ledger (from this importer) but not in the source
+    # ADR-0024: fields that not every source has for a record, or that the sources disagree on
+    mismatches: list[dict[str, Any]] = field(default_factory=list)
 
     def add(self, what: str, entity_type: str) -> None:
         bucket = getattr(self, what)
@@ -37,7 +39,7 @@ class ImportReport:
     def to_dict(self) -> dict[str, Any]:
         return {"created": self.created, "corrected": self.corrected, "updated": self.updated,
                 "unchanged": self.unchanged,
-                "vanished": self.vanished}
+                "vanished": self.vanished, "mismatches": self.mismatches}
 
 
 def upsert(ledger: Ledger, report: ImportReport, *, entity_type: str, entity_id: str, doc: dict[str, Any],
@@ -81,3 +83,32 @@ def report_vanished(ledger: Ledger, report: ImportReport, entity_types: list[str
                 continue
             if any(ev.kind == "created" and ev.by == by for ev in ledger.history(e.id)):
                 report.vanished.append(e.id)
+
+
+def combine(ledger: Ledger, report: ImportReport, *, entity_id: str, field: str, by_source: dict[str, Any],
+            how: str = "first", now: str) -> Any:
+    """One field kept in several source files (ADR-0024). `by_source` maps each source to its value, None when that
+    source does not have the record or the field. Returns the value to store:
+      first — the first source (in the given order) that has a value
+      any   — True if any source says True (flags such as "observe only")
+      union — the union of the lists, in order
+    When a source lacks the value or the sources disagree, the import report lists it and the ledger remembers it,
+    so answers that use the field can say "based on M of N sources"; when all agree the note is cleared."""
+    if how not in ("first", "any", "union"):
+        raise ValueError("how must be first, any or union")
+    present = {s: v for s, v in by_source.items() if v is not None}
+    if how == "any":
+        value = any(bool(v) for v in present.values()) if present else None
+    elif how == "union":
+        value = list(dict.fromkeys(x for v in present.values() for x in (v if isinstance(v, list) else [v]))) \
+            if present else None
+    else:
+        value = next(iter(present.values()), None)
+    distinct = {repr(v) for v in present.values()}
+    if len(present) < len(by_source) or len(distinct) > 1:
+        detail = {"by_source": {s: by_source[s] for s in by_source}, "how": how}
+        report.mismatches.append({"entity_id": entity_id, "field": field, **detail})
+        ledger.storage.put_coverage(entity_id, field, len(by_source), len(present), detail, now)
+    else:
+        ledger.storage.delete_coverage(entity_id, field)
+    return value

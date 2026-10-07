@@ -143,6 +143,17 @@ CREATE TABLE IF NOT EXISTS ingest_batches (
     changes     TEXT NOT NULL CHECK (json_valid(changes)),
     reverted_at TEXT
 );
+
+-- ADR-0024: a field of an imported record that not every source has, or that the sources disagree on
+CREATE TABLE IF NOT EXISTS source_coverage (
+    entity_id   TEXT NOT NULL,
+    field       TEXT NOT NULL,
+    sources     INTEGER NOT NULL,
+    present     INTEGER NOT NULL,
+    detail      TEXT NOT NULL CHECK (json_valid(detail)),
+    checked_at  TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field)
+);
 """
 
 
@@ -446,6 +457,17 @@ class SQLiteStorage(Storage):
 
     def mark_batch_reverted(self, batch_id: str, at: str) -> None:
         self._conn.execute("UPDATE ingest_batches SET reverted_at = ? WHERE id = ?", (at, batch_id))
+
+    def put_coverage(self, entity_id: str, field: str, sources: int, present: int, detail: dict[str, Any],
+                     checked_at: str) -> None:
+        self._conn.execute(
+            "INSERT INTO source_coverage (entity_id, field, sources, present, detail, checked_at) VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT (entity_id, field) DO UPDATE SET sources = excluded.sources, present = excluded.present, "
+            "detail = excluded.detail, checked_at = excluded.checked_at",
+            (entity_id, field, sources, present, _dumps(detail), checked_at))
+
+    def delete_coverage(self, entity_id: str, field: str) -> None:
+        self._conn.execute("DELETE FROM source_coverage WHERE entity_id = ? AND field = ?", (entity_id, field))
 
     def delete_all_entities(self) -> None:
         self._conn.execute("DELETE FROM entities")

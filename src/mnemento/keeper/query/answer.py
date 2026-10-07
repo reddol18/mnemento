@@ -101,6 +101,17 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
                 tag = " (unregistered draft field)" if schema.fields[fname].draft else ""
                 out.append(f"{missing} {spec.entity_type} record(s) have no {fname}{tag} and could not be "
                            f"counted by it.")
+        # ADR-0024: a field imported from several sources that do not all have it, or disagree on it
+        names = sorted(f for f in used if f in schema.fields)
+        if names:
+            marks = ", ".join("?" for _ in names)
+            for r in fetch(f"SELECT c.field AS field, COUNT(*) AS n, MAX(c.sources) AS s, MIN(c.present) AS m "
+                           f"FROM source_coverage c JOIN entities e ON e.id = c.entity_id WHERE e.type = ? "
+                           f"AND e.retracted = 0 AND c.field IN ({marks}) GROUP BY c.field ORDER BY c.field",
+                           [spec.entity_type, *names]):
+                out.append(f"{r['field']}: for {r['n']} {spec.entity_type} record(s) it comes from fewer than all "
+                           f"{r['s']} sources it is kept in, or the sources disagree (as few as {r['m']} of "
+                           f"{r['s']}); the import report lists them.")
         uses_event_time = spec.order_by_event is not None or any(
             m.agg == "avg_hours_between_events" for m in spec.measures) or any(
             p.event is not None for e in spec.elapsed for p in (e.start, e.end))

@@ -175,6 +175,13 @@ class Storage(ABC):
     def mark_batch_reverted(self, batch_id: str, at: str) -> None: ...
 
     @abstractmethod
+    def put_coverage(self, entity_id: str, field: str, sources: int, present: int, detail: dict[str, Any],
+                     checked_at: str) -> None: ...
+
+    @abstractmethod
+    def delete_coverage(self, entity_id: str, field: str) -> None: ...
+
+    @abstractmethod
     def delete_all_entities(self) -> None:
         """Drop the derived current-state table contents (used by full rebuilds/tests)."""
 
