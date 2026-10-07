@@ -302,3 +302,42 @@ def test_ingest_calls_run_without_extended_thinking():
     ing = Ingestor(Ledger.open(":memory:"), shared)
     assert ing.llm.max_thinking_tokens == 0 and shared.max_thinking_tokens is None
     ing.ledger.close()
+
+def test_a_series_whose_rows_name_different_things_becomes_an_entity(led):
+    """A model drafting a book log as a key-less series (dev_analysis, haiku) is corrected: titles differ per row."""
+    class BooksAsSeries(FakeLLM):
+        def complete_json(self, *, system, prompt, schema, stage):
+            r = super().complete_json(system=system, prompt=prompt, schema=schema, stage=stage)
+            if stage == "draft_schema":
+                r.data.update({"kind": "series", "series_key": [], "time_field": "read_on", "measures": ["rating"]})
+            return r
+
+    notes = "\n".join(f"- 2026-09-{d:02d} 책{d} 다 읽음, 별점 {d % 5 + 1}" for d in (1, 5, 9)) + "\n"
+
+    class Reads(BooksAsSeries):
+        def complete_json(self, *, system, prompt, schema, stage):
+            if stage == "classify":
+                chunks = [json.loads(l) for l in prompt.split("\n") if l.startswith("{")]
+                data = {"chunks": [{"id": c["id"], "kind": "data", "types": ["reading_note"], "reason": "book"}
+                                   for c in chunks]}
+                return LLMResult(data, LLMUsage(stage=stage, model="fake", input_tokens=1, output_tokens=1,
+                                                cost_usd=0.0, wall_ms=0.0, model_ms=0.0, overhead_ms=0.0))
+            if stage == "extract":
+                chunks = [json.loads(l) for l in prompt.split("\n") if l.startswith("{")]
+                recs = []
+                for c in chunks:
+                    d = re.search(r"\d{4}-\d{2}-\d{2}", c["text"]).group(0)
+                    title = re.search(r"(책\d+)", c["text"]).group(1)
+                    stars = re.search(r"별점 (\d)", c["text"]).group(1)
+                    recs.append({"chunk": c["id"], "type": "reading_note", "values": [
+                        {"field": "title", "value": title, "quote": title},
+                        {"field": "read_on", "value": d, "quote": d},
+                        {"field": "rating", "value": int(stars), "quote": f"별점 {stars}"}]})
+                return LLMResult({"records": recs}, LLMUsage(stage=stage, model="fake", input_tokens=1,
+                                                             output_tokens=1, cost_usd=0.0, wall_ms=0.0, model_ms=0.0,
+                                                             overhead_ms=0.0))
+            return super().complete_json(system=system, prompt=prompt, schema=schema, stage=stage)
+
+    pv = Ingestor(led, Reads()).preview([("books.md", notes)], now=NOW)
+    assert pv["new_types"]["reading_note"].get("kind", "entity") == "entity"
+    assert len([r for r in pv["records"] if r["type"] == "reading_note"]) == 3

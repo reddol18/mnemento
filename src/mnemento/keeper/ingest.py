@@ -252,6 +252,8 @@ SCHEMA_SYSTEM = """You draft a schema for a new record type from example chunks 
 - kind series for numbers measured again and again over days (prices, weight, sleep hours); then give time_field,
   measures (numeric fields) and series_key = the field that tells several series apart (e.g. which security) — an
   empty series_key when the notes track a single thing (my own weight). Otherwise kind entity and empty series fields.
+  When each row names a different thing (a book title, an episode, a restaurant), it is an entity even if it has a
+  date and a number.
 Draft only what the examples show."""
 
 EXTRACT_SCHEMA = {
@@ -505,6 +507,16 @@ class Ingestor:
             pv.ambiguous.append({"what": "extraction", "span": s, "source": c.source, "lines": [c.start, c.end],
                                  "reason": "the extraction call failed; run the preview again to retry"})
         self._check_and_merge(pv, raw, by_id, type_defs)
+        # a "series" whose rows each name a different thing (a title, a place) is a list of records (ADR-0016 / #15)
+        for t, d in list(pv.new_types.items()):
+            if d.get("kind") != "series":
+                continue
+            rows = [r["doc"] for r in pv.records if r["type"] == t]
+            texty = [f for f, fd in d["fields"].items() if fd["type"] == "string" and not fd.get("format")
+                     and f not in d.get("series_key", [])]
+            if rows and any(len({str(x.get(f)) for x in rows if x.get(f) is not None}) > len(rows) / 2 for f in texty):
+                pv.new_types[t] = {k: v for k, v in d.items() if k not in ("kind", "series_key", "time_field",
+                                                                             "granularity", "measures")}
         # a new type whose extracted records stay below the minimum is not proposed either
         counts: dict[str, int] = {}
         for r in pv.records:
