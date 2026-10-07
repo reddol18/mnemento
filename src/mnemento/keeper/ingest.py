@@ -407,7 +407,9 @@ class Ingestor:
         n = sum(len(split(text, name)) for name, text in sources)
         model = "opus" if "opus" in str(getattr(self.llm, "model", "")) else "haiku"
         cost = CALL_COST[model]
-        calls = {"classify": -(-n // self.batch_size), "draft_schema": MAX_NEW_TYPES,
+        # a new type needs min_support data chunks, so there can be no more drafts than that allows
+        drafts = min(MAX_NEW_TYPES, int(n * DATA_SHARE) // max(self.min_support, 1))
+        calls = {"classify": -(-n // self.batch_size), "draft_schema": drafts,
                  "extract": -(-int(n * DATA_SHARE) // self.batch_size)}
         usd = sum(calls[s] * cost[s] for s in calls)
         return {"chunks": n, "calls": calls, "model": model, "estimate_usd": round(usd, 2),
