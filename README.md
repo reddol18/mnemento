@@ -83,6 +83,37 @@ one row per key and time, in batches that can be reverted as a whole ([ADR-0016]
   (5/7 each when the right value is anywhere in the answer). The misses are honest gaps: a difference of two periods
   in one number, and counting days *without* a point, are not expressible yet; a right change listed after first/last
   is graded on the first measure ([dev](bench/results/series-dev-2/report.md), [unseen](bench/results/series-unseen-1/report.md)).
+- **Records joined with a series, as of a date** ([ADR-0022](docs/adr/0022-asof-values-and-arithmetic.md)): `values`
+  computes per record a series value at a date (`asof`: the latest point at or before today, a date, or the record's own
+  date such as the trade day) and arithmetic on it (`expr`), e.g. unrealized P/L = units × last close − invested. Only
+  along a declared reference (holding.security_id and price.security_id both point at `security`); warnings for records
+  without a price and for stale prices. Unseen price questions (5, run once): strict M-haiku 4/5, M-opus 2/5; 4/5 each
+  counting the right number among the returned values ([report](bench/results/series-unseen-2/report.md)). Used locally
+  on real holdings: the P/L of every held position equals a direct calculation from the source data.
+
+## From text memory to a ledger (mixed-text ingest, fictional example)
+
+Memory files mix facts that belong in several tables with rules and prose. `ingest_preview` reads text or a folder of
+`.md` files and shows what it would record; nothing is written until the user agrees and `ingest_apply` writes exactly
+that preview as one batch, which `ingest_revert` takes back ([ADR-0017](docs/adr/0017-mixed-text-ingest.md),
+[ADR-0025](docs/adr/0025-mixed-text-ingest-implementation.md)).
+
+```
+- 2026-07-30 가상바이오 1회차 3주 12,340원 매수 — 수출 반등이 근거   -> trade + decision (siblings, one chunk)
+- 2026-07-30 가상바이오 1회차 3주 12,340원 매수   (again, elsewhere)  -> the same trade: one record, two spans
+- 2026-09-03 샘플전자 … 5,200원 매도 / … 5,300원 매도                  -> conflict: asked, never picked
+매수는 세 번에 나눠서 한다.                                            -> not data: kept as a line reference only
+| 2026-09-01 | 72.4 |  (a weight table)                              -> new series type, proposed with its schema
+```
+
+- Every stored value carries a quote from the note, and code checks that the value comes from it (numbers, dates,
+  enum labels, text); values without evidence are dropped and listed. References are linked only on a certain match;
+  an unknown name is asked about. New entity types become draft types (approved later, ADR-0021).
+- Evaluation on fictional, labelled notes ([bench/ingest_eval.py](bench/ingest_eval.py)). **Unseen** (3 files,
+  25 chunks, written by someone who did not see the code, run once): classification 25/25 for both models, field
+  precision/recall 24/24 (M-haiku) and 23/23, 23/24 (M-opus), **values not in the source 0**, wrong merges 0, siblings
+  1/1, conflicts 1/1; new-type kind 1/2 for both (a workout log read as a series)
+  ([report](bench/results/ingest-unseen-1/report.md)).
 
 ## Benchmark (v3, latest)
 

@@ -234,6 +234,7 @@
  ],
  "label_notes": [
   "2026-10-07 aligned with the splitter and ADR-0017 before any run: table header and separator rows are context, not chunks (4 keys removed); a fact with a conflicting value is reported as a conflict and not written, so the 08-12 trade is not an expected record and its sibling pair with the 08-12 decision cannot form (siblings emptied); the conflict label stays.",
-  "2026-10-07 the directing session added line 22 (a trade and its reason in one sentence) to keep a sibling case; still not run by any system."
+  "2026-10-07 the directing session added line 22 (a trade and its reason in one sentence) to keep a sibling case; still not run by any system.",
+  "USED UP by run ingest-unseen-1 (2026-10-07)."
  ]
 }
