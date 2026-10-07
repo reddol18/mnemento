@@ -1,0 +1,31 @@
+name: Feature request
+description: A new capability or an improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This tracker is public.** Use fictional examples only.
+        Design decisions are recorded as ADRs in `docs/adr/` — link the ones this touches.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't be done (or done well) today? An example question or workflow helps.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change. Alternatives you considered.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Tests, evaluation numbers or docs that show it works.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [query, schema, ingest, importer, mcp, storage, bench, other]

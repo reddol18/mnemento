@@ -1,0 +1,39 @@
+name: Bug report
+description: A wrong answer, a crash, or behaviour that differs from the docs/ADRs
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This tracker is public.** Do not paste personal records, real names, account data or local file paths.
+        Reproduce with fictional data (e.g. the generators under `examples/` or the evaluation set) and describe the shape of the problem.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The question or tool call, what Mnemento returned, and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Minimal steps with fictional data — schema, records, question / MCP call.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Query log excerpt (optional)
+      description: The relevant `query_log` fields (path, QuerySpec, SQL, result count, warnings). Remove any real values first.
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: e.g. 304e273
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [query, schema, ingest, importer, mcp, storage, bench, other]
