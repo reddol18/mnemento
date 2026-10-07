@@ -90,6 +90,7 @@ class QueryPipeline:
              hint: str | None) -> KeeperAnswer:
         trace = Trace()
         schemas = self._schemas()
+        to_cache: QuerySpec | None = None
 
         # ---- ① interpretation -------------------------------------------------------------
         with trace.stage("interpret"):
@@ -139,18 +140,24 @@ class QueryPipeline:
                                                        options=out.options), trace)
                     spec = out
                     if self.cache is not None and hint is None:
-                        self.cache.store(question, spec, schemas, now)
+                        to_cache = spec  # stored only once it has found something (issue #5)
 
         # ---- ② query definition -----------------------------------------------------------
         with trace.stage("resolve"):
-            spec, resolved_names, clar = self._resolve_names(spec)
+            spec, id_notes, clar = self._check_ids(spec)
+            if clar is None:
+                spec, resolved_names, clar = self._resolve_names(spec)
+            else:
+                resolved_names = {}
             if clar is not None:
                 return self._done(KeeperAnswer("clarify", question, clar.question, spec=dump_spec(spec),
                                                options=clar.options, resolved={"names": resolved_names}),
                                   trace)
         schema = EVENT_SCHEMA if spec.source == "events" else schemas[spec.entity_type]
         if spec.source == "series":
-            return self._done(self._series(question, spec, schema, now, trace, narrate), trace)
+            ans = self._series(question, spec, schema, now, trace, narrate)
+            self._store_plan(question, to_cache, ans, schemas, now)
+            return self._done(ans, trace)
         with trace.stage("compile"):
             compiled = compile_spec(spec, schema, now)
         with trace.stage("execute"):
@@ -159,7 +166,7 @@ class QueryPipeline:
         # ---- ③ answer ---------------------------------------------------------------------
         with trace.stage("answer"):
             notes = warnings_for(spec, schema, result, now, compiled.resolved_dates,
-                                 self.ledger.storage.fetch_all)
+                                 self.ledger.storage.fetch_all) + id_notes
             for name, info in resolved_names.items():
                 if info["matches"]:
                     notes.append(f"'{name}' matched {info['matches']} by {info['rule']}.")
@@ -184,7 +191,62 @@ class QueryPipeline:
                     trace.add_llm(usage)
                 if prose:
                     ans.text = prose + "\n\n" + ans.text
+        self._store_plan(question, to_cache, ans, schemas, now)
         return self._done(ans, trace)
+
+    def _store_plan(self, question: str, spec: QuerySpec | None, ans: KeeperAnswer, schemas, now: datetime) -> None:
+        """Keep an interpreted plan only when it found something: a plan that answers 0 would be repeated for free and
+        without a warning even when the interpretation is what is wrong (issue #5). A real 0 is interpreted again."""
+        if spec is not None and self.cache is not None and ans.status == "answered" and (ans.result or {}).get("total"):
+            self.cache.store(question, spec, schemas, now)
+
+    def _check_ids(self, spec: QuerySpec) -> tuple[QuerySpec, list[str], Clarification | None]:
+        """Filters that compare record ids (the event log's entity_id, reference fields) must name recorded records.
+        A value that is not an id is read as the importer's source key, or as a name/identifier of that record type;
+        otherwise the question is asked back — never answered with a silent 0 (issue #5)."""
+        if spec.source == "series":
+            return spec, [], None
+        schema = EVENT_SCHEMA if spec.source == "events" else self.ledger.schemas.get(spec.entity_type)
+        notes: list[str] = []
+        filters = []
+        for f in spec.filters:
+            target = (spec.entity_type if spec.source == "events" and f.field == "entity_id"
+                      else schema.fields[f.field].ref if spec.source == "entities" and f.field in schema.fields
+                      else None)
+            if target is None or f.op not in ("eq", "ne", "in", "not_in"):
+                filters.append(f)
+                continue
+            values = f.value if isinstance(f.value, list) else [f.value]
+            ids: list[str] = []
+            for v in values:
+                if not isinstance(v, str) or self.ledger.get_entity(v) is not None:
+                    ids.append(v)
+                    continue
+                found, how = self._find_ids(target, v)
+                if not found:
+                    return spec, notes, Clarification(
+                        f"'{v}' is not the id of any recorded {target}, nor its source key or name. Which {target} "
+                        f"do you mean?", [])
+                notes.append(f"'{v}' is not a record id; read as {', '.join(found)} ({how}).")
+                ids += found
+            if len(ids) == 1 and f.op in ("eq", "ne"):
+                filters.append(f.model_copy(update={"value": ids[0]}))
+            else:
+                filters.append(f.model_copy(update={"op": "in" if f.op in ("eq", "in") else "not_in", "value": ids}))
+        return spec.model_copy(update={"filters": filters}), notes, None
+
+    def _find_ids(self, entity_type: str, value: str) -> tuple[list[str], str]:
+        rows = self.ledger.storage.fetch_all(
+            "SELECT id FROM entities WHERE type = ? AND json_extract(doc, '$.source_key') = ? ORDER BY id",
+            [entity_type, value])
+        if rows:
+            return [r["id"] for r in rows], "source key"
+        if entity_type in self.ledger.schemas.names():
+            res = IdentityResolver(self.ledger, entity_type).resolve(value)
+            if res.status == "match" or (res.status == "ambiguous" and res.rule is not None
+                                         and (res.rule == "business_number" or res.rule.startswith("identifier:"))):
+                return list(res.matches), f"matched by {res.rule}"
+        return [], ""
 
     def _series(self, question: str, spec: QuerySpec, schema, now: datetime, trace: Trace,
                 narrate: bool) -> KeeperAnswer:

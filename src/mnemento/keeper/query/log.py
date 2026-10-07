@@ -26,7 +26,7 @@ KEEP_RATIO = 0.2
 MAX_EVIDENCE = 200
 CHECK_EVERY = 50  # inserts between retention checks
 
-VIEWS = ("recent", "warnings", "diverging", "errors", "path")
+VIEWS = ("recent", "warnings", "diverging", "errors", "path", "empty")
 
 
 class QueryLog:
@@ -156,9 +156,11 @@ class QueryLog:
             where.append("warnings <> '[]'")
         elif view == "errors":
             where.append("status = 'error'")
-        elif view == "path":
-            if not path:
-                raise ValueError("view 'path' needs path (fast | cache | llm | structured | entity | none)")
+        elif view == "empty":  # answered with nothing found: a wrong reading looks exactly like this (issue #5)
+            where.append("status = 'answered' AND result_total = 0")
+        elif view == "path" and not path:
+            raise ValueError("view 'path' needs path (fast | cache | llm | structured | entity | none)")
+        if path and view in ("path", "empty"):
             where.append("path = ?"); params.append(path)
         sql = "SELECT * FROM query_log" + (" WHERE " + " AND ".join(where) if where else "") + \
               " ORDER BY id DESC LIMIT ?"

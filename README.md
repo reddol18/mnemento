@@ -34,7 +34,7 @@ LLM agents forget between sessions. Mnemento gives them one place to **write fac
 - Anything outside the schema dictionary is rejected (and the model is asked once more), so it cannot query fields that do not exist.
 - When a question or a write is ambiguous (which company? which record?), the Keeper stores nothing and returns `clarify` with options.
 - Each answer carries a trace: per-stage time, LLM calls, input/output tokens and cost.
-- Every question is kept in a local query log (question, interpretation, QuerySpec, SQL and parameters, result count, evidence ids, warnings, timings, cost). The `query_log` tool shows recent questions, those with warnings or errors, and questions whose SQL changed between askings (`diverging`). Bounded to 10,000 rows / 50 MB; `MNEMENTO_QUERY_LOG=off` turns it off ([ADR-0015](docs/adr/0015-query-log.md)).
+- Every question is kept in a local query log (question, interpretation, QuerySpec, SQL and parameters, result count, evidence ids, warnings, timings, cost). The `query_log` tool shows recent questions, those with warnings or errors, questions whose SQL changed between askings (`diverging`), and answers that found nothing (`empty`). An id filter naming no record is read as the import's source key or the record's name, or asked back — never answered with a silent 0 — and plans that found nothing are not cached ([ADR-0020](docs/adr/0020-id-filters-and-empty-plans.md)). Bounded to 10,000 rows / 50 MB; `MNEMENTO_QUERY_LOG=off` turns it off ([ADR-0015](docs/adr/0015-query-log.md)).
 
 ## Beyond job search: investment records (fictional example)
 
@@ -245,7 +245,7 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
 - **기록**: 형식이 맞는 입력은 코드로 바로 검증·저장, 자유 서술은 LLM이 구조화한 뒤 같은 검증을 거칩니다. 대상이 여럿이거나 모르는 회사면 저장하지 않고 되묻습니다.
 - **동일 회사 판정**: 사업자번호 → 정규화 이름·별칭. 비슷한 이름은 후보로만 제시하고 자동 병합하지 않습니다.
 - **계측**: 질문마다 단계별 시간, LLM 호출 수, 입력·출력 토큰, 비용을 기록합니다.
-- **조회 로그**: 모든 질문을 로컬 DB에 남깁니다(질문, 해석, QuerySpec, SQL과 파라미터, 결과 수, 근거 id, 경고, 시간, 비용). `query_log` 도구로 최근 질문, 경고·오류가 붙은 질문, 같은 질문인데 SQL이 달라진 것(`diverging`)을 볼 수 있습니다. 최대 10,000행 또는 50MB, `MNEMENTO_QUERY_LOG=off`로 끕니다([ADR-0015](docs/adr/0015-query-log.md)).
+- **조회 로그**: 모든 질문을 로컬 DB에 남깁니다(질문, 해석, QuerySpec, SQL과 파라미터, 결과 수, 근거 id, 경고, 시간, 비용). `query_log` 도구로 최근 질문, 경고·오류가 붙은 질문, 같은 질문인데 SQL이 달라진 것(`diverging`), 0건으로 끝난 답(`empty`)을 볼 수 있습니다. 기록에 없는 id로 거르는 해석은 0건으로 답하지 않고 원본 key·이름으로 읽거나 되묻고, 0건으로 끝난 해석은 캐시하지 않습니다([ADR-0020](docs/adr/0020-id-filters-and-empty-plans.md)). 최대 10,000행 또는 50MB, `MNEMENTO_QUERY_LOG=off`로 끕니다([ADR-0015](docs/adr/0015-query-log.md)).
 - **두 번째 도메인(투자 기록, 가상 예시)**: 질의 코드는 그대로 두고 스키마만 더해 투자 기록(종목·체결·판단)을 담습니다([examples/investment](examples/investment)). 질문에 종목 코드·사업자번호 같은 식별자가 있으면 그것으로 먼저 찾습니다([ADR-0019](docs/adr/0019-identifier-fields.md)). 스키마 간 관계 설명으로 같은 사건을 두 번 세지 않습니다. `mnemento.importer`로 다른 곳에 두는 파일을 여러 번 가져와도 안전합니다(바뀐 사실은 정정, 바뀐 상태는 원본 날짜의 갱신, 사라진 기록은 보고만). 작성자의 실제 투자 기록으로 로컬에서 쓰고 있으며, 그 데이터는 저장소에 없습니다.
 
 - **벤치마크(v3, 최신)**: opus 기준으로 **개발에 쓰지 않은 문항의 정확도는 Claude Code 자체 메모리와 같다**(100건 27/27 동률, 1,000건 24/27 동률). 1,000건에서는 **6배 빠르고 비용은 1/8**이다. 개발 문항에서 앞선 부분은 그 문항으로 고쳤기 때문에 과적합일 수 있다. 남은 약점은 경과 시간 조건 필터를 표현할 수 없다는 점과 모호한 기준이다(측정 이후 [ADR-0018](docs/adr/0018-elapsed-filter-and-vague-defaults.md)로 보완. W5가 계기였으므로 개선 효과는 새 미노출 문항으로 측정해야 하며, 아직 측정하지 않았다). 문항별 결과는 [여기](docs/bench/results-by-question.md).

@@ -99,7 +99,9 @@ def create_server(keeper: Keeper) -> MCPServer:
 
         view: recent (last n) | warnings (answers that carried warnings) | errors |
               diverging (the same question pattern answered with different SQL — the interpretation moved) |
-              path (only questions answered by `path`: fast | cache | llm | structured | entity | none).
+              path (only questions answered by `path`: fast | cache | llm | structured | entity | none) |
+              empty (answers that found nothing — check whether the reading was wrong; with `path`, e.g.
+              cache, only those).
         since: only entries asked at or after this time (ISO 8601).
         """
         try:
