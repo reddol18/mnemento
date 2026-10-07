@@ -1,0 +1,50 @@
+[
+ {
+  "scale": 100,
+  "system": "M-haiku",
+  "n": 28,
+  "dev": [
+   26,
+   28
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 26.24720357142857,
+  "time_p95": 56.996300000000005,
+  "time_mean_no_overhead": 24.60690357142857,
+  "time_p95_no_overhead": 55.53170000000001,
+  "llm_calls_per_q": 0.9642857142857143,
+  "in_per_q": 8093.071428571428,
+  "in_per_q_no_overhead": 5657.285714285715,
+  "cache_read_per_q": 5475.785714285715,
+  "out_per_q": 2686.464285714286,
+  "cost_per_q": 0.01920482857142857,
+  "no_answer": 0
+ },
+ {
+  "scale": 100,
+  "system": "M-opus",
+  "n": 28,
+  "dev": [
+   28,
+   28
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 5.867767857142858,
+  "time_p95": 11.1072,
+  "time_mean_no_overhead": 3.968882142857143,
+  "time_p95_no_overhead": 9.3002,
+  "llm_calls_per_q": 0.9642857142857143,
+  "in_per_q": 9657.42857142857,
+  "in_per_q_no_overhead": 7221.642857142857,
+  "cache_read_per_q": 6942.928571428572,
+  "out_per_q": 352.7857142857143,
+  "cost_per_q": 0.030152585714285713,
+  "no_answer": 0
+ }
+]
