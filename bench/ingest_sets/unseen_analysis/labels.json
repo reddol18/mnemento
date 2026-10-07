@@ -1,24 +1,123 @@
 {
-  "chunks": {
-    "reading-notes.md": {"1": "not_data", "8": "data", "9": "data", "11": "not_data", "13": "not_data", "15": "not_data"},
-    "monthly-log.md": {"1": "not_data", "8": "data", "9": "data", "13": "data", "14": "data", "15": "data", "19": "ambiguous", "21": "ambiguous", "23": "not_data", "25": "not_data"}
+ "chunks": {
+  "reading-notes.md": {
+   "1": "not_data",
+   "8": "data",
+   "9": "data",
+   "11": "not_data",
+   "13": "not_data",
+   "15": "not_data"
   },
-  "records": [],
-  "conflicts": [],
-  "siblings": [],
-  "new_types": [
-    {"kind": "entity",
-     "lines": [["reading-notes.md", 8], ["reading-notes.md", 9], ["monthly-log.md", 8], ["monthly-log.md", 9]],
-     "values": [["2026-09-03", "데이터 중심 애플리케이션 설계", 5],
-                ["2026-09-14", "클린 아키텍처", 4],
-                ["2026-09-21", "이펙티브 타입스크립트", 4],
-                ["2026-09-28", "실용주의 프로그래머", 5]]},
-    {"kind": "entity",
-     "lines": [["monthly-log.md", 13], ["monthly-log.md", 14], ["monthly-log.md", 15]],
-     "values": [["2026-09-05", "가나면옥", "냉면", 15000],
-                ["2026-09-13", "다라반점", "멘보샤", 22000],
-                ["2026-09-26", "마바곰탕", "곰탕", 17000]]}
+  "monthly-log.md": {
+   "1": "not_data",
+   "8": "data",
+   "9": "data",
+   "13": "data",
+   "14": "data",
+   "15": "data",
+   "19": "ambiguous",
+   "21": "ambiguous",
+   "23": "not_data",
+   "25": "not_data"
+  }
+ },
+ "records": [],
+ "conflicts": [],
+ "siblings": [],
+ "new_types": [
+  {
+   "kind": "entity",
+   "lines": [
+    [
+     "reading-notes.md",
+     8
+    ],
+    [
+     "reading-notes.md",
+     9
+    ],
+    [
+     "monthly-log.md",
+     8
+    ],
+    [
+     "monthly-log.md",
+     9
+    ]
+   ],
+   "values": [
+    [
+     "2026-09-03",
+     "데이터 중심 애플리케이션 설계",
+     5
+    ],
+    [
+     "2026-09-14",
+     "클린 아키텍처",
+     4
+    ],
+    [
+     "2026-09-21",
+     "이펙티브 타입스크립트",
+     4
+    ],
+    [
+     "2026-09-28",
+     "실용주의 프로그래머",
+     5
+    ]
+   ]
+  },
+  {
+   "kind": "entity",
+   "lines": [
+    [
+     "monthly-log.md",
+     13
+    ],
+    [
+     "monthly-log.md",
+     14
+    ],
+    [
+     "monthly-log.md",
+     15
+    ]
+   ],
+   "values": [
+    [
+     "2026-09-05",
+     "가나면옥",
+     "냉면",
+     15000
+    ],
+    [
+     "2026-09-13",
+     "다라반점",
+     "멘보샤",
+     22000
+    ],
+    [
+     "2026-09-26",
+     "마바곰탕",
+     "곰탕",
+     17000
+    ]
+   ]
+  }
+ ],
+ "one_offs": [
+  [
+   "monthly-log.md",
+   19
   ],
-  "one_offs": [["monthly-log.md", 19], ["monthly-log.md", 21]],
-  "max_new_types": 2
+  [
+   "monthly-log.md",
+   21
+  ]
+ ],
+ "max_new_types": 2,
+ "label_notes": [
+  "USED UP by run ingest-15-unseen (2026-10-07)."
+ ]
 }
