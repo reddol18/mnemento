@@ -118,3 +118,29 @@ def test_a_question_about_holdings_is_shown_the_price_series(k):
 
     schemas = {n: k.ledger.schemas.get(n) for n in k.ledger.schemas.names()}
     assert "price" in [s.name for s in select_schemas("보유 종목 평가 손익 알려줘", schemas)]
+
+
+def test_a_series_key_that_references_records_can_be_filtered_by_name(k):
+    ans = k.ask("가상바이오 9월 평균 종가", now=NOW, spec={
+        "source": "series", "entity_type": "price", "mode": "aggregate",
+        "filters": [{"field": "security_id", "op": "name_is", "value": "가상바이오"},
+                    {"field": "price_on", "op": "gte", "value": "2026-09-01"}],
+        "measures": [{"name": "avg_close", "agg": "avg", "field": "close"}]})
+    assert ans.status == "answered"
+    assert ans.result["groups"][0]["measures"]["avg_close"] == sum(10000 + d * 100 for d in range(1, 31)) / 30
+
+
+def test_a_value_nobody_uses_is_rejected(k):
+    schemas = {n: k.ledger.schemas.get(n) for n in k.ledger.schemas.names()}
+    spec = QuerySpec.model_validate({"entity_type": "holding", "mode": "aggregate", "values": PNL_VALUES,
+                                     "group_by": [{"field": "security_id"}],
+                                     "measures": [{"name": "u", "agg": "sum", "field": "units"}]})
+    assert any("'pnl' is not used" in e for e in validate_spec(spec, schemas))
+
+
+def test_a_question_about_prices_is_shown_the_records_that_point_at_securities(k):
+    from mnemento.keeper.query.interpret import select_schemas
+
+    schemas = {n: k.ledger.schemas.get(n) for n in k.ledger.schemas.names()}
+    names = [s.name for s in select_schemas("샘플전자 산 날 종가는?", schemas)]
+    assert {"price", "trade", "holding"} <= set(names)

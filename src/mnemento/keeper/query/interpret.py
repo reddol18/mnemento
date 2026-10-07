@@ -194,6 +194,13 @@ def select_schemas(question: str, schemas: dict[str, SchemaDef]) -> list[SchemaD
         if other not in picked and s.kind == "series" and len(s.series_key) == 1 \
                 and s.fields[s.series_key[0]].ref in refs:
             picked.append(other)
+    # and the other way: a mentioned series brings the records that point at what it is keyed by ("the close on the
+    # day I bought it" needs the trade; dev P4)
+    keyed = {s.fields[s.series_key[0]].ref for n in mentioned if (s := schemas[n]).kind == "series"
+             and len(s.series_key) == 1} - {None}
+    for other, s in schemas.items():
+        if other not in picked and s.kind == "entity" and any(fd.ref in keyed for fd in s.fields.values()):
+            picked.append(other)
     return [schemas[n] for n in picked]
 
 

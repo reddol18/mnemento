@@ -256,3 +256,14 @@ def test_series_eval_answer_keys_match_reference_specs():
     from bench.series_eval import check
 
     assert check() == 0
+
+
+def test_series_eval_set_grader():
+    from bench.series_eval import QUESTIONS, grade
+
+    q = next(q for q in QUESTIONS if q.grader == "set")
+    data = None
+    assert grade(q, data, {"items": [["hold_b", "sec_900002", "샘플전자"]]}) == (True, "ok")
+    assert grade(q, data, {"items": [["hold_b", "sec_900002"], ["hold_c", "sec_900003"]]})[0]  # allowed extra
+    assert not grade(q, data, {"items": [["hold_b"], ["hold_a", "sec_900001"]]})[0]  # wrong extra
+    assert not grade(q, data, {"items": []})[0]

@@ -240,6 +240,53 @@ QUESTIONS += [  # task 0008 step 5 (issue #2), dev — written with the code
 ]
 
 
+def _asof(sid: str, at: str) -> float | None:
+    return _last_close(sid, at)
+
+
+# Unseen price questions: written by the directing session on 2026-10-07 without seeing the code (wording as given;
+# ids renamed Q1-Q5 because P1-P4 are dev). Not run by any system before their measurement.
+QUESTIONS += [
+    SQ("Q1", "unseen", "실계좌에 있는 종목들, 9월 18일 기준 평가금액 다 합치면 얼마야?", "number",
+       lambda d: sum(h["units"] * _asof(h["security_id"], "2026-09-18") for h in MARKET.holdings.values()
+                     if h["account"] == "real" and _asof(h["security_id"], "2026-09-18") is not None),
+       {"entity_type": "holding", "mode": "aggregate", "filters": [_eq("account", "real")],
+        "values": [{"name": "c", "asof": {"field": "security_id", "series": "price", "measure": "close",
+                                          "at": "2026-09-18"}},
+                   {"name": "mv", "expr": {"op": "mul", "args": ["units", "c"]}}],
+        "measures": [{"name": "total", "agg": "sum", "field": "mv"}]}, tolerance=0.5,
+       note="warning for the record without a price expected, not graded"),
+    SQ("Q2", "unseen", "샘플전자 보유분은 지금 수익률이 몇 %야?", "number",
+       lambda d: (30 * _asof("sec_900002", "2026-09-27") - 160000) / 160000 * 100,
+       {"entity_type": "holding", "mode": "list", "filters": [_eq("security_id", "sec_900002")],
+        "values": [{"name": "c", "asof": {"field": "security_id", "series": "price", "measure": "close"}},
+                   {"name": "mv", "expr": {"op": "mul", "args": ["units", "c"]}},
+                   {"name": "gain", "expr": {"op": "sub", "args": ["mv", "invested"]}},
+                   {"name": "ratio", "expr": {"op": "div", "args": ["gain", "invested"]}},
+                   {"name": "pct", "expr": {"op": "mul", "args": ["ratio", 100]}}]}, tolerance=0.05,
+       note="stale-price warning expected, not graded"),
+    SQ("Q3", "unseen", "가상바이오는 내가 산 날 이후로 종가가 얼마나 올랐어? 내렸으면 음수로.", "number",
+       lambda d: _asof("sec_900001", "2026-09-27") - _asof("sec_900001", "2026-08-12"),
+       {"entity_type": "trade", "mode": "list", "filters": [_eq("security_id", "sec_900001")],
+        "values": [{"name": "now_c", "asof": {"field": "security_id", "series": "price", "measure": "close"}},
+                   {"name": "then_c", "asof": {"field": "security_id", "series": "price", "measure": "close",
+                                               "at": "traded_at"}},
+                   {"name": "diff", "expr": {"op": "sub", "args": ["now_c", "then_c"]}}]}, tolerance=0.5),
+    SQ("Q4", "unseen", "보유 종목 중에 가격이 일주일 넘게 안 들어온 건 뭐야?", "set",
+       lambda d: {"required": [["샘플전자", "sec_900002", "hold_b"]], "allowed": ["모의펀드", "sec_900003", "hold_c"]},
+       None, note="filtering on the age of an as-of point is not expressible (only in the warning); extra 900003 "
+                  "allowed by the question's author"),
+    SQ("Q5", "unseen", "모의계좌에 있는 거 9월 1일 종가로 평가하면 넣은 돈 대비 얼마 벌었거나 잃었어?", "number",
+       lambda d: 30 * _asof("sec_900002", "2026-09-01") - 160000,
+       {"entity_type": "holding", "mode": "aggregate", "filters": [_eq("account", "paper")],
+        "values": [{"name": "c", "asof": {"field": "security_id", "series": "price", "measure": "close",
+                                          "at": "2026-09-01"}},
+                   {"name": "mv", "expr": {"op": "mul", "args": ["units", "c"]}},
+                   {"name": "pnl", "expr": {"op": "sub", "args": ["mv", "invested"]}}],
+        "measures": [{"name": "total", "agg": "sum", "field": "pnl"}]}, tolerance=0.5),
+]
+
+
 def open_ledger(data: SeriesData) -> Ledger:
     led = Ledger.open(":memory:")
     led.schemas.register(WEIGHT_SCHEMA)
@@ -269,6 +316,10 @@ def to_answer(ans) -> dict[str, Any]:
     if res.get("mode") in ("count", "list"):
         out["number"] = res["total"]
         rows = res.get("rows") or []
+        labels = res.get("labels") or {}
+        # set grader: every listed record with the names it can be known by (id, security, security name)
+        out["items"] = [sorted({r["id"], *([r["security_id"], labels.get(r["security_id"], "")]
+                                           if r.get("security_id") else [])} - {""}) for r in rows]
         values = [v["name"] for v in (ans.spec or {}).get("values") or []]
         if res.get("mode") == "list" and values:  # computed columns: the last one is the asked value, per record
             key = lambda r: r.get("security_id") or r["id"]  # noqa: E731
@@ -307,6 +358,14 @@ def grade(q: SQ, data: SeriesData, got: dict[str, Any]) -> tuple[bool, str]:
         if any(abs(float(n) - float(t)) <= q.tolerance + 1e-9 for t in targets):
             return True, "ok"
         return False, f"number {n} != {exp}"
+    if q.grader == "set":  # every required item listed (any alias); extras only from the allowed list
+        items = got.get("items") or []
+        for alias in exp["required"]:
+            if not any(set(alias) & set(it) for it in items):
+                return False, f"missing {alias[0]}"
+        ok = {a for alias in exp["required"] for a in alias} | set(exp.get("allowed", []))
+        extra = [it for it in items if not set(it) & ok]
+        return (False, f"extra {extra[0]}") if extra else (True, "ok")
     if q.grader == "label":
         return (True, "ok") if got.get("label") in exp else (False, f"label {got.get('label')} not in {exp}")
     groups = got.get("groups") or {}
@@ -371,7 +430,7 @@ def run(model: str, which: str, run_id: str, ids: list[str] | None = None) -> No
             row = {"model": model, "id": q.id, "set": q.set, "question": q.text, "ok": ok, "why": why,
                    "expected": q.answer(data), "got": got, "status": ans.status, "spec": ans.spec,
                    "result": {**(ans.result or {}), "rows": ((ans.result or {}).get("rows") or [])[:20]},
-                   "warnings": ans.warnings, "cost_usd": cost, "ms": ans.trace["totals"]["total_ms"]}
+                   "warnings": ans.warnings, "text": ans.text[:600], "cost_usd": cost, "ms": ans.trace["totals"]["total_ms"]}
             fh.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
             fh.flush()
             print(f"M-{model} {q.id}: {'OK ' if ok else 'BAD'} {why:40} {row['ms'] / 1000:.1f}s ${cost:.3f}")

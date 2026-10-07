@@ -351,6 +351,12 @@ def _check_values(spec: QuerySpec, schema: SchemaDef, schemas: dict[str, SchemaD
                         a not in schema.fields or schema.fields[a].type not in _NUMERIC):
                     errs.append(f"{where}: {a!r} is not a numeric field or an earlier value")
         seen.add(v.name)
+    # a value nobody looks at is a misreading (dev P2: the P/L was computed but the answer showed only the units)
+    used = set(spec.list_fields) | {spec.order_by} | {m.field for m in spec.measures} | {
+        a for v in spec.values if v.expr for a in v.expr.args if isinstance(a, str)}
+    for v in spec.values if spec.mode != "list" else ():  # a list shows every value with each record
+        if v.name not in used:
+            errs.append(f"value {v.name!r} is not used: use it as a measure's field, or list the records (mode list)")
     return errs
 
 
@@ -379,8 +385,9 @@ def _check_series(spec: QuerySpec, schema: SchemaDef) -> list[str]:
     measures = set(schema.measures)
     for i, f in enumerate(spec.filters):
         errs += _check_filter(schema, f, f"filters[{i}]")
-        if f.op in ("name_is", "reached"):
-            errs.append(f"filters[{i}]: {f.op} does not apply to series")
+        if f.op == "reached" or (f.op == "name_is" and not (f.field in schema.fields and schema.fields[f.field].ref)):
+            errs.append(f"filters[{i}]: {f.op} does not apply to series"
+                        + (" (name_is works on a key that references records)" if f.op == "name_is" else ""))
     if spec.elapsed or spec.order_by_event:
         errs.append("series: elapsed and order_by_event are for entities")
     windows = {}
