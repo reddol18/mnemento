@@ -8,7 +8,8 @@
    "13": "data",
    "17": "not_data",
    "18": "not_data",
-   "20": "data"
+   "20": "data",
+   "22": "data"
   },
   "weekly-summary.md": {
    "1": "not_data",
@@ -99,6 +100,36 @@
     "decided_at": "2026-09-03",
     "text": "목표가 근처까지 올라와서 절반 가까이 익절하기로 했다."
    }
+  },
+  {
+   "type": "trade",
+   "lines": [
+    [
+     "trading-notes.md",
+     22
+    ]
+   ],
+   "doc": {
+    "security_id": "sec_900002",
+    "traded_at": "2026-09-10",
+    "side": "buy",
+    "units": 3,
+    "price": 54000
+   }
+  },
+  {
+   "type": "decision",
+   "lines": [
+    [
+     "trading-notes.md",
+     22
+    ]
+   ],
+   "doc": {
+    "security_id": "sec_900002",
+    "decided_at": "2026-09-10",
+    "text": "실적 발표 뒤 가이던스 상향을 확인하고 들어갔다."
+   }
   }
  ],
  "conflicts": [
@@ -117,7 +148,12 @@
    ]
   }
  ],
- "siblings": [],
+ "siblings": [
+  [
+   4,
+   5
+  ]
+ ],
  "new_types": [
   {
    "kind": "entity",
@@ -197,6 +233,7 @@
   }
  ],
  "label_notes": [
-  "2026-10-07 aligned with the splitter and ADR-0017 before any run: table header and separator rows are context, not chunks (4 keys removed); a fact with a conflicting value is reported as a conflict and not written, so the 08-12 trade is not an expected record and its sibling pair with the 08-12 decision cannot form (siblings emptied); the conflict label stays."
+  "2026-10-07 aligned with the splitter and ADR-0017 before any run: table header and separator rows are context, not chunks (4 keys removed); a fact with a conflicting value is reported as a conflict and not written, so the 08-12 trade is not an expected record and its sibling pair with the 08-12 decision cannot form (siblings emptied); the conflict label stays.",
+  "2026-10-07 the directing session added line 22 (a trade and its reason in one sentence) to keep a sibling case; still not run by any system."
  ]
 }
