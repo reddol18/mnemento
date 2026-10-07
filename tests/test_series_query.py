@@ -267,3 +267,21 @@ def test_series_eval_set_grader():
     assert grade(q, data, {"items": [["hold_b", "sec_900002"], ["hold_c", "sec_900003"]]})[0]  # allowed extra
     assert not grade(q, data, {"items": [["hold_b"], ["hold_a", "sec_900001"]]})[0]  # wrong extra
     assert not grade(q, data, {"items": []})[0]
+
+
+def test_a_series_without_a_key_tracks_one_thing():
+    """ADR-0025: notes about one subject (my own sleep) give a series with no key field."""
+    led = Ledger.open(":memory:")
+    led.schemas.register({"name": "sleep", "version": 1, "kind": "series", "description": "Hours slept (fictional).",
+                          "series_key": [], "time_field": "slept_on", "granularity": "day", "measures": ["hours"],
+                          "fields": {"slept_on": {"type": "string", "format": "date", "description": "Night."},
+                                     "hours": {"type": "number", "description": "Hours."}}})
+    ingest(led, "sleep", [{"slept_on": "2026-09-01", "hours": 7.5}, {"slept_on": "2026-09-03", "hours": 6.0}],
+           by="t", source="s")
+    k = Keeper(led, ScriptedLLM())
+    ans = k.ask("q", spec={"source": "series", "entity_type": "sleep", "mode": "aggregate",
+                           "filters": period("slept_on", "2026-09-01", "2026-09-03"),
+                           "measures": [{"name": "avg_h", "agg": "avg", "field": "hours"}]}, now=NOW)
+    assert ans.result["groups"][0]["measures"]["avg_h"] == 6.75
+    assert any("1 of 3 days have no point" in w for w in ans.warnings)
+    led.close()

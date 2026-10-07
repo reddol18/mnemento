@@ -197,6 +197,9 @@ CLASSIFY_SYSTEM = """You sort chunks of a person's notes for a record book.
 For every chunk decide:
 - data: it states facts that belong in record types. List every type it has facts for: an existing type from the
   dictionary, or a new snake_case type name when no existing type fits (one chunk may hold facts of several types).
+  Personal logs and measurements (a weight table, books finished, workouts) are data even when no type exists yet:
+  name a new type. Do not list a type just because the chunk names a record of it (a security or company it is
+  about): list it only when the chunk states something new about that record itself.
 - not_data: rules, instructions, plans without facts, opinions about the notes, metadata, headings.
 - ambiguous: you cannot tell.
 Use the chunk text and its context only. reason: one short line (it is shown to the user)."""
@@ -230,8 +233,9 @@ SCHEMA_SYSTEM = """You draft a schema for a new record type from example chunks 
 - fields: snake_case names; type string/integer/number/boolean; format date (YYYY-MM-DD) or date-time when it is a
   point in time; a short description each; enum with labels only for a small fixed set of words; ref = an existing
   type name when the field names a record of that type (e.g. a company), else ''.
-- kind series only for numbers measured again and again per key and day (prices, weight); then give series_key,
-  time_field and measures (numeric fields). Otherwise kind entity and empty series fields.
+- kind series for numbers measured again and again over days (prices, weight, sleep hours); then give time_field,
+  measures (numeric fields) and series_key = the field that tells several series apart (e.g. which security) — an
+  empty series_key when the notes track a single thing (my own weight). Otherwise kind entity and empty series fields.
 Draft only what the examples show."""
 
 EXTRACT_SCHEMA = {
@@ -285,7 +289,7 @@ def _type_schema(name: str, draft: dict[str, Any]) -> SchemaDef:
            {"note": {"type": "string", "description": "text"}}}
     if draft.get("keywords"):
         out["keywords"] = [k for k in draft["keywords"] if k]
-    if draft.get("kind") == "series" and draft.get("series_key") and draft.get("time_field") and draft.get("measures"):
+    if draft.get("kind") == "series" and draft.get("time_field") and draft.get("measures"):
         fmt = fields.get(draft["time_field"], {}).get("format")
         out.update({"kind": "series", "series_key": draft["series_key"], "time_field": draft["time_field"],
                     "granularity": "day" if fmt == "date" else "instant", "measures": draft["measures"]})
@@ -529,6 +533,16 @@ class Ingestor:
         for m in merged:
             s = type_defs[m["type"]]
             keys = _identity_fields(s)
+            name = next((m["doc"].get(f) for f in ("name", "title") if isinstance(m["doc"].get(f), str)), None)
+            if s.kind == "entity" and m["type"] in self.ledger.schemas.names() and name and not all(
+                    m["doc"].get(k) is not None for k in keys):  # a known record named in passing (e.g. a security)
+                res = IdentityResolver(self.ledger, m["type"]).resolve(name)
+                if res.status == "match":
+                    e = self.ledger.get_entity(res.matches[0])
+                    diff = {k: [e.doc.get(k), v] for k, v in m["doc"].items() if k in e.doc and e.doc[k] != v}
+                    (pv.conflicts if diff else pv.already_recorded).append(
+                        {"type": m["type"], "existing": e.id, **({"fields": diff} if diff else {}), "spans": m["spans"]})
+                    continue
             if s.kind == "entity" and keys and m["type"] in self.ledger.schemas.names() and all(
                     m["doc"].get(k) is not None for k in keys):
                 try:

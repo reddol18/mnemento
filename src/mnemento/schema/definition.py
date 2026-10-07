@@ -185,7 +185,8 @@ class SchemaDef:
         series_key, time_field = tuple(data.get("series_key", [])), data.get("time_field")
         granularity, measures = data.get("granularity"), tuple(data.get("measures", []))
         if kind == "series":
-            if not series_key or not all(isinstance(k, str) and k in fields and fields[k].type in ("string", "integer")
+            # an empty key: one series only (e.g. my own weight); ADR-0025
+            if not all(isinstance(k, str) and k in fields and fields[k].type in ("string", "integer")
                                          and not fields[k].format for k in series_key):
                 raise SchemaDefinitionError(f"{name}: series_key must list string/integer fields of the schema")
             if time_field not in fields or fields[time_field].format not in FORMATS:

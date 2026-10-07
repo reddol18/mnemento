@@ -204,11 +204,11 @@ def series_warnings(spec: QuerySpec, schema: SchemaDef, compiled: SeriesCompiled
     if schema.granularity == "day":
         key_filters = [f for f in spec.filters if f.field in schema.series_key]
         c = SeriesCompiler(schema, now)
-        keys = ", ".join(f"json_extract(doc, '$.{f}') AS {_q(f)}" for f in schema.series_key)
+        keys = "".join(f", json_extract(doc, '$.{f}') AS {_q(f)}" for f in schema.series_key)
         c.params.append(schema.name)
         where = [c.cond(f) for f in key_filters]  # on the extracted key columns, as in compile()
         where += ["t >= ?"] * bool(compiled.period[0]) + ["t <= ?"] * bool(compiled.period[1])
-        rows = fetch(f"WITH p AS (SELECT key, t, {keys} FROM series_points WHERE type = ?) "
+        rows = fetch(f"WITH p AS (SELECT key, t{keys} FROM series_points WHERE type = ?) "
                      "SELECT (SELECT group_concat(value, '/') FROM json_each(p.key)) AS k, MIN(t) AS lo, MAX(t) AS hi, "
                      f"COUNT(DISTINCT t) AS n FROM p {'WHERE ' + ' AND '.join(where) if where else ''} GROUP BY key",
                      [*c.params, *[p[:10] for p in compiled.period if p]])

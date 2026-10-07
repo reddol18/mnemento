@@ -1,0 +1,202 @@
+{
+ "chunks": {
+  "trading-notes.md": {
+   "1": "not_data",
+   "8": "data",
+   "10": "data",
+   "11": "data",
+   "13": "data",
+   "17": "not_data",
+   "18": "not_data",
+   "20": "data"
+  },
+  "weekly-summary.md": {
+   "1": "not_data",
+   "8": "not_data",
+   "12": "data",
+   "13": "data",
+   "14": "data",
+   "16": "not_data",
+   "18": "not_data"
+  },
+  "health-log.md": {
+   "1": "not_data",
+   "8": "data",
+   "9": "data",
+   "10": "data",
+   "16": "data",
+   "17": "data",
+   "18": "data",
+   "19": "data",
+   "21": "not_data"
+  }
+ },
+ "records": [
+  {
+   "type": "decision",
+   "lines": [
+    [
+     "trading-notes.md",
+     8
+    ]
+   ],
+   "doc": {
+    "security_id": "sec_900001",
+    "decided_at": "2026-08-12",
+    "text": "임상 2상 결과 발표 전에 미리 담아두려는 판단이었다."
+   }
+  },
+  {
+   "type": "trade",
+   "lines": [
+    [
+     "trading-notes.md",
+     10
+    ],
+    [
+     "weekly-summary.md",
+     13
+    ]
+   ],
+   "doc": {
+    "security_id": "sec_900002",
+    "traded_at": "2026-08-20",
+    "side": "buy",
+    "units": 5,
+    "price": 52000
+   }
+  },
+  {
+   "type": "trade",
+   "lines": [
+    [
+     "trading-notes.md",
+     11
+    ],
+    [
+     "weekly-summary.md",
+     14
+    ]
+   ],
+   "doc": {
+    "security_id": "sec_900001",
+    "traded_at": "2026-09-03",
+    "side": "sell",
+    "units": 4,
+    "price": 13900
+   }
+  },
+  {
+   "type": "decision",
+   "lines": [
+    [
+     "trading-notes.md",
+     13
+    ]
+   ],
+   "doc": {
+    "security_id": "sec_900001",
+    "decided_at": "2026-09-03",
+    "text": "목표가 근처까지 올라와서 절반 가까이 익절하기로 했다."
+   }
+  }
+ ],
+ "conflicts": [
+  {
+   "type": "trade",
+   "field": "price",
+   "lines": [
+    [
+     "trading-notes.md",
+     8
+    ],
+    [
+     "weekly-summary.md",
+     12
+    ]
+   ]
+  }
+ ],
+ "siblings": [],
+ "new_types": [
+  {
+   "kind": "entity",
+   "lines": [
+    [
+     "health-log.md",
+     8
+    ],
+    [
+     "health-log.md",
+     9
+    ],
+    [
+     "health-log.md",
+     10
+    ]
+   ],
+   "values": [
+    [
+     "2026-09-20",
+     "러닝",
+     5.2,
+     31
+    ],
+    [
+     "2026-09-22",
+     "걷기",
+     3.5,
+     40
+    ],
+    [
+     "2026-09-25",
+     "러닝",
+     6.0,
+     35
+    ]
+   ]
+  },
+  {
+   "kind": "series",
+   "lines": [
+    [
+     "health-log.md",
+     16
+    ],
+    [
+     "health-log.md",
+     17
+    ],
+    [
+     "health-log.md",
+     18
+    ],
+    [
+     "health-log.md",
+     19
+    ]
+   ],
+   "values": [
+    [
+     "2026-09-20",
+     6.5
+    ],
+    [
+     "2026-09-21",
+     7.2
+    ],
+    [
+     "2026-09-22",
+     5.8
+    ],
+    [
+     "2026-09-23",
+     7.0
+    ]
+   ]
+  }
+ ],
+ "label_notes": [
+  "2026-10-07 aligned with the splitter and ADR-0017 before any run: table header and separator rows are context, not chunks (4 keys removed); a fact with a conflicting value is reported as a conflict and not written, so the 08-12 trade is not an expected record and its sibling pair with the 08-12 decision cannot form (siblings emptied); the conflict label stays."
+ ]
+}

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -76,6 +77,16 @@ def _num(v: Any) -> Any:
     return v
 
 
+def _same(got: Any, want: Any) -> bool:
+    """Numbers equal; free text: one contains the other after normalizing spaces and end punctuation (a reason copied
+    with a little more or less of the sentence is the same reason) — rule set before the unseen run."""
+    if isinstance(want, str) and isinstance(got, str) and not want.startswith("sec_"):
+        norm = lambda s: re.sub(r"[\s.。]+", " ", s).strip()  # noqa: E731
+        a, b = norm(got), norm(want)
+        return bool(a) and (a in b or b in a)
+    return _num(got) == _num(want)
+
+
 def score(pv: dict[str, Any], labels: dict[str, Any]) -> dict[str, Any]:
     span_line = {c["span_id"]: (c["source"], c["start"]) for c in pv["chunks"]}
     # classification
@@ -91,12 +102,13 @@ def score(pv: dict[str, Any], labels: dict[str, Any]) -> dict[str, Any]:
         cand = [r for r in got if r["type"] == e["type"] and {span_line[s] for s in r["spans"]} & lines]
         if cand:
             match[i] = cand[0]
-    tp = sum(1 for i, r in match.items() for k, v in exp[i]["doc"].items() if _num(r["doc"].get(k)) == _num(v))
+    tp = sum(1 for i, r in match.items() for k, v in exp[i]["doc"].items() if _same(r["doc"].get(k), v))
     exp_fields = sum(len(e["doc"]) for e in exp)
     got_fields = sum(len(r["doc"]) for r in got)
     # wrong merges: a record whose lines belong to two different labelled facts
-    fact_of = {tuple(x): i for i, e in enumerate(exp) for x in e["lines"]}
-    wrong_merges = sum(1 for r in got if len({fact_of.get(span_line[s]) for s in r["spans"]} - {None}) > 1)
+    fact_of = {(e["type"], *x): i for i, e in enumerate(exp) for x in e["lines"]}  # one line may hold two types
+    wrong_merges = sum(1 for r in got if len({fact_of.get((r["type"], *span_line[s])) for s in r["spans"]}
+                                             - {None}) > 1)
     # siblings
     sib_found = sum(1 for a, b in labels.get("siblings", []) if a in match and b in match
                     and match[b]["rid"] in match[a].get("siblings", []))

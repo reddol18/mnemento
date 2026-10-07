@@ -221,3 +221,19 @@ def test_ingest_eval_scorer_runs_on_a_preview():
     assert s["values_not_in_source"] == 0 and s["classification"][1] == 13
     assert s["field_recall"][0] >= 5  # the fake model finds the 07-30 and 08-20 buys
     led.close()
+
+
+def test_a_known_record_named_in_passing_is_not_recorded_again(led):
+    class NamesTheSecurity(FakeLLM):
+        def complete_json(self, *, system, prompt, schema, stage):
+            r = super().complete_json(system=system, prompt=prompt, schema=schema, stage=stage)
+            if stage == "extract":
+                for rec in list(r.data["records"]):
+                    if rec["type"] == "trade":
+                        r.data["records"].append({"chunk": rec["chunk"], "type": "security", "values": [
+                            {"field": "name", "value": "가상바이오", "quote": "가상바이오"}]})
+            return r
+
+    pv = Ingestor(led, NamesTheSecurity()).preview([("memo.md", NOTES)], now=NOW)
+    assert not any(r["type"] == "security" for r in pv["records"])
+    assert any(a["type"] == "security" and a["existing"] == "sec_900001" for a in pv["already_recorded"])

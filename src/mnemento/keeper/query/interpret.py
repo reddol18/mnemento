@@ -139,7 +139,7 @@ def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], 
         if s.is_draft:
             out.append("  NEW TYPE, not approved yet: every field below is as stored (draft)")
         if s.kind == "series":
-            out.append(f"  SERIES (QuerySpec source=series): one point per {' + '.join(s.series_key)} and "
+            out.append(f"  SERIES (QuerySpec source=series): one point per {' + '.join(s.series_key) + ' and ' if s.series_key else ''}"
                        f"{s.time_field} ({s.granularity}); measures: {', '.join(s.measures)}")
         if s.default_date_field:
             out.append(f"  (a bare date refers to {s.default_date_field})")
