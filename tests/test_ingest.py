@@ -155,7 +155,7 @@ def test_values_must_come_from_their_quote(value, quote, ok):
 
 
 def test_preview_merges_repeats_reports_conflicts_and_keeps_notes(led):
-    pv = Ingestor(led, FakeLLM(lie=True)).preview([("memo.md", NOTES)], now=NOW)
+    pv = Ingestor(led, FakeLLM(lie=True), min_support=1).preview([("memo.md", NOTES)], now=NOW)
     s = pv["summary"]
     assert s["by_kind"] == {"data": 5, "not_data": 2, "ambiguous": 0}
     # 07-30: one record from two spans. 08-20: the made-up price was dropped, so only 11,900 is left and the two
@@ -178,7 +178,7 @@ def test_conflicting_repeats_are_never_picked(led):
 
 
 def test_apply_writes_exactly_the_preview_and_revert_takes_it_back(led):
-    ing = Ingestor(led, FakeLLM())
+    ing = Ingestor(led, FakeLLM(), min_support=1)
     pv = ing.preview([("memo.md", NOTES)], now=NOW)
     with pytest.raises(IngestError):
         ing.apply(pv["id"], approved_by="", user_answer="")
@@ -218,7 +218,7 @@ def test_ingest_eval_scorer_runs_on_a_preview():
     led = open_ledger()
     pv = Ingestor(led, FakeLLM()).preview(sources, now=NOW)
     s = score(pv, labels)
-    assert s["values_not_in_source"] == 0 and s["classification"][1] == 13
+    assert s["values_not_in_source"] == 0 and s["classification"][1] == 14
     assert s["field_recall"][0] >= 5  # the fake model finds the 07-30 and 08-20 buys
     led.close()
 
@@ -262,3 +262,43 @@ def test_a_failing_call_is_reported_not_fatal_and_a_rerun_resumes_from_the_cache
     llm.fail_extract, before = False, len(llm.calls)
     again = Ingestor(led, llm).preview([("memo.md", NOTES)], now=NOW)
     assert again["summary"]["records"] and llm.calls[before:] == ["extract"]  # classify/draft from the cache
+
+
+# ---- issue #15: fewer, better-supported new types; cost estimate and cap ---------------------------------------
+
+def test_a_new_type_needs_enough_chunks_behind_it(led):
+    pv = Ingestor(led, FakeLLM()).preview([("memo.md", NOTES)], now=NOW)  # default minimum 3; one book chunk
+    assert "reading_note" not in pv["new_types"] and not any(r["type"] == "reading_note" for r in pv["records"])
+    amb = next(a for a in pv["ambiguous"] if a.get("suggested_types") == ["reading_note"])
+    assert "fewer than 3" in amb["reason"]
+
+
+def test_no_draft_or_extraction_is_paid_for_an_unsupported_type(led):
+    llm = FakeLLM()
+    Ingestor(led, llm).preview([("memo.md", NOTES)], now=NOW)
+    assert "draft_schema" not in llm.calls
+
+
+def test_look_alike_new_type_names_become_one():
+    from mnemento.keeper.ingest import _cluster_names
+
+    m = _cluster_names(["book_note", "book_notes", "reading_log", "workout"], ["trade", "decision"])
+    assert m["book_notes"] == m["book_note"] == "book_note" and m["workout"] == "workout"
+    assert _cluster_names(["trades"], ["trade"]) == {"trades": "trade"}
+
+
+def test_estimate_and_a_cap_that_stops_cleanly(led):
+    ing = Ingestor(led, FakeLLM(), max_cost_usd=0.0)
+    est = ing.estimate([("memo.md", NOTES)])
+    assert est["chunks"] == 7 and est["calls"]["classify"] == 1 and est["with_headroom_usd"] > 0
+    pv = ing.preview([("memo.md", NOTES)], now=NOW)
+    assert pv["stopped"].startswith("stopped before classify") and pv["records"] == []
+
+
+def test_ingest_calls_run_without_extended_thinking():
+    from mnemento.keeper.llm import ClaudeCLIAdapter
+
+    shared = ClaudeCLIAdapter(model="haiku", max_thinking_tokens=None)
+    ing = Ingestor(Ledger.open(":memory:"), shared)
+    assert ing.llm.max_thinking_tokens == 0 and shared.max_thinking_tokens is None
+    ing.ledger.close()

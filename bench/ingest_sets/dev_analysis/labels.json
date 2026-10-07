@@ -1,0 +1,18 @@
+{
+  "note": "Fictional analysis-heavy notes written with the code (dev, issue #15). Analysis, comparison and retrospective paragraphs are not data; a single dated fact with no siblings must not become a new type (ambiguous with a suggested type); repeated personal logs (3 each) become two new types.",
+  "chunks": {
+    "analysis.md": {"2": "not_data", "5": "not_data", "8": "not_data", "11": "ambiguous"},
+    "logs.md": {"2": "data", "3": "data", "4": "data", "7": "data", "8": "data", "9": "data", "12": "not_data"}
+  },
+  "records": [],
+  "conflicts": [],
+  "siblings": [],
+  "new_types": [
+    {"kind": "entity", "lines": [["logs.md", 2], ["logs.md", 3], ["logs.md", 4]],
+     "values": [["2026-09-02", "가상의 책", 4], ["2026-09-11", "샘플 소설", 5], ["2026-09-24", "모의 에세이", 3]]},
+    {"kind": "entity", "lines": [["logs.md", 7], ["logs.md", 8], ["logs.md", 9]],
+     "values": [["2026-09-05", 1, "가상 여행", 12], ["2026-09-12", 2, "샘플 도시", 15], ["2026-09-19", 3, "모의 바다", 11]]}
+  ],
+  "one_offs": [["analysis.md", 11]],
+  "max_new_types": 2
+}

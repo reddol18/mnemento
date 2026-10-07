@@ -133,7 +133,13 @@ def score(pv: dict[str, Any], labels: dict[str, Any]) -> dict[str, Any]:
     unsupported = sum(1 for r in pv["records"] for k, v in r["doc"].items()
                       if k in r.get("quotes", {}) and not isinstance(v, str) and value_from_quote(v, r["quotes"][k], None)
                       and not str(v).startswith("sec_"))
+    # issue #15: how many new types were proposed, and whether a one-off fact became one
+    one_offs = {tuple(x) for x in labels.get("one_offs", [])}
+    one_off_records = sum(1 for r in pv["records"] if r["type"] in pv["new_types"]
+                          and {span_line[s] for s in r["spans"]} & one_offs)
     return {
+        "new_types_proposed": [len(pv["new_types"]), labels.get("max_new_types", len(labels.get("new_types", [])))],
+        "one_off_records": one_off_records,
         "classification": [cls_ok, len(exp_kind)],
         "field_precision": [tp, got_fields], "field_recall": [tp, exp_fields],
         "new_type_values": [new_ok, new_total], "new_type_kind": [kind_ok, len(labels.get("new_types", []))],
@@ -144,12 +150,14 @@ def score(pv: dict[str, Any], labels: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def run(model: str, which: str, run_id: str) -> None:
+def run(model: str, which: str, run_id: str, max_cost: float | None = None, min_support: int = 3) -> None:
     from mnemento.keeper.llm import ClaudeCLIAdapter
 
     sources, labels = load_set(which)
     led = open_ledger()
-    pv = Ingestor(led, ClaudeCLIAdapter(model=model)).preview(sources, now=NOW)
+    ing = Ingestor(led, ClaudeCLIAdapter(model=model, timeout_s=600), max_cost_usd=max_cost, min_support=min_support)
+    print(f"estimate: {ing.estimate(sources)}")
+    pv = ing.preview(sources, now=NOW)
     s = score(pv, labels)
     out = RESULTS / run_id
     out.mkdir(parents=True, exist_ok=True)
@@ -194,10 +202,12 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--model", default="haiku")
     r.add_argument("--set", default="dev")
     r.add_argument("--run", default=None)
+    r.add_argument("--max-cost", type=float, default=None)
+    r.add_argument("--min-support", type=int, default=3)
     a = p.parse_args(argv)
     if a.cmd == "check":
         sys.exit(1 if check() else 0)
-    run(a.model, a.set, a.run or f"ingest-{a.set}")
+    run(a.model, a.set, a.run or f"ingest-{a.set}", a.max_cost, a.min_support)
 
 
 if __name__ == "__main__":

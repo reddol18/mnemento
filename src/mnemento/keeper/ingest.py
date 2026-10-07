@@ -41,6 +41,18 @@ class IngestError(MnementoError):
     pass
 
 
+def _without_thinking(llm, thinking_tokens):
+    """Classification and extraction do not need extended thinking; on the CLI adapter it was most of the output
+    tokens (issue #15). A copy is used so the shared adapter (query interpreter) keeps its own setting."""
+    import copy
+
+    if llm is None or thinking_tokens is None or not hasattr(llm, "max_thinking_tokens"):
+        return llm
+    c = copy.copy(llm)
+    c.max_thinking_tokens = thinking_tokens
+    return c
+
+
 # ---- 1. split ----------------------------------------------------------------------------------------------------
 
 @dataclass
@@ -200,6 +212,10 @@ For every chunk decide:
   Personal logs and measurements (a weight table, books finished, workouts) are data even when no type exists yet:
   name a new type. Do not list a type just because the chunk names a record of it (a security or company it is
   about): list it only when the chunk states something new about that record itself.
+- not_data also covers analysis and research write-ups, comparisons, one-off evaluations, lessons learned and
+  opinions — even when they contain numbers — unless they state a fact that would be recorded again and again in
+  the same shape (an application, a trade, a measurement, a finished book). Prefer an existing type, or a name you
+  already used in this batch, over a new name for the same kind of record.
 - not_data: rules, instructions, plans without facts, opinions about the notes, metadata, headings.
 - ambiguous: you cannot tell.
 Use the chunk text and its context only. reason: one short line (it is shown to the user)."""
@@ -320,6 +336,7 @@ class Preview:
     notes: list[dict[str, Any]] = field(default_factory=list)
     llm: dict[str, Any] = field(default_factory=dict)
     llm_failures: list[dict[str, Any]] = field(default_factory=list)  # calls that failed twice (their chunks: ambiguous)
+    stopped: str | None = None  # set when the cost cap stopped the preview before a stage
 
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
@@ -335,20 +352,80 @@ class Preview:
         return d
 
 
+# Per-call cost by stage (USD, API list price, thinking off), from measured runs; used only for estimates, with headroom.
+# Re-measure when models or prompts change (bench/results/ingest-*). Keys: model -> stage -> cost per call.
+CALL_COST = {"haiku": {"classify": 0.02, "draft_schema": 0.02, "extract": 0.05},
+             "opus": {"classify": 0.06, "draft_schema": 0.05, "extract": 0.15}}
+DATA_SHARE = 0.4  # the share of chunks assumed to hold data, for an estimate made before classifying
+MAX_NEW_TYPES = 12  # draft calls assumed at most, for the estimate
+
+
+def _cluster_names(names: list[str], known: list[str]) -> dict[str, str]:
+    """New type names -> the name to use: an existing type that looks the same, else one name per look-alike group
+    (ADR-0021's similar-name rule, applied before any schema is drafted)."""
+    from .drafts import similar_names
+
+    out: dict[str, str] = {}
+    for n in names:
+        same = similar_names(n, known)
+        if same:
+            out[n] = same[0]
+    rest = [n for n in names if n not in out]
+    for n in sorted(rest, key=lambda x: (len(x), x)):  # shortest name of a group wins
+        if n in out:
+            continue
+        out[n] = n
+        for m in rest:
+            if m not in out and similar_names(m, [n]):
+                out[m] = n
+    return out
+
+
+class CostCapReached(IngestError):
+    pass
+
+
 class Ingestor:
     def __init__(self, ledger: Ledger, llm: LLMAdapter | None, batch_size: int = 15, workers: int = 4,
-                 progress=None):
+                 progress=None, min_support: int = 3, max_cost_usd: float | None = None,
+                 thinking_tokens: int | None = 0):
         self.ledger = ledger
-        self.llm = llm
+        self.llm = _without_thinking(llm, thinking_tokens)
         self.batch_size = batch_size
         self.workers = workers
         self.progress = progress  # callable(str) or None
+        self.min_support = min_support  # a new type needs at least this many chunks (and records) behind it
+        self.max_cost_usd = max_cost_usd  # stop cleanly before a stage that would pass it
+        self.spent = 0.0
         self.failures: list[dict[str, Any]] = []
         self._failed_extract: list[str] = []
 
+    # -- estimate (no LLM) --
+    def estimate(self, sources: list[tuple[str, str]]) -> dict[str, Any]:
+        """Calls and an upper cost estimate before anything runs: classification of every chunk, drafts for at most
+        MAX_NEW_TYPES new types, extraction of DATA_SHARE of the chunks; x2 headroom."""
+        n = sum(len(split(text, name)) for name, text in sources)
+        model = "opus" if "opus" in str(getattr(self.llm, "model", "")) else "haiku"
+        cost = CALL_COST[model]
+        calls = {"classify": -(-n // self.batch_size), "draft_schema": MAX_NEW_TYPES,
+                 "extract": -(-int(n * DATA_SHARE) // self.batch_size)}
+        usd = sum(calls[s] * cost[s] for s in calls)
+        return {"chunks": n, "calls": calls, "model": model, "estimate_usd": round(usd, 2),
+                "with_headroom_usd": round(usd * 2, 2), "cap_usd": self.max_cost_usd}
+
+    def _check_cap(self, stage: str, calls: int) -> None:
+        if self.max_cost_usd is None:
+            return
+        model = "opus" if "opus" in str(getattr(self.llm, "model", "")) else "haiku"
+        need = calls * CALL_COST[model][stage]
+        if self.spent + need > self.max_cost_usd:
+            raise CostCapReached(f"stopped before {stage}: spent ${self.spent:.2f}, this stage needs about "
+                                 f"${need:.2f}, cap ${self.max_cost_usd:.2f}")
+
     # -- preview --
     def preview(self, sources: list[tuple[str, str]], now: datetime | None = None) -> dict[str, Any]:
-        """sources: (name, text). Nothing is written except the preview itself (so apply can take exactly it)."""
+        """sources: (name, text). Nothing is written except the preview itself (so apply can take exactly it). With
+        max_cost_usd, the preview stops cleanly before a stage that would pass it and says so (`stopped`)."""
         if self.llm is None:
             raise IngestError("ingest needs an LLM to classify and extract")
         now = now or tz_now(self.ledger.tz)
@@ -358,48 +435,90 @@ class Ingestor:
         if not chunks:
             return self._store(pv, trace)
         schemas = {n: self.ledger.schemas.get(n) for n in self.ledger.schemas.names()}
-        cls = self._classify(chunks, schemas, trace)
         by_id = {c.span_id: c for c in chunks}
-        new_names = sorted({t for c in cls.values() if c["kind"] == "data" for t in c["types"] if t not in schemas})
-        for c in chunks:
-            k = cls.get(c.span_id, {"kind": "ambiguous", "types": [], "reason": "not classified"})
-            pv.chunks.append({**c.to_dict(), "kind": k["kind"], "types": k["types"], "reason": k["reason"]})
-            if k["kind"] == "not_data":
-                pv.notes.append({"source": c.source, "start": c.start, "end": c.end, "summary": k["reason"]})
-            elif k["kind"] == "ambiguous":
-                pv.ambiguous.append({"what": "classification", "span": c.span_id, "source": c.source,
-                                     "lines": [c.start, c.end], "reason": k["reason"]})
-        type_defs: dict[str, SchemaDef] = dict(schemas)
-        self._new_types = set()
-        names = [n for n in new_names if NAME_RE.match(n)]
-        drafts = self._draft_schemas(names, {n: [by_id[s] for s, k in cls.items() if n in k["types"]][:8]
-                                             for n in names}, schemas, trace)
-        for name in names:
-            draft = drafts.get(name)
-            if draft is None:
-                pv.ambiguous.append({"what": "new type", "type": name, "reason": "the schema draft call failed"})
-                continue
-            try:
-                sd = _type_schema(name, draft)
-            except Exception as exc:  # noqa: BLE001 — an unusable draft makes its chunks ambiguous
-                pv.ambiguous.append({"what": "new type", "type": name, "reason": f"schema draft unusable: {exc}"})
-                continue
-            pv.new_types[name] = sd.to_dict()
-            type_defs[name] = sd
-            self._new_types.add(name)
-        data = [c for c in chunks if cls.get(c.span_id, {}).get("kind") == "data"
-                and any(t in type_defs for t in cls[c.span_id]["types"])]
-        raw = self._extract(data, cls, type_defs, trace)
+        try:
+            self._check_cap("classify", -(-len(chunks) // self.batch_size))
+            cls = self._classify(chunks, schemas, trace)
+            # one name per kind of record (ADR-0021 similar names), then the minimum support (issue #15)
+            raw_new = sorted({t for c in cls.values() if c["kind"] == "data" for t in c["types"] if t not in schemas})
+            rename = _cluster_names([n for n in raw_new if NAME_RE.match(n)], list(schemas))
+            for k in cls.values():
+                k["types"] = list(dict.fromkeys(rename.get(t, t) for t in k["types"]
+                                                if t in schemas or t in rename))
+            support = {}
+            for k in cls.values():
+                if k["kind"] == "data":
+                    for t in k["types"]:
+                        if t not in schemas:
+                            support[t] = support.get(t, 0) + 1
+            small = {t for t, n in support.items() if n < self.min_support}
+            for s, k in cls.items():
+                weak = [t for t in k["types"] if t in small]
+                if weak:
+                    k["types"] = [t for t in k["types"] if t not in small]
+                    k["suggested"] = weak
+                    if not k["types"] and k["kind"] == "data":
+                        k["kind"] = "ambiguous"
+                        k["reason"] = (f"new type {', '.join(weak)} would rest on fewer than {self.min_support} "
+                                       f"chunks — {k['reason']}")
+            for c in chunks:
+                k = cls.get(c.span_id, {"kind": "ambiguous", "types": [], "reason": "not classified"})
+                pv.chunks.append({**c.to_dict(), "kind": k["kind"], "types": k["types"], "reason": k["reason"],
+                                  **({"suggested_types": k["suggested"]} if k.get("suggested") else {})})
+                if k["kind"] == "not_data":
+                    pv.notes.append({"source": c.source, "start": c.start, "end": c.end, "summary": k["reason"]})
+                elif k["kind"] == "ambiguous":
+                    pv.ambiguous.append({"what": "classification", "span": c.span_id, "source": c.source,
+                                         "lines": [c.start, c.end], "reason": k["reason"],
+                                         **({"suggested_types": k["suggested"]} if k.get("suggested") else {})})
+            type_defs: dict[str, SchemaDef] = dict(schemas)
+            self._new_types = set()
+            names = sorted(t for t in support if t not in small)
+            self._check_cap("draft_schema", len(names))
+            drafts = self._draft_schemas(names, {n: [by_id[s] for s, k in cls.items() if n in k["types"]][:8]
+                                                 for n in names}, schemas, trace)
+            for name in names:
+                draft = drafts.get(name)
+                if draft is None:
+                    pv.ambiguous.append({"what": "new type", "type": name, "reason": "the schema draft call failed"})
+                    continue
+                try:
+                    sd = _type_schema(name, draft)
+                except Exception as exc:  # noqa: BLE001 — an unusable draft makes its chunks ambiguous
+                    pv.ambiguous.append({"what": "new type", "type": name, "reason": f"schema draft unusable: {exc}"})
+                    continue
+                pv.new_types[name] = sd.to_dict()
+                type_defs[name] = sd
+                self._new_types.add(name)
+            data = [c for c in chunks if cls.get(c.span_id, {}).get("kind") == "data"
+                    and any(t in type_defs for t in cls[c.span_id]["types"])]
+            self._check_cap("extract", -(-len(data) // self.batch_size))
+            raw = self._extract(data, cls, type_defs, trace)
+        except CostCapReached as exc:
+            pv.stopped = str(exc)
+            pv.llm = trace.finish().to_dict().get("totals", {})
+            return self._store(pv, trace)
         for s in self._failed_extract:
             c = by_id[s]
             pv.ambiguous.append({"what": "extraction", "span": s, "source": c.source, "lines": [c.start, c.end],
                                  "reason": "the extraction call failed; run the preview again to retry"})
         self._check_and_merge(pv, raw, by_id, type_defs)
+        # a new type whose extracted records stay below the minimum is not proposed either
+        counts: dict[str, int] = {}
+        for r in pv.records:
+            counts[r["type"]] = counts.get(r["type"], 0) + 1
+        for t in [t for t in list(pv.new_types) if counts.get(t, 0) < self.min_support]:
+            moved = [r for r in pv.records if r["type"] == t]
+            pv.records = [r for r in pv.records if r["type"] != t]
+            pv.new_types.pop(t)
+            for r in moved:
+                pv.ambiguous.append({"what": "new type", "type": t, "span": r["spans"][0], "doc": r["doc"],
+                                     "reason": f"only {len(moved)} record(s) of new type {t} "
+                                               f"(minimum {self.min_support})"})
         if self.failures:
             pv.llm_failures = list(self.failures)
         pv.llm = trace.finish().to_dict().get("totals", {})
         return self._store(pv, trace)
-
     def _store(self, pv: Preview, trace: Trace) -> dict[str, Any]:
         d = pv.to_dict()
         self.ledger.storage.execute(
@@ -449,6 +568,7 @@ class Ingestor:
                 else:
                     out[i] = r.data
                     trace.add_llm(r.usage)
+                    self.spent += float(getattr(r.usage, "cost_usd", 0) or 0)
                     self.ledger.storage.execute("INSERT OR REPLACE INTO ingest_llm_cache (key, data) VALUES (?, ?)",
                                                 (keys[i], json.dumps(r.data, ensure_ascii=False)))
                 done += 1
