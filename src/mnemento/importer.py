@@ -105,7 +105,7 @@ def combine(ledger: Ledger, report: ImportReport, *, entity_id: str, field: str,
     else:
         value = next(iter(present.values()), None)
     distinct = {repr(v) for v in present.values()}
-    if len(present) < len(by_source) or len(distinct) > 1:
+    if present and (len(present) < len(by_source) or len(distinct) > 1):  # no source has it: nothing to report
         detail = {"by_source": {s: by_source[s] for s in by_source}, "how": how}
         report.mismatches.append({"entity_id": entity_id, "field": field, **detail})
         ledger.storage.put_coverage(entity_id, field, len(by_source), len(present), detail, now)

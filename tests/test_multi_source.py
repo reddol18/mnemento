@@ -74,3 +74,9 @@ def test_first_and_union(k):
                    by_source={"a": ["p", "q"], "b": ["q", "r"]}, now=NOW) == ["p", "q", "r"]
     with pytest.raises(ValueError):
         combine(k.ledger, rep, entity_id="x", field="h", how="max", by_source={"a": 1}, now=NOW)
+
+
+def test_no_source_having_the_value_is_not_a_mismatch(k):
+    rep = ImportReport()
+    assert combine(k.ledger, rep, entity_id="x", field="f", how="any", by_source={"a": None, "b": None}, now=NOW) is None
+    assert rep.mismatches == []
