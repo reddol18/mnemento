@@ -222,9 +222,11 @@ def create_server(keeper: Keeper) -> MCPServer:
         merges: dict[str, str] | None = None,
         index: list[str] | None = None,
         type_description: str | None = None,
+        items: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Organize unregistered (draft) fields and values, or register a new record type (proposal id type_...)
-        — ONLY with the user's explicit consent.
+        """Organize unregistered (draft) fields and values, register a new record type (proposal id type_...), or take
+        the repository's dictionary improvements into an organized type (dict_...) — ONLY with the user's explicit
+        consent.
 
         Never call this on your own initiative. First show the user the proposal from propose_schema (its
         `question`), ask whether to apply it, and call this only after they answer yes. Pass who approved
@@ -234,12 +236,14 @@ def create_server(keeper: Keeper) -> MCPServer:
         {"platform": {"remember": ["리멤버"]}}).
         merges: {draft_field: target_field} to fold look-alike names together (values move with history kept).
         index: fields to index. type_description: a new type's description, if its proposal has none.
+        items (dict_... only): the item keys the user picked; default: the proposal's additive items. Items left out
+        are not offered again for the same file.
         The data itself was already stored when it was written; this only organizes it.
         """
         try:
             return keeper.apply_schema_proposal(proposal_id, approved_by=approved_by, user_answer=user_answer,
                                                 descriptions=descriptions, labels=labels, merges=merges, index=index,
-                                                type_description=type_description)
+                                                type_description=type_description, items=items)
         except Exception as exc:  # SchemaDefinitionError, BreakingSchemaChangeError
             raise ToolError(str(exc)) from exc
 

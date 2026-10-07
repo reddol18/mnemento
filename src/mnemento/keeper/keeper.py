@@ -99,9 +99,9 @@ class Keeper:
                               descriptions: dict[str, str] | None = None,
                               labels: dict[str, dict[str, list[str]]] | None = None,
                               merges: dict[str, str] | None = None, index: list[str] | None = None,
-                              type_description: str | None = None) -> dict[str, Any]:
-        """Organize drafts or register a new type — only with the user's explicit consent (approved_by + their answer
-        are recorded)."""
+                              type_description: str | None = None, items: list[str] | None = None) -> dict[str, Any]:
+        """Organize drafts, register a new type or take repository dictionary improvements — only with the user's
+        explicit consent (approved_by + their answer are recorded)."""
         return apply_proposal(self.ledger, proposal_id, approved_by=approved_by, user_answer=user_answer,
                               descriptions=descriptions, labels=labels, merges=merges, index=index,
-                              type_description=type_description)
+                              type_description=type_description, items=items)

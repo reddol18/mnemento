@@ -46,9 +46,10 @@ def organize_proposals(ledger: Ledger, entity_type: str | None = None) -> list[d
     register draft enum values (with labels), and merge look-alike names. Nothing is applied here."""
     from .drafts import draft_dictionary, similar_names
 
+    from .dictsync import pending
     from .newtype import type_proposal
 
-    out = []
+    out = [p for p in pending(ledger) if entity_type in (None, p["entity_type"])]  # ADR-0023
     for etype in ([entity_type] if entity_type else ledger.schemas.names()):
         schema = ledger.schemas.get(etype)
         if schema.is_draft:  # ADR-0021: a new type is registered as a whole
@@ -93,14 +94,19 @@ def organize_proposals(ledger: Ledger, entity_type: str | None = None) -> list[d
 def apply_proposal(ledger: Ledger, proposal_id: str, *, approved_by: str, user_answer: str,
                    descriptions: dict[str, str] | None = None, labels: dict[str, dict[str, list[str]]] | None = None,
                    merges: dict[str, str] | None = None, index: list[str] | None = None,
-                   now: str | None = None, type_description: str | None = None) -> dict[str, Any]:
+                   now: str | None = None, type_description: str | None = None,
+                   items: list[str] | None = None) -> dict[str, Any]:
     """Apply an organize proposal with the user's explicit consent (ADR-0014). Merges move values with
     `migrated` events (history kept, nothing deleted); registration is an additive schema version.
     A new type's proposal (ADR-0021, id type_...) registers the type itself."""
     from ..errors import SchemaDefinitionError
     from ..timeutil import format_instant, now as tz_now
+    from . import dictsync
     from .newtype import PROPOSAL_PREFIX, apply_type_proposal
 
+    if proposal_id.startswith(dictsync.PREFIX):  # ADR-0023: repository dictionary improvements
+        return dictsync.apply(ledger, proposal_id, approved_by=approved_by, user_answer=user_answer, items=items,
+                              now=now)
     if proposal_id.startswith(PROPOSAL_PREFIX):
         if merges:
             raise SchemaDefinitionError("merges are for organizing registered types; for a new type, record the "

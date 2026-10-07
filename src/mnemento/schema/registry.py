@@ -92,6 +92,7 @@ class SchemaRegistry:
         """
         out = []
         self.load_notes: list[str] = []
+        self.skipped_files: dict[str, dict[str, Any]] = {}  # organized types whose file differs (ADR-0023)
         names = set(self.names())
         for path in sorted(Path(directory).glob("*.json")):
             d = json.loads(path.read_text(encoding="utf-8"))
@@ -103,7 +104,10 @@ class SchemaRegistry:
                     if fv >= latest.version or organized:
                         self.load_notes.append(
                             f"{d['name']}: {path.name} v{fv} not applied; the database keeps v{latest.version}"
-                            + (" (organized by the user)" if organized else ""))
+                            + (" (organized by the user; its improvements are offered by propose_schema)"
+                               if organized else ""))
+                    if organized:
+                        self.skipped_files[d["name"]] = d
                     out.append(latest)
                     continue
             out.append(self.register(d, allow_gap=True))
