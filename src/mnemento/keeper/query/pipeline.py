@@ -299,8 +299,21 @@ class QueryPipeline:
     def _resolve_names(self, spec: QuerySpec):
         """Replace name_is filters with id filters via identity resolution (ADR-0006)."""
         schema = self.ledger.schemas.get(spec.entity_type)
-        new_filters, resolved = [], {}
-        for f in spec.filters:
+        resolved: dict[str, Any] = {}
+        updates = {}
+        # filters on records: `filters` (entities, series) and `record_filters` (events, ADR-0026)
+        for key in ("filters", "record_filters"):
+            if key == "filters" and spec.source == "events":
+                continue
+            out, clar = self._resolve_filter_names(getattr(spec, key), schema, resolved)
+            if clar is not None:
+                return spec, resolved, clar
+            updates[key] = out
+        return spec.model_copy(update=updates), resolved, None
+
+    def _resolve_filter_names(self, filters, schema, resolved):
+        new_filters = []
+        for f in filters:
             if f.op != "name_is":
                 new_filters.append(f)
                 continue
@@ -312,16 +325,15 @@ class QueryPipeline:
                 resolved[str(f.value)] = {"matches": res.matches, "rule": res.rule}
                 new_filters.append(Filter(field=f.field, op="in", value=res.matches))
             elif res.status == "ambiguous":
-                return spec, resolved, Clarification(
-                    f"'{f.value}' matches several {ref} records. Which one?", res.matches)
+                return None, Clarification(f"'{f.value}' matches several {ref} records. Which one?", res.matches)
             elif res.status == "candidates":
-                return spec, resolved, Clarification(
+                return None, Clarification(
                     f"No {ref} is recorded exactly as '{f.value}'. Did you mean one of these?",
                     [f"{c['id']} ({c['name']})" for c in res.candidates[:5]] + ["none of these"])
             else:
                 resolved[str(f.value)] = {"matches": [], "rule": None}
                 new_filters.append(Filter(field=f.field, op="in", value=["__no_match__"]))
-        return spec.model_copy(update={"filters": new_filters}), resolved, None
+        return new_filters, None
 
     @staticmethod
     def _done(ans: KeeperAnswer, trace: Trace) -> KeeperAnswer:

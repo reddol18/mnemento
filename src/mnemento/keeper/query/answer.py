@@ -122,6 +122,20 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
             if inexact:
                 out.append(f"{inexact} record(s) have events without an exact time; they are left out of "
                            f"time-based ordering and durations (ADR-0013).")
+    if spec.source == "events" and any(
+            f.field == "kind" and set(f.value if isinstance(f.value, list) else [f.value]) - {"created"}
+            and "created" not in (f.value if isinstance(f.value, list) else [f.value]) for f in spec.filters):
+        # ADR-0026: a question about changes only sees changes made after the record was first recorded
+        ids = sorted({r.get("entity_id") for r in result.rows if r.get("entity_id")}
+                     | {e for g in result.groups for e in g.get("entity_ids", [])})
+        cond, params = ((f"id IN ({', '.join('?' for _ in ids)})", ids) if ids else ("type = ?", [spec.entity_type]))
+        rows = fetch(f"SELECT MIN(created_at) AS first, MAX(created_at) AS last, COUNT(*) AS n FROM entities "
+                     f"WHERE {cond}", params)
+        if rows and rows[0]["n"]:
+            r = rows[0]
+            span = r["first"][:10] if r["first"][:10] == (r["last"] or "")[:10] else f"{r['first'][:10]}..{r['last'][:10]}"
+            out.append(f"Change history starts when each record was first recorded ({span}); changes made before "
+                       f"that are not in the ledger unless they were recorded later.")
     today = now.date()
     if result.total == 0:
         out.append("No matching records. If you expected some, they may not have been recorded yet.")

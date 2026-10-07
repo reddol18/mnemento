@@ -279,12 +279,21 @@ class EventsCompiler(Compiler):
              "at": "at", "evidence": "evidence", "to": "json_extract(payload, '$.to')",
              "from": "json_extract(payload, '$.from')"}
 
-    def __init__(self, now: datetime):
+    def __init__(self, now: datetime, record_schema: SchemaDef | None = None):
         super().__init__(EVENT_SCHEMA, now)
+        self.record_schema = record_schema
 
     def base_where(self, spec: QuerySpec) -> list[str]:
         self.params.append(spec.entity_type)
-        return ["entity_type = ?"]
+        where = ["entity_type = ?"]
+        if spec.record_filters:  # ADR-0026: the events of the records whose current state matches
+            sub = Compiler(self.record_schema, self.now)
+            sub.params = self.params  # one parameter list, in the order of the SQL text
+            sub.resolved = self.resolved
+            self.params.append(spec.entity_type)
+            conds = " AND ".join(sub.cond(f) for f in spec.record_filters)
+            where.append(f"entity_id IN (SELECT id FROM entities WHERE type = ? AND retracted = 0 AND {conds})")
+        return where
 
     def col(self, fname: str) -> str:
         return self._COLS[fname]
@@ -316,5 +325,5 @@ class EventsCompiler(Compiler):
 def compile_spec(spec: QuerySpec, schema: SchemaDef, now: datetime,
                  schemas: dict[str, SchemaDef] | None = None) -> CompiledQuery:
     if spec.source == "events":
-        return EventsCompiler(now).compile(spec)
+        return EventsCompiler(now, (schemas or {}).get(spec.entity_type)).compile(spec)
     return Compiler(schema, now, schemas).compile(spec)

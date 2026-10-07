@@ -193,3 +193,35 @@ def test_schema_selection_follows_relation_notes(led):
     schemas = {n: led.schemas.get(n) for n in led.schemas.names()}
     picked = [s.name for s in select_schemas("왜 이 종목은 안 사기로 했지?", schemas)]
     assert "decision" in picked and "buy_criteria" in picked
+
+
+# ---- issue #7 / ADR-0026: "when did X last change" from the change history -----------------------------------
+
+def test_last_change_of_a_record_picked_by_its_reference_name(led):
+    run_import(led, SOURCE)
+    k = Keeper(led, ScriptedLLM())
+    dec = next(e for e in led.find("decision") if e.doc["security_id"] == "sec_900002")
+    k.record({"entity_type": "decision", "kind": "updated", "entity_id": dec.id,
+              "payload": {"text": "추세 이탈 확인, 보유분 전부 정리"}, "at": "2026-09-05T10:00:00+09:00"}, by="user")
+    spec = {"source": "events", "entity_type": "decision", "mode": "list", "limit": 1, "order_by": "at",
+            "descending": True, "filters": [{"field": "kind", "op": "in", "value": ["updated", "corrected"]}],
+            "record_filters": [{"field": "security_id", "op": "name_is", "value": "샘플전자"}]}
+    ans = k.ask("샘플전자 판단은 마지막으로 언제 바뀌었어?", spec=spec, now=NOW)
+    assert ans.status == "answered" and ans.result["total"] == 1
+    assert ans.result["rows"][0]["entity_id"] == dec.id and ans.result["rows"][0]["at"].startswith("2026-09-05")
+    assert any("Change history starts when each record was first recorded" in w for w in ans.warnings)
+    other = k.ask("q", spec={**spec, "record_filters": [{"field": "security_id", "op": "name_is",
+                                                         "value": "가상바이오"}]}, now=NOW)
+    assert other.result["total"] == 0  # no change recorded for that security's decisions
+
+
+def test_record_filters_are_for_event_questions_only(led):
+    from mnemento.keeper.query.spec import QuerySpec, validate_spec
+
+    schemas = {n: led.schemas.get(n) for n in led.schemas.names()}
+    bad = QuerySpec.model_validate({"entity_type": "decision", "mode": "count",
+                                    "record_filters": [{"field": "topic", "op": "eq", "value": "log"}]})
+    assert any("source events only" in e for e in validate_spec(bad, schemas))
+    unknown = QuerySpec.model_validate({"source": "events", "entity_type": "decision", "mode": "count",
+                                        "record_filters": [{"field": "nope", "op": "eq", "value": 1}]})
+    assert validate_spec(unknown, schemas)

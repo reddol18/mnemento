@@ -175,6 +175,10 @@ class QuerySpec(BaseModel):
                     "aggregate: grouped measures/comparisons."
     )
     filters: list[Filter] = Field(default_factory=list)
+    record_filters: list[Filter] = Field(
+        default_factory=list, description="source=events only: conditions on the current state of the records the "
+                                          "events belong to (fields of entity_type; name_is works on reference fields),"
+                                          " e.g. the buy criteria of one security.")
     elapsed: list[Elapsed] = Field(default_factory=list, description="Conditions on the time between two "
                                    "points of each record, e.g. viewed more than 3 days after applying.")
     window: list[Window] = Field(default_factory=list, description="series only: computed columns over earlier "
@@ -260,6 +264,13 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
                 m.agg in ("first", "last") and (schema.fields.get(m.field or "") is None
                                                 or schema.fields[m.field].format not in ("date", "date-time"))):
             errs.append(f"measures[{i}]: {m.agg} works with source series only (records: min/max of a field)")
+    if spec.record_filters:  # ADR-0026
+        if spec.source != "events":
+            errs.append("record_filters work with source events only (use filters for records)")
+        else:
+            rec = schemas[spec.entity_type]
+            for i, f in enumerate(spec.record_filters):
+                errs += _check_filter(rec, f, f"record_filters[{i}]")
     if spec.source == "events" and any(m.agg not in ("count", "count_if") for m in spec.measures):
         errs.append("source=events supports count/count_if measures only")
     for i, f in enumerate(spec.filters):

@@ -98,6 +98,10 @@ Rules:
   below an average of earlier points ("below its 4-week average", "above the 7-day moving average") use
   `window` (unit days or points, counting the point itself) plus `compare` with baseline.window. Without a
   period, a series question covers all points.
+- When a record last changed, or how often ("마지막으로 바꾼 날", "몇 번 고쳤어"): source "events" with
+  entity_type = the record type, filters kind in [updated, corrected, status_changed] (not the record's date
+  fields), and record_filters to pick the record(s) by their current fields (name_is on a reference field, e.g.
+  the security); list mode ordered by "at" descending with limit 1 for "last". Never filter entity_id by a guess.
 - A record's value from a series (the latest price of a holding, the price on the trade date) uses `values`
   with asof {field: the record's reference field that points at the same type as the series key, series,
   measure, at: "@today" or a date field of the record}. Arithmetic uses `values` with expr {op: add|sub|mul|div,
