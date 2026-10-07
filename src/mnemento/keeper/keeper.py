@@ -92,7 +92,8 @@ class Keeper:
 
     # mixed-text ingest (ADR-0017, ADR-0025)
     def ingest_preview(self, *, text: str | None = None, path: str | None = None,
-                       source: str = "text", exclude: list[str] | None = None) -> dict[str, Any]:
+                       source: str = "text", exclude: list[str] | None = None, progress=None,
+                       workers: int = 4) -> dict[str, Any]:
         """Classify and extract without writing records. `path`: a file, or a folder whose *.md / *.txt files are
         read (names relative to it; `exclude` file names are skipped)."""
         from pathlib import Path
@@ -112,7 +113,7 @@ class Keeper:
                 sources.append((name, f.read_text(encoding="utf-8", errors="replace")))
         if not sources:
             raise ValueError("give text or path")
-        return Ingestor(self.ledger, self.llm).preview(sources)
+        return Ingestor(self.ledger, self.llm, workers=workers, progress=progress).preview(sources)
 
     def ingest_apply(self, preview_id: str, *, approved_by: str, user_answer: str) -> dict[str, Any]:
         from .ingest import Ingestor

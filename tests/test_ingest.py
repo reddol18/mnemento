@@ -237,3 +237,28 @@ def test_a_known_record_named_in_passing_is_not_recorded_again(led):
     pv = Ingestor(led, NamesTheSecurity()).preview([("memo.md", NOTES)], now=NOW)
     assert not any(r["type"] == "security" for r in pv["records"])
     assert any(a["type"] == "security" and a["existing"] == "sec_900001" for a in pv["already_recorded"])
+
+
+def test_a_failing_call_is_reported_not_fatal_and_a_rerun_resumes_from_the_cache(led):
+    from mnemento.keeper.llm import LLMError
+
+    class FailsExtractOnce(FakeLLM):
+        def __init__(self):
+            super().__init__()
+            self.fail_extract = True
+
+        def complete_json(self, *, system, prompt, schema, stage):
+            if stage == "extract" and self.fail_extract:
+                self.calls.append(stage)
+                raise LLMError("timeout")
+            return super().complete_json(system=system, prompt=prompt, schema=schema, stage=stage)
+
+    llm = FailsExtractOnce()
+    msgs = []
+    pv = Ingestor(led, llm, progress=msgs.append).preview([("memo.md", NOTES)], now=NOW)
+    assert pv["records"] == [] and pv["llm_failures"] and any(a["what"] == "extraction" for a in pv["ambiguous"])
+    assert llm.calls.count("extract") == 2  # retried once
+    assert any(m.startswith("classify: ") for m in msgs)
+    llm.fail_extract, before = False, len(llm.calls)
+    again = Ingestor(led, llm).preview([("memo.md", NOTES)], now=NOW)
+    assert again["summary"]["records"] and llm.calls[before:] == ["extract"]  # classify/draft from the cache

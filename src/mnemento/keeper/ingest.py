@@ -319,6 +319,7 @@ class Preview:
     already_recorded: list[dict[str, Any]] = field(default_factory=list)
     notes: list[dict[str, Any]] = field(default_factory=list)
     llm: dict[str, Any] = field(default_factory=dict)
+    llm_failures: list[dict[str, Any]] = field(default_factory=list)  # calls that failed twice (their chunks: ambiguous)
 
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
@@ -335,10 +336,15 @@ class Preview:
 
 
 class Ingestor:
-    def __init__(self, ledger: Ledger, llm: LLMAdapter | None, batch_size: int = 15):
+    def __init__(self, ledger: Ledger, llm: LLMAdapter | None, batch_size: int = 15, workers: int = 4,
+                 progress=None):
         self.ledger = ledger
         self.llm = llm
         self.batch_size = batch_size
+        self.workers = workers
+        self.progress = progress  # callable(str) or None
+        self.failures: list[dict[str, Any]] = []
+        self._failed_extract: list[str] = []
 
     # -- preview --
     def preview(self, sources: list[tuple[str, str]], now: datetime | None = None) -> dict[str, Any]:
@@ -365,11 +371,14 @@ class Ingestor:
                                      "lines": [c.start, c.end], "reason": k["reason"]})
         type_defs: dict[str, SchemaDef] = dict(schemas)
         self._new_types = set()
-        for name in new_names:
-            if not NAME_RE.match(name):
+        names = [n for n in new_names if NAME_RE.match(n)]
+        drafts = self._draft_schemas(names, {n: [by_id[s] for s, k in cls.items() if n in k["types"]][:8]
+                                             for n in names}, schemas, trace)
+        for name in names:
+            draft = drafts.get(name)
+            if draft is None:
+                pv.ambiguous.append({"what": "new type", "type": name, "reason": "the schema draft call failed"})
                 continue
-            examples = [by_id[s] for s, k in cls.items() if name in k["types"]][:8]
-            draft = self._draft_schema(name, examples, schemas, trace)
             try:
                 sd = _type_schema(name, draft)
             except Exception as exc:  # noqa: BLE001 — an unusable draft makes its chunks ambiguous
@@ -381,7 +390,13 @@ class Ingestor:
         data = [c for c in chunks if cls.get(c.span_id, {}).get("kind") == "data"
                 and any(t in type_defs for t in cls[c.span_id]["types"])]
         raw = self._extract(data, cls, type_defs, trace)
+        for s in self._failed_extract:
+            c = by_id[s]
+            pv.ambiguous.append({"what": "extraction", "span": s, "source": c.source, "lines": [c.start, c.end],
+                                 "reason": "the extraction call failed; run the preview again to retry"})
         self._check_and_merge(pv, raw, by_id, type_defs)
+        if self.failures:
+            pv.llm_failures = list(self.failures)
         pv.llm = trace.finish().to_dict().get("totals", {})
         return self._store(pv, trace)
 
@@ -392,46 +407,99 @@ class Ingestor:
             (pv.id, pv.created_at, json.dumps(d, ensure_ascii=False)))
         return d
 
+    # -- LLM calls: parallel, cached (a re-run resumes), retried; a batch that still fails is reported, not fatal --
+    def _calls(self, jobs: list[tuple[str, str, str, dict]], trace: Trace, label: str) -> list[dict | None]:
+        """jobs: (stage, system, prompt, schema). Returns each job's data, or None when it failed twice."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        from .llm import LLMError
+
+        out: list[dict | None] = [None] * len(jobs)
+        keys = [hashlib.sha256(f"{getattr(self.llm, 'model', '')}|{s}|{sy}|{p}".encode()).hexdigest()
+                for s, sy, p, _ in jobs]
+        todo = []
+        for i, k in enumerate(keys):
+            row = self.ledger.storage.fetch_all("SELECT data FROM ingest_llm_cache WHERE key = ?", [k])
+            if row:
+                out[i] = json.loads(row[0]["data"])
+            else:
+                todo.append(i)
+        done = len(jobs) - len(todo)
+        if done:
+            self._progress(f"{label}: {done}/{len(jobs)} from an earlier run")
+
+        def call(i: int):
+            stage, system, prompt, schema = jobs[i]
+            last: Exception | None = None
+            for _ in range(2):
+                try:
+                    return self.llm.complete_json(system=system, prompt=prompt, schema=schema, stage=stage)
+                except LLMError as exc:
+                    last = exc
+            raise last  # type: ignore[misc]
+
+        with ThreadPoolExecutor(max_workers=self.workers) as pool:
+            futures = {pool.submit(call, i): i for i in todo}
+            for fut in as_completed(futures):  # cache writes happen here, in this thread
+                i = futures[fut]
+                try:
+                    r = fut.result()
+                except Exception as exc:  # noqa: BLE001
+                    self.failures.append({"stage": jobs[i][0], "error": str(exc)[:200]})
+                else:
+                    out[i] = r.data
+                    trace.add_llm(r.usage)
+                    self.ledger.storage.execute("INSERT OR REPLACE INTO ingest_llm_cache (key, data) VALUES (?, ?)",
+                                                (keys[i], json.dumps(r.data, ensure_ascii=False)))
+                done += 1
+                self._progress(f"{label}: {done}/{len(jobs)}")
+        return out
+
+    def _progress(self, msg: str) -> None:
+        if self.progress is not None:
+            self.progress(msg)
+
     def _classify(self, chunks: list[Chunk], schemas: dict[str, SchemaDef], trace: Trace) -> dict[str, dict]:
         dictionary = render_dictionary(list(schemas.values()), {}) if schemas else "(no record types yet)"
+        parts = [chunks[i:i + self.batch_size] for i in range(0, len(chunks), self.batch_size)]
+        jobs = [("classify", CLASSIFY_SYSTEM, f"Dictionary:\n{dictionary}\n\nChunks:\n" + "\n".join(
+            json.dumps({"id": c.span_id, "context": c.context, "text": c.text}, ensure_ascii=False) for c in part),
+                 CLASSIFY_SCHEMA) for part in parts]
         out: dict[str, dict] = {}
-        for i in range(0, len(chunks), self.batch_size):
-            part = chunks[i:i + self.batch_size]
-            prompt = (f"Dictionary:\n{dictionary}\n\nChunks:\n"
-                      + "\n".join(json.dumps({"id": c.span_id, "context": c.context, "text": c.text},
-                                             ensure_ascii=False) for c in part))
-            r = self.llm.complete_json(system=CLASSIFY_SYSTEM, prompt=prompt, schema=CLASSIFY_SCHEMA, stage="classify")
-            trace.add_llm(r.usage)
-            for c in r.data.get("chunks", []):
+        for part, data in zip(parts, self._calls(jobs, trace, "classify")):
+            if data is None:  # failed twice: these chunks stay "not classified" (ambiguous)
+                continue
+            for c in data.get("chunks", []):
                 if c.get("id") in {p.span_id for p in part}:
                     out[c["id"]] = {"kind": c["kind"], "types": [t for t in c.get("types", []) if t],
                                     "reason": c.get("reason", "")}
         return out
 
-    def _draft_schema(self, name: str, examples: list[Chunk], schemas: dict[str, SchemaDef],
-                      trace: Trace) -> dict[str, Any]:
-        prompt = (f"Existing types: {', '.join(schemas) or '(none)'}\nNew type: {name}\nExample chunks:\n"
-                  + "\n".join(json.dumps({"context": c.context, "text": c.text}, ensure_ascii=False)
-                              for c in examples))
-        r = self.llm.complete_json(system=SCHEMA_SYSTEM, prompt=prompt, schema=SCHEMA_SCHEMA, stage="draft_schema")
-        trace.add_llm(r.usage)
-        return r.data
+    def _draft_schemas(self, names: list[str], examples: dict[str, list[Chunk]], schemas: dict[str, SchemaDef],
+                       trace: Trace) -> dict[str, dict | None]:
+        jobs = [("draft_schema", SCHEMA_SYSTEM,
+                 f"Existing types: {', '.join(schemas) or '(none)'}\nNew type: {n}\nExample chunks:\n"
+                 + "\n".join(json.dumps({"context": c.context, "text": c.text}, ensure_ascii=False)
+                             for c in examples[n]), SCHEMA_SCHEMA) for n in names]
+        return dict(zip(names, self._calls(jobs, trace, "draft schemas")))
 
     def _extract(self, chunks: list[Chunk], cls: dict[str, dict], type_defs: dict[str, SchemaDef],
                  trace: Trace) -> list[dict[str, Any]]:
-        out = []
-        for i in range(0, len(chunks), self.batch_size):
-            part = chunks[i:i + self.batch_size]
+        parts = [chunks[i:i + self.batch_size] for i in range(0, len(chunks), self.batch_size)]
+        jobs = []
+        for part in parts:
             types = sorted({t for c in part for t in cls[c.span_id]["types"] if t in type_defs})
             dictionary = render_dictionary([type_defs[t] for t in types], {})
-            prompt = (f"Record types:\n{dictionary}\n\nChunks:\n"
-                      + "\n".join(json.dumps({"id": c.span_id, "types": cls[c.span_id]["types"], "context": c.context,
-                                              "text": c.text}, ensure_ascii=False) for c in part))
-            r = self.llm.complete_json(system=EXTRACT_SYSTEM, prompt=prompt, schema=EXTRACT_SCHEMA, stage="extract")
-            trace.add_llm(r.usage)
-            out += r.data.get("records", [])
+            jobs.append(("extract", EXTRACT_SYSTEM, f"Record types:\n{dictionary}\n\nChunks:\n" + "\n".join(
+                json.dumps({"id": c.span_id, "types": cls[c.span_id]["types"], "context": c.context, "text": c.text},
+                           ensure_ascii=False) for c in part), EXTRACT_SCHEMA))
+        out = []
+        for part, data in zip(parts, self._calls(jobs, trace, "extract")):
+            if data is None:
+                self._failed_extract += [c.span_id for c in part]
+                continue
+            out += data.get("records", [])
         return out
-
     def _check_and_merge(self, pv: Preview, raw: list[dict], by_id: dict[str, Chunk],
                          type_defs: dict[str, SchemaDef]) -> None:
         facts: list[dict[str, Any]] = []

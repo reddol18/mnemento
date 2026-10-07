@@ -172,6 +172,11 @@ CREATE TABLE IF NOT EXISTS ingest_spans (
     PRIMARY KEY (span_id, entity_id)
 );
 CREATE INDEX IF NOT EXISTS ix_ingest_spans_entity ON ingest_spans (entity_id);
+-- answers of ingest LLM calls by (model, prompt) hash: a preview that stopped part way resumes without paying twice
+CREATE TABLE IF NOT EXISTS ingest_llm_cache (
+    key  TEXT PRIMARY KEY,
+    data TEXT NOT NULL CHECK (json_valid(data))
+);
 
 -- ADR-0024: a field of an imported record that not every source has, or that the sources disagree on
 CREATE TABLE IF NOT EXISTS source_coverage (
