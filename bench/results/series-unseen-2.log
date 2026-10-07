@@ -1,0 +1,10 @@
+﻿M-haiku Q1: OK  ok                                       15.6s $0.014
+M-haiku Q2: OK  ok                                       34.4s $0.023
+M-haiku Q3: OK  ok                                       61.1s $0.038
+M-haiku Q4: BAD missing 샘플전자                             260.4s $0.143
+M-haiku Q5: OK  ok                                       41.9s $0.031
+M-opus Q1: OK  ok                                       7.9s $0.036
+M-opus Q2: OK  ok                                       8.5s $0.029
+M-opus Q3: OK  ok:candidate                             9.6s $0.040
+M-opus Q4: BAD missing 샘플전자                             24.8s $0.088
+M-opus Q5: OK  ok:candidate                             8.6s $0.040

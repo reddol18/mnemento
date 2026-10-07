@@ -244,7 +244,7 @@ def _asof(sid: str, at: str) -> float | None:
     return _last_close(sid, at)
 
 
-# Unseen price questions: written by the directing session on 2026-10-07 without seeing the code (wording as given;
+# USED UP by run series-unseen-2 (2026-10-07). Unseen price questions: written by the directing session on 2026-10-07 without seeing the code (wording as given;
 # ids renamed Q1-Q5 because P1-P4 are dev). Not run by any system before their measurement.
 QUESTIONS += [
     SQ("Q1", "unseen", "실계좌에 있는 종목들, 9월 18일 기준 평가금액 다 합치면 얼마야?", "number",
