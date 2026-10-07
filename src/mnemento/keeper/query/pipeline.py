@@ -16,6 +16,7 @@ from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, execute, narration_payload,
 from ..drafts import effective_schema
 from .cache import PlanCache
 from .compile import compile_spec
+from .series_query import compile_series, execute_series, series_warnings
 from .log import QueryLog
 from .interpret import (Clarification, InterpretError, dump_spec, interpret, observed_values,
                         select_schemas)
@@ -148,6 +149,8 @@ class QueryPipeline:
                                                options=clar.options, resolved={"names": resolved_names}),
                                   trace)
         schema = EVENT_SCHEMA if spec.source == "events" else schemas[spec.entity_type]
+        if spec.source == "series":
+            return self._done(self._series(question, spec, schema, now, trace, narrate), trace)
         with trace.stage("compile"):
             compiled = compile_spec(spec, schema, now)
         with trace.stage("execute"):
@@ -182,6 +185,31 @@ class QueryPipeline:
                 if prose:
                     ans.text = prose + "\n\n" + ans.text
         return self._done(ans, trace)
+
+    def _series(self, question: str, spec: QuerySpec, schema, now: datetime, trace: Trace,
+                narrate: bool) -> KeeperAnswer:
+        """ADR-0016: series questions (measurements over time) — same stages, series SQL and warnings."""
+        with trace.stage("compile"):
+            compiled = compile_series(spec, schema, now)
+        with trace.stage("execute"):
+            result = execute_series(compiled, self.ledger.storage.fetch_all)
+        with trace.stage("answer"):
+            notes = series_warnings(spec, schema, compiled, result, now, self.ledger.storage.fetch_all)
+            text = render_text(spec, result, notes, {}, compiled.columns)
+        ans = KeeperAnswer(
+            "answered", question, text, spec=dump_spec(spec), sql=compiled.sql, params=compiled.params,
+            result={"mode": result.mode, "total": result.total,
+                    "groups": result.groups if result.mode != "list" else [], "rows": result.rows, "labels": {}},
+            evidence=result.evidence, warnings=notes,
+            resolved={"dates": compiled.resolved_dates, "names": {}, "now": now.isoformat()})
+        if narrate:
+            with trace.stage("narrate"):
+                prose, usage = self.narrate(ans)
+                if usage is not None:
+                    trace.add_llm(usage)
+                if prose:
+                    ans.text = prose + "\n\n" + ans.text
+        return ans
 
     def narrate(self, ans: KeeperAnswer) -> tuple[str | None, Any]:
         """Optional prose answer written by the LLM from the aggregates of an existing answer.

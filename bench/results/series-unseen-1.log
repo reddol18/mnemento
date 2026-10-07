@@ -1,0 +1,14 @@
+﻿M-haiku U1: OK  ok                                       10.6s $0.008
+M-haiku U2: BAD number 58.6 != -0.1                      28.2s $0.018
+M-haiku U3: OK  ok                                       20.9s $0.014
+M-haiku U4: OK  ok                                       14.7s $0.011
+M-haiku U5: BAD no number                                83.6s $0.052
+M-haiku U6: OK  ok                                       31.6s $0.020
+M-haiku U8: BAD 식비: 0 != 2                               45.9s $0.028
+M-opus U1: OK  ok                                       5.9s $0.018
+M-opus U2: BAD number 58.6 != -0.1                      6.1s $0.020
+M-opus U3: OK  ok                                       6.5s $0.020
+M-opus U4: OK  ok                                       6.0s $0.021
+M-opus U5: BAD number 45 != -5                          8.9s $0.027
+M-opus U6: OK  ok                                       5.8s $0.020
+M-opus U8: BAD 식비: 25 != 2                              8.9s $0.026

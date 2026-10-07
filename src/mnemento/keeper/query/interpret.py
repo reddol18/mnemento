@@ -91,6 +91,13 @@ Rules:
   count_if measures for the follow-up part); never drop the main part because a side part is vague.
 - Clarify only when no default reading would give a fair answer (e.g. which of two different records, or a
   field the dictionary lacks); then use kind=clarify with 2-5 options.
+- Types marked SERIES (measurements over time, e.g. weight per day, spending per category per day) use
+  source "series": filter the key field and the time field (a period), group_by a key field or the time
+  field with a bucket, and measures avg/min/max/sum over a measure field, or first/last/change/change_pct
+  for "from ... to", "how much did it go up/down" (the first and last value in the period). Points above or
+  below an average of earlier points ("below its 4-week average", "above the 7-day moving average") use
+  `window` (unit days or points, counting the point itself) plus `compare` with baseline.window. Without a
+  period, a series question covers all points.
 - Write `interpretation` in the question's language: one sentence restating what will be counted/listed."""
 
 
@@ -124,6 +131,9 @@ def render_dictionary(schemas: list[SchemaDef], observed: dict[tuple[str, str], 
     out = []
     for s in schemas:
         out.append(f"* {s.name}: {s.description}")
+        if s.kind == "series":
+            out.append(f"  SERIES (QuerySpec source=series): one point per {' + '.join(s.series_key)} and "
+                       f"{s.time_field} ({s.granularity}); measures: {', '.join(s.measures)}")
         if s.default_date_field:
             out.append(f"  (a bare date refers to {s.default_date_field})")
         if s.vague_terms:
@@ -232,9 +242,10 @@ def observed_values(fetch, schemas: list[SchemaDef], max_distinct: int = 12) -> 
         for fname, fd in s.fields.items():
             if fd.type != "string" or fd.enum or fd.ref or fd.format:
                 continue
+            table = "series_points WHERE type = ?" if s.kind == "series" else "entities WHERE type = ? AND retracted = 0"
             rows = fetch(
-                f"SELECT json_extract(doc, '$.{fname}') AS v, COUNT(*) AS n FROM entities "
-                f"WHERE type = ? AND retracted = 0 AND v IS NOT NULL GROUP BY v ORDER BY n DESC, v LIMIT ?",
+                f"SELECT json_extract(doc, '$.{fname}') AS v, COUNT(*) AS n FROM {table} "
+                f"AND v IS NOT NULL GROUP BY v ORDER BY n DESC, v LIMIT ?",
                 [s.name, max_distinct + 1],
             )
             if 0 < len(rows) <= max_distinct:

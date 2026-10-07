@@ -72,6 +72,18 @@ class Keeper:
                     now: datetime | None = None) -> RecordResult:
         return self.recorder.record_text(text, by=by, evidence=evidence, now=now)
 
+    def record_series(self, entity_type: str, points: list[dict[str, Any]], *, by: str,
+                      source: str) -> dict[str, Any]:
+        """ADR-0016: one batch of series points (all or nothing; a point already stored is updated)."""
+        from ..series import ingest
+
+        return ingest(self.ledger, entity_type, points, by=by, source=source).to_dict()
+
+    def revert_series_batch(self, batch_id: str) -> dict[str, Any]:
+        from ..series import revert_batch
+
+        return revert_batch(self.ledger, batch_id)
+
     # schema design (proposals only)
     def propose_schema(self, entity_type: str | None = None,
                        samples: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:

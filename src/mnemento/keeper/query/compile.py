@@ -172,8 +172,8 @@ class Compiler:
             start = self._event_time(m.event_from)
             expr = f"(julianday({end}) - julianday({start})) * 24"
             fn = "AVG"
-        else:
-            expr, fn = self.col(m.field), m.agg.upper()
+        else:  # first/last reach here only for date fields (validated): the earliest/latest date
+            expr, fn = self.col(m.field), {"first": "MIN", "last": "MAX"}.get(m.agg, m.agg.upper())
         return f"{fn}(CASE WHEN {cond} THEN {expr} END)" if cond else f"{fn}({expr})"
 
     def elapsed(self, e: Elapsed) -> str:

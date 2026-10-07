@@ -40,6 +40,8 @@ INSTRUCTIONS = """Mnemento is a shared, structured record book. Use it instead o
 - list_schemas shows the registered fields and the drafts. Organizing drafts (descriptions, labels, indexes,
   merging look-alike names) is done with propose_schema and then apply_schema_proposal — the latter only after
   the user explicitly agrees.
+- record_series: measurements over time (types of kind "series", e.g. a daily weight) go in batches; a batch
+  can be undone with revert_series_batch. Ask about them with query like any other record.
 - query_log looks back at earlier questions: the SQL that answered them, warnings, errors, and questions whose
   interpretation changed between askings (diverging). It is kept in the local database only."""
 
@@ -151,6 +153,30 @@ def create_server(keeper: Keeper) -> MCPServer:
         req = {"entity_type": entity_type, "kind": kind, "payload": payload or {},
                "entity_id": entity_id, "match": match or {}, "at": at, "at_precision": at_precision}
         return keeper.record({k: v for k, v in req.items() if v is not None}, by=by, evidence=evidence).to_dict()
+
+    @mcp.tool()
+    def record_series(by: str, entity_type: str, points: list[dict[str, Any]], source: str) -> dict[str, Any]:
+        """Record measurements over time for a series type (list_schemas shows kind "series", its key fields,
+        time field and measures), e.g. [{"person": "A", "measured_on": "2026-07-01", "kg": 70.2}].
+
+        One call = one batch, all or nothing: if any point is invalid nothing is stored and `rejected` says why.
+        A point whose key and time are already stored is updated (the batch keeps the previous values).
+        source: where the values come from (file, app, "user said"). by: your agent name.
+        Returns batch_id and counts (inserted / updated / unchanged); revert_series_batch(batch_id) undoes it.
+        """
+        try:
+            return keeper.record_series(entity_type, points, by=by, source=source)
+        except Exception as exc:  # SeriesError, unknown type
+            raise ToolError(str(exc)) from exc
+
+    @mcp.tool()
+    def revert_series_batch(batch_id: str) -> dict[str, Any]:
+        """Undo a whole series batch: its new points are removed, updated points get their previous values.
+        Refused when a later batch changed the same points (revert that one first). Only when the user asks."""
+        try:
+            return keeper.revert_series_batch(batch_id)
+        except Exception as exc:
+            raise ToolError(str(exc)) from exc
 
     @mcp.tool()
     def get_entity(entity_id: str) -> dict[str, Any]:

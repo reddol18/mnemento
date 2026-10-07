@@ -92,6 +92,8 @@ def parse_simple(
         return None
     etype = next(iter(hits))
     schema = schemas[etype]
+    if schema.kind == "series":  # ADR-0016: periods, windows and per-key values go to the interpreter
+        return None
     for span in hits[etype]:
         take(*span)
 

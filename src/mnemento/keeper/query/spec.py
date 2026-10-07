@@ -22,7 +22,9 @@ Op = Literal[
 ]
 Bucket = Literal["none", "day", "week", "month", "year"]
 Agg = Literal["count", "count_if", "sum", "avg", "min", "max", "avg_days_between",
-              "avg_hours_between_events"]
+              "avg_hours_between_events", "first", "last", "change", "change_pct"]
+SERIES_VALUE_AGGS = ("sum", "avg", "min", "max", "first", "last", "change", "change_pct")
+SHORT_NAME = re.compile(r"^[^\W\d]\w{0,40}$")
 
 RELATIVE_DATE_RE = re.compile(
     r"^@(today|this_week_start|this_month_start|last_month_start|this_year_start)([+-]\d{1,4}[dwm])?$"
@@ -98,6 +100,30 @@ class Elapsed(BaseModel):
     value: float = Field(description="Amount of `unit`, e.g. 3 for 'more than three days' with op gt.")
 
 
+class Window(BaseModel):
+    """series: a value computed for every point over the points before it (same key), e.g. a moving average."""
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(description="Column name, e.g. 'avg_52w'.")
+    measure: str
+    agg: Literal["avg", "min", "max", "sum"] = "avg"
+    size: int = Field(ge=1, le=5000, description="How far back, including the point itself.")
+    unit: Literal["points", "days"] = Field(description="points: the last N points; days: the last N days.")
+
+
+class Baseline(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    window: str | None = Field(default=None, description="Name of a window column.")
+    value: float | None = None
+
+
+class Compare(BaseModel):
+    """series: keep the points where `measure` op baseline (a window column or a fixed value)."""
+    model_config = ConfigDict(extra="forbid")
+    measure: str
+    op: Literal["gt", "gte", "lt", "lte"]
+    baseline: Baseline
+
+
 class Having(BaseModel):
     model_config = ConfigDict(extra="forbid")
     measure: str = Field(description="'count' (rows in the group) or a measure name.")
@@ -107,11 +133,12 @@ class Having(BaseModel):
 
 class QuerySpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    source: Literal["entities", "events"] = Field(
+    source: Literal["entities", "events", "series"] = Field(
         default="entities",
         description="entities: current state of records (default). events: the change log itself "
                     "(who recorded what when, corrections, retractions); fields: kind, by, entity_type, "
-                    "entity_id, at, evidence, to, from.")
+                    "entity_id, at, evidence, to, from. series: measurements over time of a series type "
+                    "(kind series in the dictionary): one row per key and time point.")
     entity_type: str = Field(description="Which record type (schema name) to query. With source=events "
                                           "it limits the log to that record type.")
     mode: Literal["count", "list", "aggregate"] = Field(
@@ -121,6 +148,10 @@ class QuerySpec(BaseModel):
     filters: list[Filter] = Field(default_factory=list)
     elapsed: list[Elapsed] = Field(default_factory=list, description="Conditions on the time between two "
                                    "points of each record, e.g. viewed more than 3 days after applying.")
+    window: list[Window] = Field(default_factory=list, description="series only: computed columns over earlier "
+                                 "points, e.g. a 7-point moving average or the 364-day average.")
+    compare: list[Compare] = Field(default_factory=list, description="series only: keep points where a "
+                                   "measure is above/below a window column or a value.")
     group_by: list[GroupKey] = Field(default_factory=list)
     measures: list[Measure] = Field(default_factory=list)
     list_fields: list[str] = Field(default_factory=list, description="Fields to show in list mode.")
@@ -178,6 +209,19 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         return [f"unknown entity_type {spec.entity_type!r}; known: {sorted(schemas)}"]
     schema = EVENT_SCHEMA if spec.source == "events" else schemas[spec.entity_type]
     errs: list[str] = []
+    if spec.source != "events" and (spec.source == "series") != (schema.kind == "series"):
+        return [f"{spec.entity_type} is kind {schema.kind}: use source "
+                f"{'series' if schema.kind == 'series' else 'entities'}"]
+    if spec.source == "series":
+        return _check_series(spec, schema)
+    if spec.window or spec.compare:
+        errs.append("window and compare work with source series only")
+    for i, m in enumerate(spec.measures):
+        # first/last of a date field is its earliest/latest date (compiled as MIN/MAX); other uses are series-only
+        if m.agg in ("change", "change_pct") or (
+                m.agg in ("first", "last") and (schema.fields.get(m.field or "") is None
+                                                or schema.fields[m.field].format not in ("date", "date-time"))):
+            errs.append(f"measures[{i}]: {m.agg} works with source series only (records: min/max of a field)")
     if spec.source == "events" and any(m.agg not in ("count", "count_if") for m in spec.measures):
         errs.append("source=events supports count/count_if measures only")
     for i, f in enumerate(spec.filters):
@@ -245,6 +289,67 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         elif spec.order_by_event.to is not None and "status" in schema.fields:
             if spec.order_by_event.to not in (schema.fields["status"].enum or ()):
                 errs.append(f"order_by_event: status {spec.order_by_event.to!r} not allowed")
+    return errs
+
+
+def _check_series(spec: QuerySpec, schema: SchemaDef) -> list[str]:
+    errs: list[str] = []
+    measures = set(schema.measures)
+    for i, f in enumerate(spec.filters):
+        errs += _check_filter(schema, f, f"filters[{i}]")
+        if f.op in ("name_is", "reached"):
+            errs.append(f"filters[{i}]: {f.op} does not apply to series")
+    if spec.elapsed or spec.order_by_event:
+        errs.append("series: elapsed and order_by_event are for entities")
+    windows = {}
+    for i, w in enumerate(spec.window):
+        if w.measure not in measures:
+            errs.append(f"window[{i}]: {w.measure!r} is not a measure ({sorted(measures)})")
+        if w.name in windows or w.name in schema.fields or not SHORT_NAME.match(w.name):
+            errs.append(f"window[{i}]: name {w.name!r} must be a new short word")
+        windows[w.name] = w
+    for i, c in enumerate(spec.compare):
+        if c.measure not in measures:
+            errs.append(f"compare[{i}]: {c.measure!r} is not a measure")
+        if (c.baseline.window is None) == (c.baseline.value is None):
+            errs.append(f"compare[{i}]: give exactly one of baseline.window, baseline.value")
+        elif c.baseline.window is not None and c.baseline.window not in windows:
+            errs.append(f"compare[{i}]: unknown window {c.baseline.window!r}")
+    for i, g in enumerate(spec.group_by):
+        if g.field not in schema.fields:
+            errs.append(f"group_by[{i}]: unknown field {g.field!r}")
+        elif g.bucket != "none" and g.field != schema.time_field:
+            errs.append(f"group_by[{i}]: buckets apply to the time field {schema.time_field}")
+        elif g.bucket == "none" and g.field not in schema.series_key:
+            errs.append(f"group_by[{i}]: group by a key field ({list(schema.series_key)}) or the time field "
+                        f"with a bucket")
+    names = set()
+    for i, m in enumerate(spec.measures):
+        if m.name in names or not SHORT_NAME.match(m.name):
+            errs.append(f"measures[{i}]: bad or duplicate name {m.name!r}")
+        names.add(m.name)
+        if m.agg in SERIES_VALUE_AGGS and m.field not in measures:
+            errs.append(f"measures[{i}]: {m.agg} needs a measure field ({sorted(measures)}), got {m.field!r}")
+        elif m.agg not in SERIES_VALUE_AGGS + ("count", "count_if"):
+            errs.append(f"measures[{i}]: {m.agg} does not apply to series")
+        if m.agg == "count_if" and not m.where:
+            errs.append(f"measures[{i}]: count_if needs `where`")
+        for j, wf in enumerate(m.where):
+            errs += _check_filter(schema, wf, f"measures[{i}].where[{j}]")
+    for fname in spec.list_fields:
+        if fname not in schema.fields and fname not in windows:
+            errs.append(f"list_fields: unknown field {fname!r}")
+    if spec.order_by and spec.order_by not in schema.fields and spec.order_by not in names \
+            and spec.order_by not in windows and spec.order_by != "count":
+        errs.append(f"order_by: unknown field or measure {spec.order_by!r}")
+    if spec.mode != "aggregate" and spec.group_by:
+        errs.append("group_by requires mode 'aggregate'")
+    for i, h in enumerate(spec.having):
+        if not spec.group_by:
+            errs.append("having requires group_by")
+            break
+        if h.measure != "count" and h.measure not in names:
+            errs.append(f"having[{i}]: unknown measure {h.measure!r}")
     return errs
 
 

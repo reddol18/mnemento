@@ -1,0 +1,20 @@
+﻿M-haiku S1: OK  ok                                       25.8s $0.017
+M-haiku S2: OK  ok                                       23.0s $0.015
+M-haiku S3: OK  ok                                       13.0s $0.011
+M-haiku S4: OK  ok                                       8.8s $0.008
+M-haiku S5: OK  ok                                       16.3s $0.012
+M-haiku S6: OK  ok                                       32.7s $0.021
+M-haiku S7: OK  ok                                       12.1s $0.010
+M-haiku S8: BAD no number                                15.4s $0.011
+M-haiku S9: OK  ok                                       19.9s $0.013
+M-haiku S10: OK  ok                                       16.2s $0.012
+M-opus S1: OK  ok                                       5.7s $0.066
+M-opus S2: OK  ok                                       5.0s $0.016
+M-opus S3: BAD number 56.2 != 0.8999999999999986        5.6s $0.019
+M-opus S4: OK  ok                                       5.2s $0.017
+M-opus S5: OK  ok                                       8.1s $0.019
+M-opus S6: OK  ok                                       7.1s $0.021
+M-opus S7: OK  ok                                       5.6s $0.019
+M-opus S8: OK  ok                                       11.9s $0.040
+M-opus S9: OK  ok                                       6.1s $0.020
+M-opus S10: OK  ok                                       5.4s $0.018
