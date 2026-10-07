@@ -326,6 +326,7 @@ def to_answer(ans) -> dict[str, Any]:
             out["groups"] = {key(r): r.get(values[-1]) for r in rows}
             if len(rows) == 1:
                 out["number"] = rows[0].get(values[-1])
+                out["candidates"] = [rows[0].get(v) for v in values if isinstance(rows[0].get(v), (int, float))]
             return out
         # "the last value": one row shown with one measure in it -> that value (dev S8, haiku listed the latest row)
         shown = [c for c in (rows[0] if len(rows) == 1 else {}) if c in MEASURES]
@@ -336,6 +337,14 @@ def to_answer(ans) -> dict[str, Any]:
                                  and re.fullmatch(r"\d{4}-\d{2}-\d{2}.*", v)), None)
         return out
     measures = [m["name"] for m in (ans.spec or {}).get("measures") or []]
+    # secondary credit (rule added 2026-10-07 before the unseen price run, not applied to earlier results): every
+    # measure of a single group, and per sum/count measure the total over the groups
+    groups_ = res.get("groups") or []
+    aggs = {m["name"]: m.get("agg") for m in (ans.spec or {}).get("measures") or []}
+    out["candidates"] = [v for g in groups_[:1] if len(groups_) == 1 for v in g["measures"].values()
+                         if isinstance(v, (int, float))]
+    out["candidates"] += [sum(g["measures"].get(n) or 0 for g in groups_) for n in measures
+                          if aggs.get(n) in ("sum", "count", "count_if") and len(groups_) > 1]
     for g in res.get("groups") or []:
         v = g["measures"].get(measures[0]) if measures else g["n"]
         label = "/".join(str(x) for x in g["group"].values())
@@ -352,11 +361,14 @@ def grade(q: SQ, data: SeriesData, got: dict[str, Any]) -> tuple[bool, str]:
     exp = q.answer(data)
     if q.grader == "number":
         n = got.get("number")
-        if n is None:
+        if n is None and not got.get("candidates"):
             return False, "no number"
         targets = [exp, *(q.alternatives(data) if q.alternatives else [])]
-        if any(abs(float(n) - float(t)) <= q.tolerance + 1e-9 for t in targets):
+        hit = lambda x: any(abs(float(x) - float(t)) <= q.tolerance + 1e-9 for t in targets)  # noqa: E731
+        if n is not None and hit(n):
             return True, "ok"
+        if any(hit(c) for c in got.get("candidates") or []):  # secondary credit: counted apart from strict "ok"
+            return True, "ok:candidate"
         return False, f"number {n} != {exp}"
     if q.grader == "set":  # every required item listed (any alias); extras only from the allowed list
         items = got.get("items") or []

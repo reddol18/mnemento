@@ -1,0 +1,8 @@
+﻿M-haiku P1: OK  ok                                       12.4s $0.012
+M-haiku P2: BAD sec_900001: 12 != 15120.0                121.1s $0.076
+M-haiku P3: OK  ok                                       15.3s $0.013
+M-haiku P4: OK  ok                                       20.9s $0.017
+M-opus P1: OK  ok                                       5.2s $0.031
+M-opus P2: OK  ok                                       7.6s $0.035
+M-opus P3: BAD no number                                8.5s $0.039
+M-opus P4: OK  ok                                       5.9s $0.032
