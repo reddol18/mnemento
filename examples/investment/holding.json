@@ -1,0 +1,41 @@
+{
+  "name": "holding",
+  "version": 1,
+  "description": "What is held of a security in one account, as of the last import (fictional example).",
+  "keywords": ["보유", "잔고", "평가", "holding"],
+  "fields": {
+    "security_id": {
+      "type": "string",
+      "ref": "security",
+      "description": "The security held.",
+      "required": true,
+      "indexed": true
+    },
+    "account": {
+      "type": "string",
+      "enum": ["paper", "real"],
+      "labels": {"paper": ["모의", "모의 계좌"], "real": ["실계좌", "실제 계좌"]},
+      "description": "paper: the mock account; real: the real account.",
+      "required": true
+    },
+    "status": {
+      "type": "string",
+      "enum": ["held", "sold"],
+      "labels": {"held": ["보유 중", "보유"], "sold": ["매도 완료", "정리"]},
+      "description": "held: units are held now; sold: fully sold."
+    },
+    "units": {
+      "type": "number",
+      "description": "Units held now (shares or fund units)."
+    },
+    "invested": {
+      "type": "number",
+      "description": "Amount paid for the units held now, KRW (cost basis)."
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "description": "Day the source last confirmed these numbers."
+    }
+  }
+}

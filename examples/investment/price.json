@@ -1,0 +1,28 @@
+{
+  "name": "price",
+  "version": 1,
+  "kind": "series",
+  "description": "Daily closing price of a security (fictional example). One point per security and day.",
+  "keywords": ["가격", "종가", "시세", "price"],
+  "series_key": ["security_id"],
+  "time_field": "price_on",
+  "granularity": "day",
+  "measures": ["close"],
+  "fields": {
+    "security_id": {
+      "type": "string",
+      "ref": "security",
+      "description": "The security (id sec_<code>).",
+      "indexed": true
+    },
+    "price_on": {
+      "type": "string",
+      "format": "date",
+      "description": "Trading day."
+    },
+    "close": {
+      "type": "number",
+      "description": "Closing price in KRW (fund: standard price)."
+    }
+  }
+}

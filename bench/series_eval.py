@@ -26,9 +26,10 @@ from mnemento import Ledger
 from mnemento.keeper import Keeper
 from mnemento.series import ingest
 
-from .series_gen import SPENDING_SCHEMA, WEIGHT_SCHEMA, SeriesData, generate
+from .series_gen import SPENDING_SCHEMA, WEIGHT_SCHEMA, SECURITIES, SeriesData, generate, generate_market
 
-MEASURES = {*WEIGHT_SCHEMA["measures"], *SPENDING_SCHEMA["measures"]}
+MEASURES = {*WEIGHT_SCHEMA["measures"], *SPENDING_SCHEMA["measures"], "close"}
+MARKET = generate_market()
 NOW = datetime.fromisoformat("2026-09-27T21:00:00+09:00")  # the generator's last day, evening
 RESULTS = Path(__file__).resolve().parent / "results"
 
@@ -201,12 +202,60 @@ QUESTIONS += [
 
 
 
+def _close(code: str, lo: str = "", hi: str = "9999") -> list[float]:
+    return [p["close"] for p in MARKET.prices if p["security_id"] == f"sec_{code}" and lo <= p["price_on"] <= hi]
+
+
+def _last_close(sid: str, at: str = "2026-09-27") -> float | None:
+    pts = [p for p in MARKET.prices if p["security_id"] == sid and p["price_on"] <= at]
+    return pts[-1]["close"] if pts else None
+
+
+def _pnl() -> dict[str, float]:
+    return {h["security_id"]: h["units"] * _last_close(h["security_id"]) - h["invested"]
+            for h in MARKET.holdings.values() if _last_close(h["security_id"]) is not None}
+
+
+_PNL_VALUES = [{"name": "last_close", "asof": {"field": "security_id", "series": "price", "measure": "close"}},
+               {"name": "mv", "expr": {"op": "mul", "args": ["units", "last_close"]}},
+               {"name": "pnl", "expr": {"op": "sub", "args": ["mv", "invested"]}}]
+
+QUESTIONS += [  # task 0008 step 5 (issue #2), dev — written with the code
+    SQ("P1", "dev", "가상바이오 8월 평균 종가는?", "number",
+       lambda d: statistics.mean(_close("900001", "2026-08-01", "2026-08-31")),
+       {"entity_type": "price", "mode": "aggregate",
+        "filters": [_eq("security_id", "sec_900001"), *_period("price_on", "2026-08-01", "2026-08-31")],
+        "measures": [{"name": "avg_close", "agg": "avg", "field": "close"}]}, tolerance=0.5),
+    SQ("P2", "dev", "보유 종목별 평가 손익 보여줘", "groups", lambda d: _pnl(),
+       {"entity_type": "holding", "mode": "list", "values": _PNL_VALUES, "list_fields": ["security_id", "pnl"]},
+       tolerance=1),
+    SQ("P3", "dev", "보유 종목 평가 손익 합계는 얼마야?", "number", lambda d: sum(_pnl().values()),
+       {"entity_type": "holding", "mode": "aggregate", "values": _PNL_VALUES,
+        "measures": [{"name": "total_pnl", "agg": "sum", "field": "pnl"}]}, tolerance=1),
+    SQ("P4", "dev", "샘플전자 산 날 종가는 얼마였어?", "number",
+       lambda d: _last_close("sec_900002", MARKET.trades["trade_b"]["traded_at"]),
+       {"entity_type": "trade", "mode": "list", "filters": [_eq("security_id", "sec_900002")],
+        "values": [{"name": "close_then", "asof": {"field": "security_id", "series": "price", "measure": "close",
+                                                   "at": "traded_at"}}]}),
+]
+
+
 def open_ledger(data: SeriesData) -> Ledger:
     led = Ledger.open(":memory:")
     led.schemas.register(WEIGHT_SCHEMA)
     led.schemas.register(SPENDING_SCHEMA)
     ingest(led, "weight", data.weight, by="series_gen", source="series_gen")
     ingest(led, "spending", data.spending, by="series_gen", source="series_gen")
+    # step 5: fictional securities, prices, holdings and trades (examples/investment schemas)
+    led.schemas.load_dir(Path(__file__).resolve().parents[1] / "examples" / "investment")
+    at = "2026-07-01T09:00:00+09:00"
+    for code, name in SECURITIES:
+        led.record_event(f"sec_{code}", "created", {"code": code, "name": name}, at, "series_gen", None,
+                         entity_type="security")
+    for kind, docs in (("holding", MARKET.holdings), ("trade", MARKET.trades)):
+        for i, doc in docs.items():
+            led.record_event(i, "created", doc, at, "series_gen", None, entity_type=kind)
+    ingest(led, "price", MARKET.prices, by="series_gen", source="series_gen")
     return led
 
 
@@ -220,6 +269,13 @@ def to_answer(ans) -> dict[str, Any]:
     if res.get("mode") in ("count", "list"):
         out["number"] = res["total"]
         rows = res.get("rows") or []
+        values = [v["name"] for v in (ans.spec or {}).get("values") or []]
+        if res.get("mode") == "list" and values:  # computed columns: the last one is the asked value, per record
+            key = lambda r: r.get("security_id") or r["id"]  # noqa: E731
+            out["groups"] = {key(r): r.get(values[-1]) for r in rows}
+            if len(rows) == 1:
+                out["number"] = rows[0].get(values[-1])
+            return out
         # "the last value": one row shown with one measure in it -> that value (dev S8, haiku listed the latest row)
         shown = [c for c in (rows[0] if len(rows) == 1 else {}) if c in MEASURES]
         if res.get("mode") == "list" and len(shown) == 1 and (ans.spec or {}).get("limit") == 1:
@@ -276,7 +332,8 @@ def check() -> int:
         if q.reference is None:
             print(f"{q.id:4} {q.set:6} --  no reference spec ({q.note})  key={_short(q.answer(data))}")
             continue
-        ans = k.ask(q.text, spec={"source": "series", **q.reference}, now=NOW)
+        kind = led.schemas.get(q.reference["entity_type"]).kind
+        ans = k.ask(q.text, spec={"source": "series" if kind == "series" else "entities", **q.reference}, now=NOW)
         ok, why = grade(q, data, to_answer(ans))
         bad += not ok
         print(f"{q.id:4} {q.set:6} {'OK ' if ok else 'BAD'} {why:30} key={_short(q.answer(data))}")
@@ -289,7 +346,7 @@ def _short(v: Any) -> str:
     return s if len(s) < 70 else s[:67] + "..."
 
 
-def run(model: str, which: str, run_id: str) -> None:
+def run(model: str, which: str, run_id: str, ids: list[str] | None = None) -> None:
     from mnemento.keeper.llm import ClaudeCLIAdapter
 
     data = generate()
@@ -304,7 +361,7 @@ def run(model: str, which: str, run_id: str) -> None:
     k.pipeline.query_log = None
     k.pipeline.cache = None  # every question interpreted, as in the entity benchmark
     with path.open("a", encoding="utf-8") as fh:
-        for q in [q for q in QUESTIONS if q.set == which]:
+        for q in [q for q in QUESTIONS if q.set == which and (not ids or q.id in ids)]:
             if (model, q.id) in done:
                 continue
             ans = k.ask(q.text, now=NOW)
@@ -329,10 +386,11 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--model", default="haiku")
     r.add_argument("--set", default="dev", choices=["dev", "unseen"])
     r.add_argument("--run", default=None)
+    r.add_argument("--ids", default="", help="comma-separated question ids")
     a = p.parse_args(argv)
     if a.cmd == "check":
         sys.exit(1 if check() else 0)
-    run(a.model, a.set, a.run or f"series-{a.set}")
+    run(a.model, a.set, a.run or f"series-{a.set}", [i for i in a.ids.split(",") if i])
 
 
 if __name__ == "__main__":

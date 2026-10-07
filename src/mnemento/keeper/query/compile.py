@@ -25,22 +25,60 @@ class CompiledQuery:
     group_columns: list[str] = field(default_factory=list)
     measure_names: list[str] = field(default_factory=list)
     resolved_dates: dict[str, str] = field(default_factory=dict)  # token -> YYYY-MM-DD
+    value_names: list[str] = field(default_factory=list)  # list mode: computed columns v0, v1 ... (ADR-0022)
 
 
 class Compiler:
-    def __init__(self, schema: SchemaDef, now: datetime):
+    def __init__(self, schema: SchemaDef, now: datetime, schemas: dict[str, SchemaDef] | None = None):
         self.schema = schema
         self.now = now
+        self.schemas = schemas or {}
         self.params: list[Any] = []
         self.resolved: dict[str, str] = {}
+        self.values: dict[str, Any] = {}  # name -> Value (ADR-0022)
 
     # ---- expressions ----------------------------------------------------------------------
 
     def col(self, fname: str) -> str:
+        if fname in self.values:
+            return self.value_sql(fname)
         fd = self.schema.fields[fname]  # validated beforehand
         if fd.indexed:
             return column_for(fname)
         return f"json_extract(doc, '$.{fname}')"
+
+    def qcol(self, fname: str) -> str:
+        """A field of the outer record, safe inside a subquery that has its own `doc`."""
+        fd = self.schema.fields[fname]
+        return f"entities.{column_for(fname)}" if fd.indexed else f"json_extract(entities.doc, '$.{fname}')"
+
+    def value_sql(self, name: str) -> str:
+        v = self.values[name]
+        if v.asof is not None:
+            return self.asof_sql(v.asof, "value")
+        sym = {"add": "+", "sub": "-", "mul": "*"}
+        parts = [self.col(a) if isinstance(a, str) else self._bind_raw(a) for a in v.expr.args]
+        if v.expr.op == "div":
+            out = parts[0]
+            for p in parts[1:]:
+                out = f"({out} * 1.0 / NULLIF({p}, 0))"
+            return out
+        return "(" + f" {sym[v.expr.op]} ".join(parts) + ")"
+
+    def asof_sql(self, a, what: str) -> str:
+        """The latest point of the series key this record points at, at or before `at` (ADR-0016 §5): its
+        measure value, or (what="t") its date for the gap warning."""
+        ser = self.schemas[a.series]
+        type_ = self._bind_raw(ser.name)  # bind in the order the placeholders appear in the SQL text
+        at = self.asof_at_sql(a)
+        sel = f"json_extract(sp.doc, '$.{a.measure}')" if what == "value" else "sp.t"
+        return (f"(SELECT {sel} FROM series_points sp WHERE sp.type = {type_} "
+                f"AND sp.key = json_array({self.qcol(a.field)}) AND sp.t <= {at} "
+                f"AND json_extract(sp.doc, '$.{a.measure}') IS NOT NULL ORDER BY sp.t DESC LIMIT 1)")
+
+    def asof_at_sql(self, a) -> str:
+        return f"substr({self.qcol(a.at)}, 1, 10)" if a.at in self.schema.fields else self._bind_raw(
+            self.value(a.at, a.at))
 
     def bucket(self, fname: str, bucket: str) -> str:
         c = self.col(fname)
@@ -105,6 +143,12 @@ class Compiler:
         return ["type = ?", "retracted = 0"]
 
     def compile(self, spec: QuerySpec) -> CompiledQuery:
+        self.values = {v.name: v for v in spec.values}
+        value_cols, value_params = [], []
+        if spec.mode == "list" and spec.values:  # SELECT comes first in the SQL text: its parameters too
+            for i, v in enumerate(spec.values):
+                value_cols.append(f"{self.value_sql(v.name)} AS v{i}")
+            value_params, self.params = self.params, []
         where = self.base_where(spec)
         where += [self.cond(f) for f in spec.filters]
         where += [self.elapsed(e) for e in spec.elapsed]
@@ -120,10 +164,11 @@ class Compiler:
             else:
                 order = self._order(spec, default=self.default_order)
             order_params, self.params = self.params, []
-            sql = (f"SELECT {self.list_columns}, COUNT(*) OVER () AS _total FROM {self.table} "
+            cols = ", ".join([self.list_columns, *value_cols])
+            sql = (f"SELECT {cols}, COUNT(*) OVER () AS _total FROM {self.table} "
                    f"WHERE {where_sql} ORDER BY {order} LIMIT ?")
-            return CompiledQuery(sql, [*where_params, *order_params, spec.limit or 100], "list",
-                                 resolved_dates=self.resolved)
+            return CompiledQuery(sql, [*value_params, *where_params, *order_params, spec.limit or 100], "list",
+                                 resolved_dates=self.resolved, value_names=[v.name for v in spec.values])
 
         selects, groups, gnames = [], [], []
         for i, g in enumerate(spec.group_by):
@@ -218,6 +263,8 @@ class Compiler:
             return f"_n {direction}" if spec.mode != "list" else default
         if groups and spec.order_by in groups:
             return f"g{groups.index(spec.order_by)} {direction}"
+        if spec.order_by in self.values and spec.mode == "list":  # the selected column, not a second subquery
+            return f"v{list(self.values).index(spec.order_by)} {direction} NULLS LAST, id"
         return f"{self.col(spec.order_by)} {direction}, id"
 
 
@@ -266,7 +313,8 @@ class EventsCompiler(Compiler):
         return f"at_utc {op} {self._bind_raw(self._utc(bound))}"
 
 
-def compile_spec(spec: QuerySpec, schema: SchemaDef, now: datetime) -> CompiledQuery:
+def compile_spec(spec: QuerySpec, schema: SchemaDef, now: datetime,
+                 schemas: dict[str, SchemaDef] | None = None) -> CompiledQuery:
     if spec.source == "events":
         return EventsCompiler(now).compile(spec)
-    return Compiler(schema, now).compile(spec)
+    return Compiler(schema, now, schemas).compile(spec)

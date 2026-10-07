@@ -98,6 +98,11 @@ Rules:
   below an average of earlier points ("below its 4-week average", "above the 7-day moving average") use
   `window` (unit days or points, counting the point itself) plus `compare` with baseline.window. Without a
   period, a series question covers all points.
+- A record's value from a series (the latest price of a holding, the price on the trade date) uses `values`
+  with asof {field: the record's reference field that points at the same type as the series key, series,
+  measure, at: "@today" or a date field of the record}. Arithmetic uses `values` with expr {op: add|sub|mul|div,
+  args: numbers, numeric fields or earlier value names} — e.g. market value = mul(units, last price), unrealized
+  P/L = sub(market value, invested). Show values in list_fields, sort by them, or sum them as a measure field.
 - Write `interpretation` in the question's language: one sentence restating what will be counted/listed."""
 
 
@@ -183,6 +188,12 @@ def select_schemas(question: str, schemas: dict[str, SchemaDef]) -> list[SchemaD
         for fd in schemas[name].fields.values():
             if fd.ref and fd.ref in schemas and fd.ref not in picked:
                 picked.append(fd.ref)
+    # series keyed by a type the picked records point at: their values can be joined as of a date (ADR-0022)
+    refs = {fd.ref for n in mentioned for fd in schemas[n].fields.values() if fd.ref}
+    for other, s in schemas.items():
+        if other not in picked and s.kind == "series" and len(s.series_key) == 1 \
+                and s.fields[s.series_key[0]].ref in refs:
+            picked.append(other)
     return [schemas[n] for n in picked]
 
 

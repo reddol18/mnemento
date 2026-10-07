@@ -124,6 +124,35 @@ class Compare(BaseModel):
     baseline: Baseline
 
 
+class AsOf(BaseModel):
+    """entities: a series measure at a time point for the series key this record points at (ADR-0016 §5) — the
+    latest point at or before `at`."""
+    model_config = ConfigDict(extra="forbid")
+    field: str = Field(description="The record's reference field that points at the same records as the series key "
+                                   "(e.g. security_id for a price series keyed by security).")
+    series: str = Field(description="The series type.")
+    measure: str = Field(description="The series measure, e.g. close.")
+    at: str = Field(default="@today", description="A date, a date token, or a date field of the record (e.g. the "
+                                                  "trade date). Default: today.")
+
+
+class Expr(BaseModel):
+    """Arithmetic over numbers, numeric fields and earlier values."""
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["add", "sub", "mul", "div"]
+    args: list[Union[float, str]] = Field(min_length=2, description="Numbers, numeric field names, or names of "
+                                                                     "earlier values (nest by naming a value first).")
+
+
+class Value(BaseModel):
+    """entities: a computed column per record — an as-of series value or arithmetic. Usable in list_fields, order_by
+    and as a measure's field."""
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(description="Column name, e.g. 'last_close', 'unrealized_pnl'.")
+    asof: AsOf | None = None
+    expr: Expr | None = None
+
+
 class Having(BaseModel):
     model_config = ConfigDict(extra="forbid")
     measure: str = Field(description="'count' (rows in the group) or a measure name.")
@@ -152,6 +181,8 @@ class QuerySpec(BaseModel):
                                  "points, e.g. a 7-point moving average or the 364-day average.")
     compare: list[Compare] = Field(default_factory=list, description="series only: keep points where a "
                                    "measure is above/below a window column or a value.")
+    values: list[Value] = Field(default_factory=list, description="entities only: computed columns per record — a "
+                                "series value as of a date (asof) or arithmetic (expr), e.g. units × last price.")
     group_by: list[GroupKey] = Field(default_factory=list)
     measures: list[Measure] = Field(default_factory=list)
     list_fields: list[str] = Field(default_factory=list, description="Fields to show in list mode.")
@@ -216,6 +247,13 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         return _check_series(spec, schema)
     if spec.window or spec.compare:
         errs.append("window and compare work with source series only")
+    values = {}
+    if spec.values:
+        if spec.source != "entities":
+            errs.append("values work with source entities only")
+        else:
+            errs += _check_values(spec, schema, schemas)
+            values = {v.name for v in spec.values}
     for i, m in enumerate(spec.measures):
         # first/last of a date field is its earliest/latest date (compiled as MIN/MAX); other uses are series-only
         if m.agg in ("change", "change_pct") or (
@@ -250,7 +288,9 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
             errs.append(f"{where}: count_if needs `where`")
         for j, wf in enumerate(m.where):
             errs += _check_filter(schema, wf, f"{where}.where[{j}]")
-        if m.agg in ("sum", "avg", "min", "max"):
+        if m.agg in ("sum", "avg", "min", "max") and m.field in values:
+            pass  # computed values are numeric
+        elif m.agg in ("sum", "avg", "min", "max"):
             fd = schema.fields.get(m.field or "")
             if fd is None:
                 errs.append(f"{where}: unknown field {m.field!r}")
@@ -270,10 +310,10 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
                 if fd is None or fd.format not in ("date", "date-time"):
                     errs.append(f"{where}: avg_days_between needs two date fields, got {fname!r}")
     for fname in spec.list_fields:
-        if fname not in schema.fields:
+        if fname not in schema.fields and fname not in values:
             errs.append(f"list_fields: unknown field {fname!r}")
     if spec.order_by and spec.order_by not in schema.fields and spec.order_by not in names \
-            and spec.order_by != "count":
+            and spec.order_by not in values and spec.order_by != "count":
         errs.append(f"order_by: unknown field or measure {spec.order_by!r}")
     if spec.mode != "aggregate" and spec.group_by:
         errs.append("group_by requires mode 'aggregate'")
@@ -289,6 +329,48 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         elif spec.order_by_event.to is not None and "status" in schema.fields:
             if spec.order_by_event.to not in (schema.fields["status"].enum or ()):
                 errs.append(f"order_by_event: status {spec.order_by_event.to!r} not allowed")
+    return errs
+
+
+def _check_values(spec: QuerySpec, schema: SchemaDef, schemas: dict[str, SchemaDef]) -> list[str]:
+    """ADR-0022: as-of values only along a declared reference (the record field and the series key point at the same
+    type); arithmetic only over numbers, numeric fields and earlier values."""
+    errs: list[str] = []
+    seen: set[str] = set()
+    for i, v in enumerate(spec.values):
+        where = f"values[{i}]"
+        if not SHORT_NAME.match(v.name) or v.name in schema.fields or v.name in seen:
+            errs.append(f"{where}: name {v.name!r} must be a new short word (not a field, not used before)")
+        if (v.asof is None) == (v.expr is None):
+            errs.append(f"{where}: give exactly one of asof, expr")
+        elif v.asof is not None:
+            errs += _check_asof(v.asof, schema, schemas, where)
+        else:
+            for a in v.expr.args:
+                if isinstance(a, str) and a not in seen and (
+                        a not in schema.fields or schema.fields[a].type not in _NUMERIC):
+                    errs.append(f"{where}: {a!r} is not a numeric field or an earlier value")
+        seen.add(v.name)
+    return errs
+
+
+def _check_asof(a: "AsOf", schema: SchemaDef, schemas: dict[str, SchemaDef], where: str) -> list[str]:
+    fd = schema.fields.get(a.field)
+    ser = schemas.get(a.series)
+    if ser is None or ser.kind != "series":
+        return [f"{where}: {a.series!r} is not a series type"]
+    if len(ser.series_key) != 1 or ser.fields[ser.time_field].format != "date":
+        return [f"{where}: as-of works with a daily (date) series with one key field"]
+    key = ser.fields[ser.series_key[0]]
+    errs = []
+    if fd is None or not fd.ref or fd.ref != key.ref:
+        errs.append(f"{where}: {a.field!r} must reference the same type as the series key "
+                    f"{ser.series_key[0]} ({key.ref or 'no ref'})")
+    if a.measure not in ser.measures:
+        errs.append(f"{where}: {a.measure!r} is not a measure of {a.series} ({list(ser.measures)})")
+    if not (is_date_token(a.at) or is_calendar_date(a.at) or (
+            a.at in schema.fields and schema.fields[a.at].format in ("date", "date-time"))):
+        errs.append(f"{where}: at must be a date, a date token or a date field, got {a.at!r}")
     return errs
 
 

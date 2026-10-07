@@ -11,8 +11,8 @@ from ...timeutil import now as tz_now
 from ..identity import IdentityResolver
 from ..llm import LLMAdapter, LLMError
 from ..trace import Trace
-from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, execute, narration_payload, ref_labels, render_text,
-                     warnings_for)
+from .answer import (NARRATE_SCHEMA, NARRATE_SYSTEM, asof_warnings, execute, narration_payload, ref_labels,
+                     render_text, warnings_for)
 from ..drafts import effective_schema
 from .cache import PlanCache
 from .compile import compile_spec
@@ -159,7 +159,7 @@ class QueryPipeline:
             self._store_plan(question, to_cache, ans, schemas, now)
             return self._done(ans, trace)
         with trace.stage("compile"):
-            compiled = compile_spec(spec, schema, now)
+            compiled = compile_spec(spec, schema, now, schemas)
         with trace.stage("execute"):
             result = execute(compiled, self.ledger.storage.fetch_all)
 
@@ -167,6 +167,7 @@ class QueryPipeline:
         with trace.stage("answer"):
             notes = warnings_for(spec, schema, result, now, compiled.resolved_dates,
                                  self.ledger.storage.fetch_all) + id_notes
+            notes += asof_warnings(spec, schema, schemas, result, now, self.ledger.storage.fetch_all)
             for name, info in resolved_names.items():
                 if info["matches"]:
                     notes.append(f"'{name}' matched {info['matches']} by {info['rule']}.")

@@ -28,7 +28,7 @@ class QueryResult:
 def execute(compiled: CompiledQuery, fetch) -> QueryResult:
     raw = fetch(compiled.sql, compiled.params)
     if compiled.mode == "list":
-        rows = [_row(r) for r in raw]
+        rows = [{**_row(r), **{n: _num(r[f"v{i}"]) for i, n in enumerate(compiled.value_names)}} for r in raw]
         total = raw[0]["_total"] if raw else 0
         return QueryResult("list", rows, total, [r["id"] for r in rows])
     groups = []
@@ -49,7 +49,7 @@ def execute(compiled: CompiledQuery, fetch) -> QueryResult:
 
 
 def _row(r: dict[str, Any]) -> dict[str, Any]:
-    if "doc" in r:  # entity
+    if "doc" in r.keys():  # entity
         return {"id": r["id"], **json.loads(r["doc"])}
     out = {k: v for k, v in r.items() if not k.startswith("_")}  # event
     out["payload"] = json.loads(out["payload"])
@@ -229,3 +229,35 @@ that affects the conclusion (small samples, incomplete periods, immature records
 
 NARRATE_SCHEMA = {"type": "object", "properties": {"answer": {"type": "string"}},
                   "required": ["answer"], "additionalProperties": False}
+
+
+GAP_DAYS = {"day": 7, "week": 21, "month": 62}  # an as-of point older than this before `at` is reported
+
+
+def asof_warnings(spec: QuerySpec, schema: SchemaDef, schemas: dict[str, SchemaDef], result: QueryResult,
+                  now: datetime, fetch) -> list[str]:
+    """ADR-0016 §5 / ADR-0022: records with no series point at or before `at`, and points older than the gap."""
+    from .compile import Compiler
+
+    ids = result.evidence[:1000]
+    out: list[str] = []
+    if not ids:
+        return out
+    for v in spec.values:
+        if v.asof is None:
+            continue
+        a = v.asof
+        ser = schemas[a.series]
+        c = Compiler(schema, now, schemas)
+        t, at = c.asof_sql(a, "t"), c.asof_at_sql(a)
+        marks = ", ".join("?" for _ in ids)
+        rows = fetch(f"SELECT COUNT(*) - COUNT(t) AS none_, COALESCE(SUM(julianday(at) - julianday(t) > ?), 0) AS old, "
+                     f"MIN(t) AS oldest FROM (SELECT {t} AS t, {at} AS at FROM entities WHERE id IN ({marks}))",
+                     [GAP_DAYS.get(ser.granularity or "day", 7), *c.params, *ids])
+        r = rows[0] if rows else {"none_": 0, "old": 0, "oldest": None}
+        if r["none_"]:
+            out.append(f"{v.name}: {r['none_']} record(s) have no {a.series} point at or before {a.at}; left empty.")
+        if r["old"]:
+            out.append(f"{v.name}: {r['old']} record(s) use a {a.series} point more than "
+                       f"{GAP_DAYS.get(ser.granularity or 'day', 7)} days before {a.at} (oldest {r['oldest']}).")
+    return out

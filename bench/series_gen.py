@@ -73,3 +73,41 @@ def generate(seed: int = 20261005, start: date = date(2026, 1, 1), days: int = 2
             spending.append({"category": c, "spent_on": d.isoformat(), "count": n,
                              "amount": max(100, int(round(rng.gauss(mean, mean * 0.4) / 100)) * 100)})
     return SeriesData(start, end, weight, spending)
+
+
+# ---- task 0008 step 5 (issue #2): fictional securities, daily prices, holdings and trades -------------------------
+
+SECURITIES = [("900001", "가상바이오"), ("900002", "샘플전자"), ("900003", "모의펀드")]
+
+
+@dataclass
+class MarketData:
+    prices: list[dict]  # price series rows (security_id, price_on, close)
+    holdings: dict[str, dict]  # id -> doc
+    trades: dict[str, dict]  # id -> doc
+
+
+def generate_market(seed: int = 20261007) -> MarketData:
+    """Weekday closes from 2026-07-01: 900001 up to 09-25, 900002 stops on 09-10 (a stale price), 900003 never
+    priced. Holdings and trades refer to them; answers are computed from these rows."""
+    rng = random.Random(seed)
+    prices = []
+    for code, start, last_day in (("900001", 12000.0, date(2026, 9, 25)), ("900002", 5200.0, date(2026, 9, 10))):
+        p, d = start, date(2026, 7, 1)
+        while d <= last_day:
+            if d.weekday() < 5:
+                p = round(p * (1 + rng.uniform(-0.03, 0.031)), -1)
+                prices.append({"security_id": f"sec_{code}", "price_on": d.isoformat(), "close": p})
+            d += timedelta(days=1)
+    holdings = {
+        "hold_a": {"security_id": "sec_900001", "account": "real", "status": "held", "units": 12, "invested": 150000},
+        "hold_b": {"security_id": "sec_900002", "account": "paper", "status": "held", "units": 30, "invested": 160000},
+        "hold_c": {"security_id": "sec_900003", "account": "real", "status": "held", "units": 7, "invested": 70000},
+    }
+    trades = {
+        "trade_a": {"source_key": "gen:a", "security_id": "sec_900001", "account": "real", "side": "buy",
+                    "traded_at": "2026-08-12", "units": 12, "amount": 150000},
+        "trade_b": {"source_key": "gen:b", "security_id": "sec_900002", "account": "paper", "side": "buy",
+                    "traded_at": "2026-07-20", "units": 30, "amount": 160000},
+    }
+    return MarketData(prices, holdings, trades)
