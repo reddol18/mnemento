@@ -26,4 +26,8 @@
 3. Both counted rows with amount 0 (there are none: a day without spending has no point). The right numbers
    (식비 2, 교통 7, 카페 12) appear only in the gap warning, which the grader does not read. Not counted as present.
 
+**Status**: these 7 questions are used up by this measurement (decided with the directing session, 2026-10-07). A later fix motivated by U5/U8 moves them to dev; new unseen questions are requested for any re-measurement.
+
+**Grader issue (U2)**: the strict rule picked the first of several returned measures. The recorded result stays BAD; a changed rule would apply from the next measurement only.
+
 Cost (API list price): M-haiku $0.15, M-opus $0.15. Raw rows: [results.jsonl](results.jsonl).

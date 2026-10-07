@@ -154,6 +154,7 @@ def _month_argmax(d: SeriesData, cat: str, months: range) -> list[str]:
 
 
 # Unseen questions: written by the directing session on 2026-10-07 without seeing the code (wording kept as given).
+# USED UP by run series-unseen-1 (2026-10-07): after any fix they motivate, move them to dev and ask for new ones.
 # Not run by any system before their measurement; `check` only runs the reference specs, without an LLM.
 QUESTIONS += [
     SQ("U1", "unseen", "가상인의 6월 평균 몸무게는 몇 kg이었어?", "number",
