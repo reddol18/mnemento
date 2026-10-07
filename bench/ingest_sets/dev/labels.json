@@ -1,0 +1,25 @@
+{
+  "note": "Fictional notes written with the code (dev). Chunks by file and first line. Records after merging; values as stored (references as ids).",
+  "chunks": {
+    "notes_a.md": {"1": "not_data", "6": "data", "7": "data", "8": "data", "11": "not_data", "14": "data", "15": "data"},
+    "notes_b.md": {"4": "data", "5": "data", "6": "data", "9": "data", "10": "data", "13": "not_data"}
+  },
+  "records": [
+    {"type": "trade", "lines": [["notes_a.md", 6], ["notes_a.md", 14]],
+     "doc": {"security_id": "sec_900001", "traded_at": "2026-07-30", "side": "buy", "units": 3, "price": 12340}},
+    {"type": "decision", "lines": [["notes_a.md", 6]],
+     "doc": {"security_id": "sec_900001", "decided_at": "2026-07-30", "text": "수출 반등이 근거"}},
+    {"type": "trade", "lines": [["notes_a.md", 7]],
+     "doc": {"security_id": "sec_900001", "traded_at": "2026-08-20", "side": "buy", "units": 3, "price": 11800}},
+    {"type": "decision", "lines": [["notes_a.md", 8]],
+     "doc": {"security_id": "sec_900002", "decided_at": "2026-09-03", "text": "추세 이탈로 정리"}}
+  ],
+  "conflicts": [{"type": "trade", "field": "price", "lines": [["notes_a.md", 8], ["notes_a.md", 15]]}],
+  "siblings": [[0, 1]],
+  "new_types": [
+    {"kind": "series", "lines": [["notes_b.md", 4], ["notes_b.md", 5], ["notes_b.md", 6]],
+     "values": [["2026-09-01", 72.4], ["2026-09-02", 72.1], ["2026-09-03", 72.3]]},
+    {"kind": "entity", "lines": [["notes_b.md", 9], ["notes_b.md", 10]],
+     "values": [["2026-09-10", "가상의 책", 4], ["2026-09-20", "샘플 소설", 5]]}
+  ]
+}

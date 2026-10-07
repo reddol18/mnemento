@@ -65,7 +65,7 @@ def span_id(source: str, start: int, end: int, text: str) -> str:
 
 
 def split(text: str, source: str) -> list[Chunk]:
-    lines = text.splitlines()
+    lines = text.lstrip("﻿").splitlines()  # a byte-order mark would hide front matter
     chunks: list[Chunk] = []
     headings: list[str] = []
     cur: list[tuple[int, str]] = []

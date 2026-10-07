@@ -209,3 +209,15 @@ def test_correcting_a_record_asks_about_its_siblings(led):
     sib = led.find("decision")[0].id
     assert any(sib in q and "sibling" in q for q in res.questions)
     assert k.get_entity(trade.id)["siblings"] == [sib]
+
+
+def test_ingest_eval_scorer_runs_on_a_preview():
+    from bench.ingest_eval import load_set, open_ledger, score
+
+    sources, labels = load_set("dev")
+    led = open_ledger()
+    pv = Ingestor(led, FakeLLM()).preview(sources, now=NOW)
+    s = score(pv, labels)
+    assert s["values_not_in_source"] == 0 and s["classification"][1] == 13
+    assert s["field_recall"][0] >= 5  # the fake model finds the 07-30 and 08-20 buys
+    led.close()
