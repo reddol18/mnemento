@@ -42,6 +42,8 @@ INSTRUCTIONS = """Mnemento is a shared, structured record book. Use it instead o
 - list_schemas shows the registered fields and the drafts. Organizing drafts (descriptions, labels, indexes,
   merging look-alike names) is done with propose_schema and then apply_schema_proposal — the latter only after
   the user explicitly agrees.
+- ingest_preview -> (user agrees) -> ingest_apply: turn mixed notes into records with evidence, as one batch that
+  ingest_revert undoes.
 - record_series: measurements over time (types of kind "series", e.g. a daily weight) go in batches; a batch
   can be undone with revert_series_batch. Ask about them with query like any other record.
 - query_log looks back at earlier questions: the SQL that answered them, warnings, errors, and questions whose
@@ -187,6 +189,39 @@ def create_server(keeper: Keeper) -> MCPServer:
         Refused when a later batch changed the same points (revert that one first). Only when the user asks."""
         try:
             return keeper.revert_series_batch(batch_id)
+        except Exception as exc:
+            raise ToolError(str(exc)) from exc
+
+    @mcp.tool()
+    def ingest_preview(text: str | None = None, path: str | None = None, source: str = "text",
+                       exclude: list[str] | None = None) -> dict[str, Any]:
+        """Turn notes that mix facts with rules and prose (e.g. a memory folder) into records — PREVIEW ONLY,
+        nothing is written. Give `text`, or `path` (a file, or a folder of .md/.txt files; `exclude` skips file
+        names). The preview lists, per chunk, whether it holds data; the records found (each value checked
+        against a quote from the text — values without evidence are dropped and listed); facts repeated in
+        several places merged; conflicting repeats; facts already recorded; new record types with a suggested
+        schema; and the chunks kept only as notes. Show the user `summary`, the ambiguous list and the conflicts,
+        then ingest_apply with their answer. Costs LLM calls (about one per 15 chunks per stage)."""
+        try:
+            return keeper.ingest_preview(text=text, path=path, source=source, exclude=exclude)
+        except Exception as exc:  # IngestError, ValueError, OSError
+            raise ToolError(str(exc)) from exc
+
+    @mcp.tool()
+    def ingest_apply(preview_id: str, approved_by: str, user_answer: str) -> dict[str, Any]:
+        """Write exactly one preview as one ingest batch — ONLY after the user agreed to that preview. New entity
+        types become draft types (approve them later with apply_schema_proposal). Returns batch_id."""
+        try:
+            return keeper.ingest_apply(preview_id, approved_by=approved_by, user_answer=user_answer)
+        except Exception as exc:
+            raise ToolError(str(exc)) from exc
+
+    @mcp.tool()
+    def ingest_revert(batch_id: str) -> dict[str, Any]:
+        """Undo one ingest batch: its records are retracted (history kept) and its series points reverted.
+        Only when the user asks."""
+        try:
+            return keeper.ingest_revert(batch_id)
         except Exception as exc:
             raise ToolError(str(exc)) from exc
 

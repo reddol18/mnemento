@@ -144,6 +144,35 @@ CREATE TABLE IF NOT EXISTS ingest_batches (
     reverted_at TEXT
 );
 
+-- ADR-0017/0025: mixed-text ingest — the preview a user approves, the applied batches, and which chunk (span) each
+-- record came from (siblings: records from the same span)
+CREATE TABLE IF NOT EXISTS ingest_previews (
+    id          TEXT PRIMARY KEY,
+    created_at  TEXT NOT NULL,
+    content     TEXT NOT NULL CHECK (json_valid(content)),
+    applied_as  TEXT
+);
+CREATE TABLE IF NOT EXISTS text_ingests (
+    id             TEXT PRIMARY KEY,
+    preview_id     TEXT NOT NULL,
+    at             TEXT NOT NULL,
+    by             TEXT NOT NULL,
+    approved_by    TEXT NOT NULL,
+    user_answer    TEXT NOT NULL,
+    entity_ids     TEXT NOT NULL CHECK (json_valid(entity_ids)),
+    series_batches TEXT NOT NULL CHECK (json_valid(series_batches)),
+    new_types      TEXT NOT NULL CHECK (json_valid(new_types)),
+    notes          TEXT NOT NULL CHECK (json_valid(notes)),
+    reverted_at    TEXT
+);
+CREATE TABLE IF NOT EXISTS ingest_spans (
+    span_id   TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    batch_id  TEXT NOT NULL,
+    PRIMARY KEY (span_id, entity_id)
+);
+CREATE INDEX IF NOT EXISTS ix_ingest_spans_entity ON ingest_spans (entity_id);
+
 -- ADR-0024: a field of an imported record that not every source has, or that the sources disagree on
 CREATE TABLE IF NOT EXISTS source_coverage (
     entity_id   TEXT NOT NULL,

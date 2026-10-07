@@ -191,6 +191,14 @@ class Recorder:
                      " stored and queryable, organize later with propose_schema.")
         else:
             drafts = {}
+        if req.kind in (ev.CORRECTED, ev.RETRACTED):  # ADR-0017: siblings from the same chunk are only flagged
+            from .ingest import siblings
+
+            sibs = siblings(self.ledger, entity_id)
+            if sibs:
+                what = "corrected" if req.kind == ev.CORRECTED else "retracted"
+                questions.append(f"{entity_id} was extracted from the same note as sibling record(s) {sibs}; they may "
+                                 f"hold the same value. Should they be {what} too? (nothing was changed on them)")
         proposals = []
         if schema.is_draft:  # ADR-0021: the approval is asked for every time the type is written while a draft
             prop = nt.type_proposal(self.ledger, self.ledger.schemas.get(req.entity_type))

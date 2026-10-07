@@ -37,12 +37,18 @@ class Keeper:
         return self.pipeline.query_log.purge(before) if self.pipeline.query_log is not None else 0
 
     def get_entity(self, entity_id: str) -> dict[str, Any] | None:
+        from .ingest import siblings
+
         e = self.ledger.get_entity(entity_id)
         if e is None:
             return None
-        return {"entity": e.as_json(), "schema_version": e.schema_version, "retracted": e.retracted,
-                "reached": e.reached,
-                "created_at": e.created_at, "updated_at": e.updated_at, "applied_events": e.event_ids}
+        out = {"entity": e.as_json(), "schema_version": e.schema_version, "retracted": e.retracted,
+               "reached": e.reached,
+               "created_at": e.created_at, "updated_at": e.updated_at, "applied_events": e.event_ids}
+        sibs = siblings(self.ledger, entity_id)
+        if sibs:  # ADR-0017: records extracted from the same chunk
+            out["siblings"] = sibs
+        return out
 
     def history(self, entity_id: str) -> list[dict[str, Any]]:
         return [
@@ -83,6 +89,40 @@ class Keeper:
         from ..series import revert_batch
 
         return revert_batch(self.ledger, batch_id)
+
+    # mixed-text ingest (ADR-0017, ADR-0025)
+    def ingest_preview(self, *, text: str | None = None, path: str | None = None,
+                       source: str = "text", exclude: list[str] | None = None) -> dict[str, Any]:
+        """Classify and extract without writing records. `path`: a file, or a folder whose *.md / *.txt files are
+        read (names relative to it; `exclude` file names are skipped)."""
+        from pathlib import Path
+
+        from .ingest import Ingestor
+
+        sources: list[tuple[str, str]] = []
+        if text:
+            sources.append((source, text))
+        if path:
+            p = Path(path)
+            files = [p] if p.is_file() else sorted(f for f in p.rglob("*") if f.suffix.lower() in (".md", ".txt"))
+            for f in files:
+                name = f.name if p.is_file() else str(f.relative_to(p)).replace("\\", "/")
+                if name in (exclude or []):
+                    continue
+                sources.append((name, f.read_text(encoding="utf-8", errors="replace")))
+        if not sources:
+            raise ValueError("give text or path")
+        return Ingestor(self.ledger, self.llm).preview(sources)
+
+    def ingest_apply(self, preview_id: str, *, approved_by: str, user_answer: str) -> dict[str, Any]:
+        from .ingest import Ingestor
+
+        return Ingestor(self.ledger, self.llm).apply(preview_id, approved_by=approved_by, user_answer=user_answer)
+
+    def ingest_revert(self, batch_id: str) -> dict[str, Any]:
+        from .ingest import Ingestor
+
+        return Ingestor(self.ledger, self.llm).revert(batch_id)
 
     # schema design (proposals only)
     def propose_schema(self, entity_type: str | None = None,
