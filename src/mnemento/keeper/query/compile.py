@@ -212,12 +212,13 @@ class Compiler:
             return f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)" if cond else "COUNT(*)"
         if m.agg == "avg_days_between":
             a, b = self.col(m.field), self.col(m.field_end)
-            expr = f"julianday({b}) - julianday({a})"
+            # dates give days; unit "hours" converts (issue #16: the asked unit does not depend on the source)
+            expr = f"(julianday({b}) - julianday({a})){' * 24' if m.unit == 'hours' else ''}"
             fn = "AVG"
         elif m.agg == "avg_hours_between_events":
             end = self._event_time(m.event_to)  # bind order follows the SQL text: end, then start
             start = self._event_time(m.event_from)
-            expr = f"(julianday({end}) - julianday({start})) * 24"
+            expr = f"(julianday({end}) - julianday({start})){'' if m.unit == 'days' else ' * 24'}"
             fn = "AVG"
         else:  # first/last reach here only for date fields (validated): the earliest/latest date
             expr, fn = self.col(m.field), {"first": "MIN", "last": "MAX"}.get(m.agg, m.agg.upper())
@@ -244,8 +245,11 @@ class Compiler:
         conds = ["ev.entity_id = entities.id", f"ev.kind = {self._bind_raw(ref.kind)}",
                  "ev.id IN (SELECT value FROM json_each(entities.event_ids))",
                  "ev.at_precision = 'time'"]  # only exact event times (ADR-0013)
-        if ref.to is not None:
-            conds.append(f"json_extract(ev.payload, '$.to') = {self._bind_raw(ref.to)}")
+        statuses = ref.statuses()
+        if len(statuses) == 1:
+            conds.append(f"json_extract(ev.payload, '$.to') = {self._bind_raw(statuses[0])}")
+        elif statuses:  # e.g. "until the result": passed or rejected (issue #16)
+            conds.append(f"json_extract(ev.payload, '$.to') IN ({', '.join(self._bind_raw(s) for s in statuses)})")
         return f"(SELECT {agg}(ev.at_utc) FROM events ev WHERE {' AND '.join(conds)})"
 
     def _bind_raw(self, v: Any) -> str:

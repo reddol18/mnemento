@@ -80,7 +80,10 @@ Rules:
   "applied over a month ago and still ...", "took less than a day") uses `elapsed`: start/end are a date
   field, an event (exact times, e.g. {kind: status_changed, to: viewed}) or today. unit "days" with date
   fields (or today), unit "hours" with events (or now); never mix a date field with an event.
-  For an average of such a time use the measures avg_days_between / avg_hours_between_events instead.
+  For an average of such a time use the measures avg_days_between / avg_hours_between_events instead, and set
+  the measure's `unit` to the unit the question asks ("몇 시간" -> hours, "며칠" -> days): the code converts.
+  Prefer avg_hours_between_events (exact event times) when the record's events give both points. "Until the
+  result" means any result status: list them all in event_to.to (e.g. ["passed", "rejected"]), one measure.
   A time condition that belongs to one part of the answer only goes into that measure's `elapsed` (same shape),
   not into the spec's `elapsed`, which narrows every measure.
 - Lengths of time ("over three days", "more than a week", "한 달 넘게", "두 달 넘은") count days:

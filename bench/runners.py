@@ -112,6 +112,10 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
     out["raw_groups"] = [{"n": g["n"], "measures": dict(g["measures"])} for g in groups]
     count_if = [m["name"] for m in measures if m.get("agg") == "count_if"]
     share = "share" in q.format
+    # issue #16: a format asking for a mean per group takes the average-type measure, not the first one (from unseen
+    # v4 on; v4 X4 was recorded with the old rule)
+    mean_name = (next((m["name"] for m in measures if m.get("agg") in _AVERAGES), None)
+                 if re.search(r"value = (mean|average)", q.format) else None)
     for g in groups:
         keys = g["group"]
         period = next((v for k, v in keys.items() if k.endswith("_month")), None)
@@ -120,7 +124,7 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
             v = g["measures"].get(count_if[0])
             value = (v / g["n"] if g["n"] else None) if share and v is not None else v
         elif measures:
-            value = g["measures"].get(measures[0]["name"])
+            value = g["measures"].get(mean_name or measures[0]["name"])
         else:
             value = g["n"]
         out["groups"].append({"period": period, "category": cats[0] if cats else None, "n": g["n"], "value": value})

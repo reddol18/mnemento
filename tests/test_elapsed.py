@@ -214,3 +214,45 @@ def test_the_interpreter_is_told_where_a_vague_reading_goes():
 
     assert "narrows only the part of the question the word is in" in SYSTEM_PROMPT
     assert "that measure's `elapsed`" in SYSTEM_PROMPT
+
+
+# ---- issue #16: hours vs days; events with several statuses ------------------------------------------------------
+
+def test_units_on_time_between_measures_and_multi_status_events():
+    from mnemento.demo import open_demo
+    from mnemento.keeper import Keeper, ScriptedLLM
+
+    led = open_demo()
+    k = Keeper(led, ScriptedLLM())
+    base = {"entity_type": "application", "mode": "aggregate"}
+    dates = {"field": "applied_at", "field_end": "viewed_at"}
+    ev = {"event_from": {"kind": "created"}, "event_to": {"kind": "status_changed", "to": "viewed"}}
+    a = k.ask("q", spec={**base, "measures": [{"name": "d", "agg": "avg_days_between", **dates},
+                                             {"name": "h", "agg": "avg_days_between", "unit": "hours", **dates},
+                                             {"name": "eh", "agg": "avg_hours_between_events", **ev},
+                                             {"name": "ed", "agg": "avg_hours_between_events", "unit": "days", **ev}]})
+    m = a.result["groups"][0]["measures"]
+    assert abs(m["h"] - m["d"] * 24) < 0.05 and abs(m["ed"] - m["eh"] / 24) < 0.01
+    res = {"event_from": {"kind": "created"},
+           "event_to": {"kind": "status_changed", "to": ["passed", "rejected"]}}
+    one = k.ask("q", spec={**base, "measures": [
+        {"name": "any_result", "agg": "avg_hours_between_events", "unit": "days", **res},
+        {"name": "n", "agg": "count_if", "where": [{"field": "status", "op": "in", "value": ["passed", "rejected"]}]}]})
+    assert one.status == "answered" and one.result["groups"][0]["measures"]["any_result"] is not None
+    led.close()
+
+
+def test_a_unit_only_on_time_between_measures():
+    from mnemento.demo import open_demo
+    from mnemento.keeper.query.spec import QuerySpec, validate_spec
+
+    led = open_demo()
+    schemas = {n: led.schemas.get(n) for n in led.schemas.names()}
+    bad = QuerySpec.model_validate({"entity_type": "application", "mode": "aggregate",
+                                    "measures": [{"name": "c", "agg": "count", "unit": "days"}]})
+    assert any("unit is for" in e for e in validate_spec(bad, schemas))
+    wrong = QuerySpec.model_validate({"entity_type": "application", "mode": "aggregate", "measures": [
+        {"name": "x", "agg": "avg_hours_between_events", "event_from": {"kind": "created"},
+         "event_to": {"kind": "status_changed", "to": ["passed", "nope"]}}]})
+    assert any("'nope' not allowed" in e for e in validate_spec(wrong, schemas))
+    led.close()

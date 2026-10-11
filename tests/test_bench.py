@@ -615,3 +615,16 @@ def test_unseen4_graders():
                   {"sets": {14: ["a", "b"], 21: ["a"], 30: []}, "alt_sets": {}})
     assert grade(st, {"number": 1, "ids": ["a"], "text": "Note: 오래 묵혀둔 = 21일 넘게 결과 없음"})[0]
     assert not grade(st, {"number": 1, "ids": ["a"], "text": "no stated threshold"})[0]
+
+def test_group_value_takes_the_mean_when_the_format_asks_for_one():
+    from bench.questions import Question
+    from mnemento.keeper import KeeperAnswer
+
+    q = Question("X", "unseen4", "", "groups = one per platform with category=platform, n = viewed applications, "
+                 "value = mean days (float)", "value_groups", {})
+    ans = KeeperAnswer("answered", "q", "", spec={"measures": [{"name": "n", "agg": "count"},
+                                                                {"name": "d", "agg": "avg_days_between"}]},
+                       result={"mode": "aggregate", "total": 3, "rows": [],
+                               "groups": [{"group": {"platform": "saramin"}, "n": 3, "measures": {"n": 3, "d": 1.8},
+                                           "ids": []}]})
+    assert to_answer(ans, q)["groups"][0]["value"] == 1.8

@@ -65,7 +65,11 @@ class GroupKey(BaseModel):
 class EventRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
     kind: Literal["created", "updated", "status_changed"]
-    to: str | None = Field(default=None, description="For status_changed: the new status, e.g. 'viewed'.")
+    to: str | list[str] | None = Field(default=None, description="For status_changed: the new status, e.g. 'viewed', "
+                                     "or several, e.g. ['passed', 'rejected'] for 'until the result'.")
+
+    def statuses(self) -> list[str]:
+        return [] if self.to is None else ([self.to] if isinstance(self.to, str) else list(self.to))
 
 
 class Measure(BaseModel):
@@ -75,6 +79,8 @@ class Measure(BaseModel):
                                  "avg_days_between: average days from `field` to `field_end`.")
     field: str | None = None
     field_end: str | None = None
+    unit: Literal["days", "hours"] | None = Field(default=None, description="avg_days_between / avg_hours_between_events: "
+                                                  "the unit the question asks for (converted by code).")
     event_from: EventRef | None = Field(default=None, description="avg_hours_between_events: start event.")
     event_to: EventRef | None = Field(default=None, description="avg_hours_between_events: end event.")
     where: list[Filter] = Field(default_factory=list)
@@ -321,8 +327,11 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
             elif "status" in schema.fields:
                 allowed = schema.fields["status"].enum or ()
                 for ref in (m.event_from, m.event_to):
-                    if ref.to is not None and ref.to not in allowed:
-                        errs.append(f"{where}: status {ref.to!r} not allowed; allowed: {list(allowed)}")
+                    for st in ref.statuses():
+                        if st not in allowed:
+                            errs.append(f"{where}: status {st!r} not allowed; allowed: {list(allowed)}")
+        if m.unit and m.agg not in ("avg_days_between", "avg_hours_between_events"):
+            errs.append(f"{where}: unit is for avg_days_between / avg_hours_between_events")
         if m.agg == "avg_days_between":
             for fname in (m.field, m.field_end):
                 fd = schema.fields.get(fname or "")
@@ -345,9 +354,10 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
     if spec.order_by_event is not None:
         if spec.mode != "list" or spec.source != "entities":
             errs.append("order_by_event works in list mode on entities")
-        elif spec.order_by_event.to is not None and "status" in schema.fields:
-            if spec.order_by_event.to not in (schema.fields["status"].enum or ()):
-                errs.append(f"order_by_event: status {spec.order_by_event.to!r} not allowed")
+        elif "status" in schema.fields:
+            for st in spec.order_by_event.statuses():
+                if st not in (schema.fields["status"].enum or ()):
+                    errs.append(f"order_by_event: status {st!r} not allowed")
     return errs
 
 
@@ -479,8 +489,10 @@ def _check_elapsed(spec: QuerySpec, schema: SchemaDef, e: Elapsed, where: str) -
                 errs.append(f"{where}.{side}: {p.field!r} is not a date field")
             kinds.add("field")
         elif p.event is not None:
-            if p.event.to is not None and "status" in schema.fields and                     p.event.to not in (schema.fields["status"].enum or ()):
-                errs.append(f"{where}.{side}: status {p.event.to!r} not allowed")
+            if "status" in schema.fields:
+                for st in p.event.statuses():
+                    if st not in (schema.fields["status"].enum or ()):
+                        errs.append(f"{where}.{side}: status {st!r} not allowed")
             kinds.add("event")
     if kinds == {"field", "event"}:
         errs.append(f"{where}: do not mix a date field with an event time (dates are local days, events "
