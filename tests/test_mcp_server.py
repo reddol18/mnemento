@@ -83,3 +83,27 @@ def test_series_over_mcp():
     assert q2.structured_content["result"]["total"] == 0
     assert again.is_error
     led.close()
+
+
+def test_the_server_answers_the_handshake_before_opening_the_database():
+    from mnemento.mcp_server import LazyKeeper
+
+    built = []
+
+    def factory():
+        built.append(1)
+        led = open_demo()
+        return Keeper(led, ScriptedLLM())
+
+    lazy = LazyKeeper(factory)
+    srv = create_server(lazy)
+
+    async def go():
+        async with Client(srv) as c:
+            tools = {t.name for t in (await c.list_tools()).tools}
+            assert built == []  # handshake and tool list without a database
+            q = await c.call_tool("query", {"question": "app_o02"})
+            return tools, q
+
+    tools, q = run(go)
+    assert "query" in tools and built == [1] and q.structured_content["status"] == "answered"

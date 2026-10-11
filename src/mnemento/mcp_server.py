@@ -311,8 +311,34 @@ def create_server(keeper: Keeper) -> MCPServer:
     return mcp
 
 
+class LazyKeeper:
+    """Builds the Keeper on the first tool call, not before the MCP handshake: opening the database and loading the
+    schema files can wait on another writer, and a client gives up on a server that does not answer in time
+    (CONNECT_TIMEOUT seen 2026-10-12). The build time goes to stderr."""
+
+    def __init__(self, factory=build_keeper):
+        import threading
+
+        self._factory = factory
+        self._keeper: Keeper | None = None
+        self._lock = threading.Lock()
+
+    def _get(self) -> Keeper:
+        with self._lock:
+            if self._keeper is None:
+                import time
+
+                t0 = time.perf_counter()
+                self._keeper = self._factory()
+                print(f"mnemento: ready in {time.perf_counter() - t0:.2f}s", file=sys.stderr)
+            return self._keeper
+
+    def __getattr__(self, name: str):
+        return getattr(self._get(), name)
+
+
 def main() -> None:
-    create_server(build_keeper()).run("stdio")
+    create_server(LazyKeeper()).run("stdio")  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":
