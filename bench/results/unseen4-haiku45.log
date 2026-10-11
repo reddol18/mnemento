@@ -1,0 +1,7 @@
+﻿n=100 M-claude-haiku-4-5-20251001 X1 rep0: OK  ok                                               38.8s in=8593
+n=100 M-claude-haiku-4-5-20251001 X2 rep0: OK  ok                                               32.7s in=8649
+n=100 M-claude-haiku-4-5-20251001 X3 rep0: OK  ok                                               20.2s in=8606
+n=100 M-claude-haiku-4-5-20251001 X4 rep0: BAD saramin: 15 != 1.811                             12.9s in=8613
+n=100 M-claude-haiku-4-5-20251001 X5 rep0: OK  ok                                               24.3s in=8637
+n=100 M-claude-haiku-4-5-20251001 X7 rep0: OK  ok, 30 days                                      16.5s in=8590
+n=100 M-claude-haiku-4-5-20251001 X8 rep0: BAD number 170.0 != 9.1136                          220.6s in=17240
