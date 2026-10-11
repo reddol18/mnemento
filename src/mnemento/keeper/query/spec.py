@@ -332,6 +332,9 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
                             errs.append(f"{where}: status {st!r} not allowed; allowed: {list(allowed)}")
         if m.unit and m.agg not in ("avg_days_between", "avg_hours_between_events"):
             errs.append(f"{where}: unit is for avg_days_between / avg_hours_between_events")
+        if m.agg == "avg_days_between" and m.unit == "hours":  # same rule as elapsed: dates hold only the day
+            errs.append(f"{where}: date fields hold only the day, so hours from them are off by up to a day; use "
+                        f"avg_hours_between_events with the events (exact times), or unit days")
         if m.agg == "avg_days_between":
             for fname in (m.field, m.field_end):
                 fd = schema.fields.get(fname or "")

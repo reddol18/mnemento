@@ -227,12 +227,14 @@ def test_units_on_time_between_measures_and_multi_status_events():
     base = {"entity_type": "application", "mode": "aggregate"}
     dates = {"field": "applied_at", "field_end": "viewed_at"}
     ev = {"event_from": {"kind": "created"}, "event_to": {"kind": "status_changed", "to": "viewed"}}
-    a = k.ask("q", spec={**base, "measures": [{"name": "d", "agg": "avg_days_between", **dates},
-                                             {"name": "h", "agg": "avg_days_between", "unit": "hours", **dates},
+    a = k.ask("q", spec={**base, "measures": [{"name": "d", "agg": "avg_days_between", "unit": "days", **dates},
                                              {"name": "eh", "agg": "avg_hours_between_events", **ev},
                                              {"name": "ed", "agg": "avg_hours_between_events", "unit": "days", **ev}]})
     m = a.result["groups"][0]["measures"]
-    assert abs(m["h"] - m["d"] * 24) < 0.05 and abs(m["ed"] - m["eh"] / 24) < 0.01
+    assert m["d"] is not None and abs(m["ed"] - m["eh"] / 24) < 0.01
+    hours_from_dates = k.ask("q", spec={**base, "measures": [
+        {"name": "h", "agg": "avg_days_between", "unit": "hours", **dates}]})
+    assert hours_from_dates.status == "error" and "hold only the day" in hours_from_dates.text
     res = {"event_from": {"kind": "created"},
            "event_to": {"kind": "status_changed", "to": ["passed", "rejected"]}}
     one = k.ask("q", spec={**base, "measures": [
