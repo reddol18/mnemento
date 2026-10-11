@@ -16,5 +16,10 @@
 3. 측정값의 `elapsed`가 쓰는 날짜 필드도 "N건은 이 필드가 없음" 경고 대상이다.
 
 ## 결과
-- D5를 haiku로 3회 돌린 결과 3/3 정답이었다. 세 번 모두 평균은 전체로 내고 "빠르게"는 결과 측정값에만 붙였다(bench/results/issue10-d5-check).
+- **모델 주의**: CLI 별칭 `haiku`가 Claude Haiku 5.5로 바뀌었다. 이전 측정은 모두 Haiku 4.5다.
+- Haiku 5.5로 D5를 3회 돌리면 3/3 정답이다(bench/results/issue10-d5-check).
+- Haiku 4.5로 고정해 돌린 D5 3회와 회귀 1회(bench/results/issue10-d5-check-h45, low-issues-regression-h45)
+  - 범위는 4/4 모두 맞았다. 평균은 전체로 내고, "빠르게"는 결과 측정값의 `elapsed`에만 붙였다. 이 ADR이 고치려던 실패는 사라졌다.
+  - 그래도 답은 틀렸다. "평균 몇 시간"을 이벤트 시각의 시간 차이가 아니라 날짜 차이의 일수(약 1.52일)로 냈기 때문이다. 단위 선택은 이 ADR과 별개의 문제다.
+  - 회귀 결과: Haiku 4.5 26/28(D5 단위, D7 기존), Haiku 5.5 28/28, Opus 28/28.
 - 해석기 규칙이 바뀌었으므로 entity 회귀로 확인한다. 개선 효과의 공식 수치는 새 미노출 문항으로 잰다(https://github.com/reddol18/mnemento/issues/13).

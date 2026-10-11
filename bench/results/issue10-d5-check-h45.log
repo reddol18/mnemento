@@ -1,0 +1,3 @@
+﻿n=100 M-claude-haiku-4-5-20251001 D5 rep0: BAD number 1.52 != 34.23                             58.2s in=8611
+n=100 M-claude-haiku-4-5-20251001 D5 rep1: BAD number 1.52 != 34.23                             59.0s in=8611
+n=100 M-claude-haiku-4-5-20251001 D5 rep2: BAD number 1.5152 != 34.23                           68.7s in=8612

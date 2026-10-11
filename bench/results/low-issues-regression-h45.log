@@ -1,0 +1,28 @@
+﻿n=100 M-claude-haiku-4-5-20251001 D1 rep0: OK  ok                                                0.0s in=0
+n=100 M-claude-haiku-4-5-20251001 D2 rep0: OK  ok                                                0.0s in=0
+n=100 M-claude-haiku-4-5-20251001 D3 rep0: OK  ok                                               42.5s in=17218
+n=100 M-claude-haiku-4-5-20251001 D4 rep0: OK  ok                                               69.5s in=8672
+n=100 M-claude-haiku-4-5-20251001 D5 rep0: BAD number 1.5152 != 34.23                          119.5s in=8611
+n=100 M-claude-haiku-4-5-20251001 D6 rep0: OK  ok                                               10.8s in=8600
+n=100 M-claude-haiku-4-5-20251001 D7 rep0: BAD number 0 != 4                                    18.8s in=8601
+n=100 M-claude-haiku-4-5-20251001 U1 rep0: OK  ok                                               13.0s in=8593
+n=100 M-claude-haiku-4-5-20251001 U2 rep0: OK  ok                                                9.7s in=8604
+n=100 M-claude-haiku-4-5-20251001 U3 rep0: OK  ok                                                8.7s in=8594
+n=100 M-claude-haiku-4-5-20251001 U4 rep0: OK  ok                                               10.4s in=8597
+n=100 M-claude-haiku-4-5-20251001 U5 rep0: OK  ok                                               12.0s in=8612
+n=100 M-claude-haiku-4-5-20251001 U6 rep0: OK  ok                                               14.9s in=8606
+n=100 M-claude-haiku-4-5-20251001 U7 rep0: OK  ok                                                7.0s in=8596
+n=100 M-claude-haiku-4-5-20251001 U8 rep0: OK  ok                                               21.0s in=8582
+n=100 M-claude-haiku-4-5-20251001 H1 rep0: OK  ok (alternative reading)                         47.3s in=8614
+n=100 M-claude-haiku-4-5-20251001 H2 rep0: OK  ok                                               16.3s in=8646
+n=100 M-claude-haiku-4-5-20251001 H3 rep0: OK  ok                                               14.5s in=8622
+n=100 M-claude-haiku-4-5-20251001 H4 rep0: OK  ok                                               34.1s in=17294
+n=100 M-claude-haiku-4-5-20251001 H5 rep0: OK  ok                                               19.4s in=8607
+n=100 M-claude-haiku-4-5-20251001 V1 rep0: OK  ok                                               16.3s in=8617
+n=100 M-claude-haiku-4-5-20251001 V2 rep0: OK  ok                                                6.3s in=8598
+n=100 M-claude-haiku-4-5-20251001 V3 rep0: OK  ok                                               20.8s in=8618
+n=100 M-claude-haiku-4-5-20251001 V4 rep0: OK  ok                                               51.3s in=8602
+n=100 M-claude-haiku-4-5-20251001 V5 rep0: OK  ok                                               31.9s in=8631
+n=100 M-claude-haiku-4-5-20251001 V7 rep0: OK  ok                                               13.5s in=8610
+n=100 M-claude-haiku-4-5-20251001 V8 rep0: OK  ok                                                9.2s in=8592
+n=100 M-claude-haiku-4-5-20251001 V9 rep0: OK  ok                                               20.4s in=8602
