@@ -118,4 +118,51 @@ def grade(q: Question, ans: dict[str, Any] | None) -> tuple[bool, str]:
             if g.get("n") != n or (g.get("value") or 0) != value:
                 return False, f"{cat}: n={g.get('n')} value={g.get('value')} != {n}/{value}"
         return True, "ok"
+    if q.grader == "value_groups":  # unseen4: per-category n and a number (not a share)
+        tol = exp.get("tolerance", 0.0)
+
+        def fits(want: dict) -> str | None:
+            for cat, (n, value) in want.items():
+                g = next((g for g in groups if _cat(g.get("category"), cat)), None)
+                if g is None:
+                    return f"missing group {cat}"
+                if g.get("n") is not None and g.get("n") != n:
+                    return f"{cat}: n={g.get('n')} != {n}"
+                v = g.get("value")
+                if v is None:
+                    return f"no value for {cat}"
+                ok = abs(float(v) - value) <= tol + 1e-9 or (exp.get("hours_ok") and abs(float(v) / 24 - value) <= tol + 1e-9)
+                if not ok:
+                    return f"{cat}: {v} != {value:.3f}"
+            return None
+
+        why = fits(exp["groups"])
+        if why and exp.get("alt_groups") and fits(exp["alt_groups"]) is None:
+            return True, "ok (alternative reading)"
+        return (False, why) if why else (True, "ok")
+    if q.grader == "rate_pair":  # unseen4 X2: both shares among the answer's measures (m/n or m_i/m_j)
+        cands = [g.get("value") for g in groups if isinstance(g.get("value"), (int, float))]
+        for rg in ans.get("raw_groups") or []:
+            ms = [v for v in rg["measures"].values() if isinstance(v, (int, float))]
+            cands += [m / rg["n"] for m in ms if rg.get("n")]
+            cands += [a / b for a in ms for b in ms if b and a <= b and a is not b]
+        cands = [float(c) / 100 if float(c) > 1 else float(c) for c in cands]
+        for rates in [exp["rates"], *exp.get("alt_rates", [])]:
+            if all(any(abs(c - r) <= 0.02 for c in cands) for r in rates if r is not None):
+                return True, "ok" if rates is exp["rates"] else "ok (alternative reading)"
+        return False, f"rates {[round(r, 3) for r in exp['rates'] if r is not None]} not both in the answer"
+    if q.grader == "ids_with_stated_reading":  # unseen4 X7: the threshold the answer states picks the expected set
+        text = str(ans.get("text") or "")
+        stated = [int(m) for m in re.findall(r"(\d{1,3})\s*(?:일|days?)", text) if int(m) in exp["sets"]]
+        if not stated:
+            return False, "no stated reading (14/21/30 days) in the answer"
+        t = stated[0]
+        got = set(ans.get("ids") or [])
+        for sets, label in ((exp["sets"], "ok"), (exp.get("alt_sets", {}), "ok (alternative reading)")):
+            want = sets.get(t) if isinstance(next(iter(sets), None), int) else sets.get(str(t))
+            if want is None:
+                continue
+            if ans.get("number") == len(want) and (len(want) > MAX_LISTED_IDS or got == set(want)):
+                return True, f"{label}, {t} days"
+        return False, f"{t} days stated; number {ans.get('number')} / ids do not match"
     raise ValueError(q.grader)

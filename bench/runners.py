@@ -108,6 +108,8 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
         return out
     groups = res.get("groups") or []
     measures = (ans.spec or {}).get("measures") or []
+    # every measure as computed, for graders that look past the first one (unseen4 rate_pair)
+    out["raw_groups"] = [{"n": g["n"], "measures": dict(g["measures"])} for g in groups]
     count_if = [m["name"] for m in measures if m.get("agg") == "count_if"]
     share = "share" in q.format
     for g in groups:

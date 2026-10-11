@@ -53,6 +53,7 @@ def build(ds: Dataset) -> list[Question]:
         for q in qs:
             q.set = "dev"
         qs += build_unseen_v3(ds)
+        qs += build_unseen_v4(ds)  # set "unseen4" (issue #13)
     return qs
 
 
@@ -123,6 +124,82 @@ def build_unseen_v3(ds: Dataset) -> list[Question]:
     hit = [a for a in live if a.status != "withdrawn"]
     qs.append(Question("W9", "unseen", "내가 취소한 거 빼고 지금까지 지원 총 몇 건이야?",
                        "number = count", "number", {"number": len(hit)}))
+    return qs
+
+
+def build_unseen_v4(ds: Dataset) -> list[Question]:
+    """Unseen questions "v4" (issue #13) on the v3 data, written by the directing agent without seeing the code
+    (docs/eval/unseen-v4.md). Set name "unseen4" so dev regressions do not pick them up. Wording verbatim; only the
+    answer keys are computed here. X6 (posting deadlines) is dropped: the generator has no postings."""
+    live = ds.live
+    today = ds.now.date()
+    ids = lambda apps: sorted(a.id for a in apps)  # noqa: E731
+    hours = lambda a: (a.viewed_at - a.applied).total_seconds() / 3600  # noqa: E731
+    ddays = lambda a: (a.viewed_at.date() - a.applied_date).days  # noqa: E731
+    viewed = [a for a in live if a.viewed_at]
+    qs: list[Question] = []
+
+    fast_h = [a for a in viewed if hours(a) <= 24]
+    fast_d = [a for a in viewed if ddays(a) <= 1]
+    qs.append(Question("X1", "unseen4", "빠르게 열람된 지원은 몇 건이야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(fast_h), "ids": ids(fast_h), "alternatives": [len(fast_d)]}))
+
+    rate = lambda g: sum(1 for a in g if a.status == "passed") / len(g) if g else None  # noqa: E731
+    qs.append(Question("X2", "unseen4", "전체 서류 합격률이랑, 빠르게 열람된 것만 따로 본 합격률을 같이 알려줘",
+                       "groups = two groups with category=subset (\"all\", \"fast_viewed\"), n = applications, "
+                       "value = share passed (0-1); flags: small_sample if any group has n<5", "rate_pair",
+                       {"rates": [rate(live), rate(fast_h)], "alt_rates": [[rate(live), rate(fast_d)]]}))
+
+    hit = [a for a in live if a.status == "applied" and not a.viewed_at and (today - a.applied_date).days > 14]
+    alt = [a for a in live if a.status == "applied" and not a.viewed_at and (today - a.applied_date).days >= 14]
+    qs.append(Question("X3", "unseen4", "지원한 지 2주 넘었는데 아직 열람도 안 된 거 몇 개야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(hit), "ids": ids(hit), "alternatives": [len(alt)]}))
+
+    groups, alt_groups = {}, {}
+    for p in ("saramin", "wanted", "groupby", "jobkorea", "other"):
+        g = [a for a in viewed if a.platform == p]
+        if g:
+            groups[p] = (len(g), statistics.mean(hours(a) / 24 for a in g))
+            alt_groups[p] = (len(g), statistics.mean(ddays(a) for a in g))
+    qs.append(Question("X4", "unseen4", "플랫폼별로 열람까지 평균 며칠 걸렸어?",
+                       "groups = one per platform with category=platform, n = viewed applications, "
+                       "value = mean days (float)", "value_groups",
+                       {"groups": groups, "alt_groups": alt_groups, "tolerance": 0.1, "hours_ok": True}))
+
+    jan = [a for a in live if a.applied_date.year == today.year and a.applied_date.month == 1]
+    groups, alt_groups = {}, {}
+    for p in ("saramin", "wanted", "groupby", "jobkorea", "other"):
+        g = [a for a in jan if a.platform == p]
+        if g:
+            groups[p] = (len(g), sum(1 for a in g if a.viewed_at and hours(a) <= 168))
+            alt_groups[p] = (len(g), sum(1 for a in g if a.viewed_at and ddays(a) <= 7))
+    qs.append(Question("X5", "unseen4", "1월에 넣은 지원 수랑, 그중 일주일 안에 열람된 수를 플랫폼별로 보여줘",
+                       "groups = one per platform with category=platform, n = applications applied in Jan 2027, "
+                       "value = count viewed within 7 days", "value_groups",
+                       {"groups": groups, "alt_groups": alt_groups, "tolerance": 0.0}))
+
+    open_ = [a for a in live if a.status in ("applied", "viewed")]
+    sets = {t: ids([a for a in open_ if (today - a.applied_date).days > t]) for t in (14, 21, 30)}
+    any_ = {t: ids([a for a in live if (today - a.applied_date).days > t]) for t in (14, 21, 30)}
+    qs.append(Question("X7", "unseen4", "오래 묵혀둔 지원 목록 줘",
+                       "number = how many; ids = those applications", "ids_with_stated_reading",
+                       {"sets": sets, "alt_sets": any_}))
+
+    results = []
+    for a in live:
+        ev = next((e for e in a.events if e.to in ("passed", "rejected")), None)
+        if ev:
+            results.append(a)
+    rdays = lambda a: (next(e for e in a.events if e.to in ("passed", "rejected")).at - a.applied  # noqa: E731
+                       ).total_seconds() / 86400
+    rdd = lambda a: (next(e for e in a.events if e.to in ("passed", "rejected")).at.date() - a.applied_date).days  # noqa: E731
+    qs.append(Question("X8", "unseen4", "서류 결과 나오기까지 보통 며칠 걸려?",
+                       "number = mean days (float)", "number",
+                       {"number": round(statistics.mean(rdays(a) for a in results), 4), "tolerance": 0.1,
+                        "alternatives": [round(statistics.median(rdays(a) for a in results), 4),
+                                         round(statistics.mean(rdd(a) for a in results), 4)]}))
     return qs
 
 
