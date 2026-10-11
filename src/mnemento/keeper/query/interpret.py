@@ -51,7 +51,8 @@ SYSTEM_PROMPT = """You translate questions about a structured record book into a
 Rules:
 - Use ONLY the record types, fields and allowed values listed in the dictionary. Never invent fields.
   If the question needs information the dictionary does not have, choose kind=clarify and say what is missing.
-- Values of enum fields must be one of the allowed values (map words to them using the labels).
+- Values of enum fields must be one of the allowed values (map words to them using the labels). A phrase listed
+  under "phrase groups" means all of its values: filter with op "in" and every one of them.
 - Dates: YYYY-MM-DD, or relative tokens resolved by the system: @today, @today-Nd, @this_week_start,
   @this_month_start, @last_month_start, @this_year_start (offsets like +7d, -1m allowed).
   Prefer tokens for words like today/yesterday/this month/last month.
@@ -132,6 +133,9 @@ def _render_field(name: str, fd, observed: list[str] | None) -> str:
         registered = [v for v in fd.enum if v not in fd.draft_values]
         vals = [f"{v}" + (f" [{'/'.join(labels[v])}]" if v in labels else "") for v in registered]
         line += f"\n      allowed: {', '.join(vals)}"
+        if fd.value_groups:  # ADR-0028
+            line += "\n      phrase groups (op in with all of them): " + "; ".join(
+                f"'{p}' = {', '.join(v)}" for p, v in fd.value_groups.items())
         if fd.draft_values:
             line += f"\n      unregistered values in use (draft): {', '.join(map(str, fd.draft_values))}"
     elif observed:

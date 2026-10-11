@@ -283,6 +283,18 @@ def create_server(keeper: Keeper) -> MCPServer:
             raise ToolError(str(exc)) from exc
 
     @mcp.tool()
+    def add_value_group(entity_type: str, field: str, phrase: str, values: list[str], approved_by: str,
+                        user_answer: str) -> dict[str, Any]:
+        """Teach the dictionary that one phrase means several allowed values of an enum field, e.g. "주시 중" =
+        watching + observe_only, so questions using the phrase count all of them. ONLY with the user's explicit
+        consent: suggest it, ask, and call this after they agree (approved_by and their words are recorded)."""
+        try:
+            return keeper.add_value_group(entity_type, field, phrase, values, approved_by=approved_by,
+                                          user_answer=user_answer)
+        except Exception as exc:
+            raise ToolError(str(exc)) from exc
+
+    @mcp.tool()
     def propose_schema(entity_type: str | None = None, samples: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Schema proposals (never applied automatically).
 

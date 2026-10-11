@@ -92,6 +92,11 @@ def diff_items(db: SchemaDef, file_def: dict[str, Any]) -> tuple[list[dict[str, 
                 if v in dbf.enum and new:
                     add(f"labels:{name}={v}", True, f"{name} '{v}' also called {'/'.join(new)}",
                         {"labels": [name, v, new]})
+            for phrase, vals in (ff.value_groups or {}).items():  # ADR-0028
+                now_vals = (dbf.value_groups or {}).get(phrase)
+                if tuple(vals) != now_vals and set(vals) <= set(dbf.enum):
+                    add(f"group:{name}={phrase}", now_vals is None, f"{name}: '{phrase}' means {', '.join(vals)}",
+                        {"group": [name, phrase, list(vals)]})
             for v, earlier in (ff.implies or {}).items():
                 if v in dbf.enum and set(earlier) <= set(dbf.enum) and tuple(earlier) != (dbf.implies or {}).get(v):
                     add(f"implies:{name}={v}", (dbf.implies or {}).get(v) is None,
@@ -199,6 +204,9 @@ def _apply_change(d: dict[str, Any], c: dict[str, Any]) -> None:
         f, v, syns = c["labels"]
         fields[f].setdefault("labels", {}).setdefault(v, [])
         fields[f]["labels"][v] += [s for s in syns if s not in fields[f]["labels"][v]]
+    elif "group" in c:
+        f, phrase, vals = c["group"]
+        fields[f].setdefault("value_groups", {})[phrase] = list(vals)
     elif "implies" in c:
         f, v, earlier = c["implies"]
         fields[f].setdefault("implies", {})[v] = list(earlier)

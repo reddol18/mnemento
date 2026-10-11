@@ -125,6 +125,32 @@ class Keeper:
 
         return Ingestor(self.ledger, self.llm).revert(batch_id)
 
+    def add_value_group(self, entity_type: str, field: str, phrase: str, values: list[str], *, approved_by: str,
+                        user_answer: str) -> dict[str, Any]:
+        """ADR-0028: a phrase that means several enum values ("주시 중" = watching + observe_only). Changes the user's
+        dictionary, so only with their explicit consent (approved_by + their words are recorded)."""
+        from ..errors import SchemaDefinitionError
+        from ..timeutil import format_instant, now as tz_now
+
+        if not (approved_by or "").strip() or not (user_answer or "").strip():
+            raise SchemaDefinitionError("a value group needs approved_by and the user's answer (explicit consent)")
+        schema = self.ledger.schemas.get(entity_type)
+        d = schema.to_dict()
+        fd = d["fields"].get(field)
+        if fd is None or not fd.get("enum"):
+            raise SchemaDefinitionError(f"{entity_type}.{field} is not an enum field")
+        fd.setdefault("value_groups", {})[phrase] = list(dict.fromkeys(values))
+        d["version"] = schema.version + 1
+        applied = self.ledger.schemas.register(d)  # validated: values must be allowed, two or more
+        with self.ledger.storage.transaction():
+            self.ledger.storage.record_schema_change({
+                "entity_type": entity_type, "version": applied.version, "proposal_id": f"group:{field}={phrase}",
+                "approved_by": approved_by, "user_answer": user_answer,
+                "applied_at": format_instant(tz_now(self.ledger.tz)),
+                "summary": {"value_group": {"field": field, "phrase": phrase, "values": list(values)}}})
+        return {"entity_type": entity_type, "version": applied.version, "field": field, "phrase": phrase,
+                "values": list(dict.fromkeys(values))}
+
     # schema design (proposals only)
     def propose_schema(self, entity_type: str | None = None,
                        samples: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:

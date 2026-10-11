@@ -10,7 +10,7 @@ from mnemento.mcp_server import create_server
 
 EXPECTED_TOOLS = {"record", "query", "get_entity", "history", "list_schemas", "propose_schema",
                   "apply_schema_proposal", "query_log", "purge_query_log", "record_series",
-                  "revert_series_batch", "ingest_preview", "ingest_apply", "ingest_revert"}
+                  "revert_series_batch", "ingest_preview", "ingest_apply", "ingest_revert", "add_value_group"}
 
 
 @pytest.fixture

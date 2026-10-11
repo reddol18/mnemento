@@ -37,7 +37,7 @@ FIELD_TYPES = {"string", "integer", "number", "boolean", "array"}
 ITEM_TYPES = {"string", "integer", "number", "boolean"}
 FORMATS = {"date", "date-time"}
 _FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
-               "implies", "identifier"}
+               "implies", "identifier", "value_groups"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field",
                 "vague_terms", "relations", "kind", "series_key", "time_field", "granularity", "measures",
                 "status", "proposal"}
@@ -66,6 +66,8 @@ class FieldDef:
     draft: bool = False  # ADR-0014: seen in stored records, not registered (no description yet)
     draft_values: tuple[Any, ...] = ()  # ADR-0014: values seen outside `enum`, not registered
     identifier: bool = False  # external identifier (stock code, business number): same value = same entity
+    # ADR-0028: a phrase that means several enum values at once, e.g. {"주시 중": ("watching", "observe_only")}
+    value_groups: dict[str, tuple[str, ...]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"type": self.type, "description": self.description}
@@ -87,6 +89,8 @@ class FieldDef:
             d["indexed"] = True
         if self.identifier:
             d["identifier"] = True
+        if self.value_groups:
+            d["value_groups"] = {k: list(v) for k, v in self.value_groups.items()}
         return d
 
     def json_schema(self) -> dict[str, Any]:
@@ -391,5 +395,12 @@ def _parse_field(schema_name: str, fname: str, fdef: Any) -> FieldDef:
     identifier = fdef.get("identifier", False)
     if not isinstance(identifier, bool) or (identifier and (ftype != "string" or enum is not None)):
         raise SchemaDefinitionError(f"{where}: identifier must be true/false on a free string field")
+    groups = fdef.get("value_groups")
+    if groups is not None:
+        if enum is None or not isinstance(groups, dict) or not all(
+                isinstance(k, str) and k.strip() and isinstance(v, list) and len(v) >= 2 and set(v) <= set(enum)
+                for k, v in groups.items()):
+            raise SchemaDefinitionError(f"{where}: value_groups must map phrases to two or more enum values")
+        groups = {k: tuple(v) for k, v in groups.items()}
     return FieldDef(fname, ftype, description, enum, fmt, required, indexed, items, ref, labels, implies,
-                    identifier=identifier)
+                    identifier=identifier, value_groups=groups)
