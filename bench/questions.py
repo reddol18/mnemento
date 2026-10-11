@@ -54,6 +54,7 @@ def build(ds: Dataset) -> list[Question]:
             q.set = "dev"
         qs += build_unseen_v3(ds)
         qs += build_unseen_v4(ds)  # set "unseen4" (issue #13)
+        qs += build_unseen_v5(ds)  # set "unseen5" (issue #16)
     return qs
 
 
@@ -200,6 +201,65 @@ def build_unseen_v4(ds: Dataset) -> list[Question]:
                        {"number": round(statistics.mean(rdays(a) for a in results), 4), "tolerance": 0.1,
                         "alternatives": [round(statistics.median(rdays(a) for a in results), 4),
                                          round(statistics.mean(rdd(a) for a in results), 4)]}))
+    return qs
+
+
+def build_unseen_v5(ds: Dataset) -> list[Question]:
+    """Unseen questions "v5" (issue #16: hours vs days) on the v3 data, written by the directing agent without seeing
+    the code (docs/eval/unseen-v5.md). Set "unseen5". A value in a unit the question did not ask for is wrong even if
+    it converts (the author's rule): no unit conversion is accepted here."""
+    live = ds.live
+    today = ds.now.date()
+    ids = lambda apps: sorted(a.id for a in apps)  # noqa: E731
+    first = lambda a, sts: next((e.at for e in a.events if e.to in sts), None)  # noqa: E731
+    h = lambda t0, t1: (t1 - t0).total_seconds() / 3600  # noqa: E731
+    viewed = [a for a in live if a.viewed_at]
+    res = [a for a in live if first(a, ("passed", "rejected"))]
+    qs: list[Question] = []
+
+    qs.append(Question("Y1", "unseen5", "지원하고 열람되기까지 평균 몇 시간 걸렸어?", "number = mean hours (float)", "number",
+                       {"number": statistics.mean(h(a.applied, a.viewed_at) for a in viewed), "tolerance": 1.0,
+                        "alternatives": [statistics.mean((a.viewed_at.date() - a.applied_date).days * 24
+                                                         for a in viewed)]}))
+
+    groups, alt = {}, {}
+    for p in ("saramin", "wanted", "groupby", "jobkorea", "other"):
+        g = [a for a in res if a.platform == p]
+        if g:
+            groups[p] = (len(g), statistics.mean(h(a.applied, first(a, ("passed", "rejected"))) / 168 for a in g))
+            alt[p] = (len(g), statistics.mean((first(a, ("passed", "rejected")).date() - a.applied_date).days / 7
+                                              for a in g))
+    qs.append(Question("Y2", "unseen5", "플랫폼별로 지원부터 결과 나오기까지 평균 몇 주 걸렸어?",
+                       "groups = one per platform with category=platform, n = applications with a result, "
+                       "value = mean weeks (float)", "value_groups",
+                       {"groups": groups, "alt_groups": alt, "tolerance": 0.05}))
+
+    hit = [a for a in res if h(a.applied, first(a, ("passed", "rejected"))) <= 48]
+    alt_hit = [a for a in res if (first(a, ("passed", "rejected")).date() - a.applied_date).days <= 2]
+    qs.append(Question("Y3", "unseen5", "지원하고 48시간 안에 합격이든 불합격이든 결과가 나온 건 몇 건이야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(hit), "ids": ids(hit), "alternatives": [len(alt_hit)]}))
+
+    qs.append(Question("Y4", "unseen5", "열람될 때까지 기다린 시간을 전부 합치면 며칠이야?", "number = total days (float)",
+                       "number", {"number": sum(h(a.applied, a.viewed_at) for a in viewed) / 24, "tolerance": 0.5,
+                                  "alternatives": [sum((a.viewed_at.date() - a.applied_date).days for a in viewed)]}))
+
+    both = [a for a in res if first(a, ("passed", "rejected")) >= a.viewed_at] if all(a.viewed_at for a in res) else \
+        [a for a in res if a.viewed_at and first(a, ("passed", "rejected")) >= a.viewed_at]
+    qs.append(Question("Y5", "unseen5", "열람되고 나서 결과가 나오기까지는 평균 며칠 걸렸어?", "number = mean days (float)",
+                       "number", {"number": statistics.mean(h(a.viewed_at, first(a, ("passed", "rejected"))) / 24
+                                                            for a in both), "tolerance": 0.1,
+                                  "alternatives": [statistics.mean((first(a, ("passed", "rejected")).date()
+                                                                    - a.viewed_at.date()).days for a in both)]}))
+
+    open_ = [a for a in live if a.status in ("applied", "viewed")]
+    hit = [a for a in open_ if (today - a.applied_date).days > 21]
+    alt1 = [a for a in open_ if (today - a.applied_date).days >= 21]
+    midnight = ds.now.replace(hour=0, minute=0, second=0, microsecond=0)
+    alt2 = [a for a in open_ if h(a.applied, midnight) > 504]
+    qs.append(Question("Y6", "unseen5", "지원한 지 3주가 넘었는데 아직 끝나지 않은 지원은 몇 건이야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(hit), "ids": ids(hit), "alternatives": [len(alt1), len(alt2)]}))
     return qs
 
 
