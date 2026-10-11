@@ -536,6 +536,8 @@ def test_eval_set_v3(tmp_path):
     aliases = [a for c in ds.companies for a in c.aliases]
     assert len(aliases) == len(set(aliases)) and any(a.company_label for a in ds.apps)
     qs = build(ds)
+    assert {q.id for q in qs if q.set == "unseen4"} == {"X1", "X2", "X3", "X4", "X5", "X7", "X8"}  # issue #13, X6 dropped
+    qs = [q for q in qs if q.set != "unseen4"]
     assert {q.id for q in qs if q.set == "unseen"} == {f"W{i}" for i in range(1, 10)}
     assert all(q.set == "dev" for q in qs if not q.id.startswith("W"))  # v0 + v2 questions are dev
     assert "V6" not in {q.id for q in qs}  # names fixed November 2026 dates
@@ -593,3 +595,23 @@ def test_converter_takes_the_average_next_to_count_if_measures():
     assert to_answer(ans, avg_q)["number"] == 34.23
     count_q = Question("X", "dev", "q", "number = count", "number", {})
     assert to_answer(ans, count_q)["number"] == 31  # other formats keep the old rule
+
+
+def test_unseen4_graders():
+    """Graders added for the issue #13 questions, on hand-made answers."""
+    from bench.questions import Question
+
+    vg = Question("X", "unseen4", "", "", "value_groups",
+                  {"groups": {"saramin": (3, 1.5)}, "alt_groups": {"saramin": (3, 2.0)}, "tolerance": 0.1,
+                   "hours_ok": True})
+    assert grade(vg, {"groups": [{"category": "saramin", "n": 3, "value": 1.52}]})[0]
+    assert grade(vg, {"groups": [{"category": "사람인", "n": 3, "value": 36.0}]})[0]  # hours accepted
+    assert grade(vg, {"groups": [{"category": "saramin", "n": 3, "value": 2.0}]}) == (True, "ok (alternative reading)")
+    assert not grade(vg, {"groups": [{"category": "saramin", "n": 4, "value": 1.5}]})[0]
+    rp = Question("X", "unseen4", "", "", "rate_pair", {"rates": [0.03, 0.2]})
+    assert grade(rp, {"groups": [], "raw_groups": [{"n": 100, "measures": {"passed": 3, "fast": 10, "fast_passed": 2}}]})[0]
+    assert not grade(rp, {"groups": [], "raw_groups": [{"n": 100, "measures": {"passed": 3}}]})[0]
+    st = Question("X", "unseen4", "", "", "ids_with_stated_reading",
+                  {"sets": {14: ["a", "b"], 21: ["a"], 30: []}, "alt_sets": {}})
+    assert grade(st, {"number": 1, "ids": ["a"], "text": "Note: 오래 묵혀둔 = 21일 넘게 결과 없음"})[0]
+    assert not grade(st, {"number": 1, "ids": ["a"], "text": "no stated threshold"})[0]
