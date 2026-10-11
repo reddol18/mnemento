@@ -185,3 +185,32 @@ def test_relations_round_trip_render_and_validation():
     for bad in ([{"type": "decision"}], [{"type": "Bad Type", "note": "x"}], {"decision": "x"}):
         with pytest.raises(SchemaDefinitionError):
             SchemaDef.from_dict({**base, "relations": bad})
+
+
+# ---- issues #10/#11: a time condition on one measure; a vague word narrows only its own part --------------------
+
+def test_a_time_condition_narrows_one_measure_only():
+    from mnemento.demo import open_demo
+    from mnemento.keeper import Keeper, ScriptedLLM
+
+    led = open_demo()
+    k = Keeper(led, ScriptedLLM())
+    quick = {"start": {"field": "applied_at"}, "end": {"field": "viewed_at"}, "unit": "days", "op": "lte", "value": 1}
+    base = {"entity_type": "application", "mode": "aggregate",
+            "filters": [{"field": "viewed_at", "op": "exists"}]}
+    both = k.ask("q", spec={**base, "measures": [
+        {"name": "all_viewed", "agg": "count"},
+        {"name": "quick", "agg": "count_if", "elapsed": [quick]},
+        {"name": "quick_passed", "agg": "count_if", "elapsed": [quick],
+         "where": [{"field": "status", "op": "eq", "value": "passed"}]}]})
+    whole = k.ask("q", spec={**base, "elapsed": [quick], "measures": [{"name": "n", "agg": "count"}]})
+    m = both.result["groups"][0]["measures"]
+    assert m["quick"] == whole.result["total"] and m["all_viewed"] >= m["quick"] >= m["quick_passed"]
+    led.close()
+
+
+def test_the_interpreter_is_told_where_a_vague_reading_goes():
+    from mnemento.keeper.query.interpret import SYSTEM_PROMPT
+
+    assert "narrows only the part of the question the word is in" in SYSTEM_PROMPT
+    assert "that measure's `elapsed`" in SYSTEM_PROMPT

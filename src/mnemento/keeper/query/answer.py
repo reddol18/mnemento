@@ -91,7 +91,7 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
         for m in spec.measures:
             used |= {x for x in (m.field, m.field_end) if x}
             used |= {w.field for w in m.where if w.op not in presence}
-        for e in spec.elapsed:
+        for e in [*spec.elapsed, *[x for m in spec.measures for x in m.elapsed]]:
             used |= {p.field for p in (e.start, e.end) if p.field}
         for fname in sorted(f for f in used if f in schema.fields):
             rows = fetch(f"SELECT COUNT(*) AS n FROM entities WHERE type = ? AND retracted = 0 "

@@ -78,6 +78,9 @@ class Measure(BaseModel):
     event_from: EventRef | None = Field(default=None, description="avg_hours_between_events: start event.")
     event_to: EventRef | None = Field(default=None, description="avg_hours_between_events: end event.")
     where: list[Filter] = Field(default_factory=list)
+    elapsed: list["Elapsed"] = Field(default_factory=list, description="Time conditions that narrow this measure only "
+                                     "(same shape as the spec's elapsed), e.g. the outcome of the applications viewed "
+                                     "within a day, next to an average over all of them.")
 
 
 class TimePoint(BaseModel):
@@ -98,6 +101,9 @@ class Elapsed(BaseModel):
                                                        "hours: between event times (events, or now).")
     op: Literal["gt", "gte", "lt", "lte", "eq"]
     value: float = Field(description="Amount of `unit`, e.g. 3 for 'more than three days' with op gt.")
+
+
+Measure.model_rebuild()  # Measure.elapsed refers to Elapsed, defined after it
 
 
 class Window(BaseModel):
@@ -295,10 +301,12 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         # works: Korean names from the model are fine
         if not re.match(r"^[^\W\d]\w{0,40}$", m.name):
             errs.append(f"{where}: measure name must be a short word (letters, digits, _), got {m.name!r}")
-        if m.agg == "count_if" and not m.where:
-            errs.append(f"{where}: count_if needs `where`")
+        if m.agg == "count_if" and not (m.where or m.elapsed):
+            errs.append(f"{where}: count_if needs `where` or `elapsed`")
         for j, wf in enumerate(m.where):
             errs += _check_filter(schema, wf, f"{where}.where[{j}]")
+        for j, e in enumerate(m.elapsed):  # issue #11: a time condition on one measure
+            errs += _check_elapsed(spec, schema, e, f"{where}.elapsed[{j}]")
         if m.agg in ("sum", "avg", "min", "max") and m.field in values:
             pass  # computed values are numeric
         elif m.agg in ("sum", "avg", "min", "max"):
@@ -434,6 +442,8 @@ def _check_series(spec: QuerySpec, schema: SchemaDef) -> list[str]:
             errs.append(f"measures[{i}]: {m.agg} does not apply to series")
         if m.agg == "count_if" and not m.where:
             errs.append(f"measures[{i}]: count_if needs `where`")
+        if m.elapsed:
+            errs.append(f"measures[{i}]: elapsed is for records, not series points")
         for j, wf in enumerate(m.where):
             errs += _check_filter(schema, wf, f"measures[{i}].where[{j}]")
     for fname in spec.list_fields:

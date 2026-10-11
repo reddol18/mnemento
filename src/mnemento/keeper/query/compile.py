@@ -205,7 +205,9 @@ class Compiler:
 
     def _measure(self, m) -> str:
         # `where` narrows any measure, not only count_if (avg of top10 vs avg of top30 in one row)
-        cond = " AND ".join(self.cond(f) for f in m.where) if m.where else None
+        # ... and so do time conditions on the measure alone (issue #11: the outcome of the quickly viewed ones)
+        parts = [self.cond(f) for f in m.where] + [self.elapsed(e) for e in m.elapsed]
+        cond = " AND ".join(parts) if parts else None
         if m.agg in ("count", "count_if"):
             return f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)" if cond else "COUNT(*)"
         if m.agg == "avg_days_between":

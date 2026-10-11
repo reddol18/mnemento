@@ -80,6 +80,8 @@ Rules:
   field, an event (exact times, e.g. {kind: status_changed, to: viewed}) or today. unit "days" with date
   fields (or today), unit "hours" with events (or now); never mix a date field with an event.
   For an average of such a time use the measures avg_days_between / avg_hours_between_events instead.
+  A time condition that belongs to one part of the answer only goes into that measure's `elapsed` (same shape),
+  not into the spec's `elapsed`, which narrows every measure.
 - Lengths of time ("over three days", "more than a week", "한 달 넘게", "두 달 넘은") count days:
   1 week = 7 days, 1 month = 30 days, e.g. elapsed from the date field to today, op gt, value 30 — or the
   same as a filter "< @today-30d". Calendar tokens (@this_month_start, @last_month_start, -1m) are for named
@@ -87,6 +89,9 @@ Rules:
 - Vague words ("quickly", "recently", "a lot", "빠르게", "최근", "오래된"): use the reading given under
   "vague words" in the dictionary; if there is none, pick a reasonable reading yourself. Either way write it
   into spec.defaults_used as "word = reading" (the user sees it and can correct it) — do not ask about it.
+  The reading narrows only the part of the question the word is in: "average time to view? and the outcome of the
+  ones viewed quickly?" keeps every viewed application for the average, and puts "quickly" into the outcome
+  measures (their `where` / `elapsed`), never into the spec's filters or elapsed.
 - A question with several parts: answer every part you can express in one spec (e.g. the average plus
   count_if measures for the follow-up part); never drop the main part because a side part is vague.
 - Clarify only when no default reading would give a fair answer (e.g. which of two different records, or a
