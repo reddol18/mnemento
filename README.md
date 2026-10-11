@@ -265,6 +265,8 @@ uv run pytest                              # unit tests (no network, LLM is a sc
 uv run python examples/demo_queries.py     # real LLM calls via the claude CLI, writes docs/demo/
 ```
 
+Agents use the MCP server from a separate runtime worktree that is updated only when an issue is finished, so development never breaks their connection ([docs/RUNTIME.md](docs/RUNTIME.md)).
+
 Layout: `src/mnemento/` — `storage/` (SQLite, WAL, append-only events), `schema/` (dictionary + JSON Schema validation), `ledger.py` (record/replay API), `keeper/` (query pipeline, record tool, identity resolution, schema proposals, LLM adapters), `mcp_server.py`. Domain schemas live in `schemas/`. All example data is fictional.
 
 ---
