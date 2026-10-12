@@ -1,0 +1,26 @@
+[
+ {
+  "scale": 100,
+  "system": "M-claude-haiku-4-5-20251001",
+  "n": 6,
+  "dev": [
+   0,
+   0
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 67.1835,
+  "time_p95": 144.57829999999998,
+  "time_mean_no_overhead": 64.69356666666667,
+  "time_p95_no_overhead": 141.04919999999998,
+  "llm_calls_per_q": 1.5,
+  "in_per_q": 13259.333333333334,
+  "in_per_q_no_overhead": 9470.333333333334,
+  "cache_read_per_q": 9487.5,
+  "out_per_q": 7770.5,
+  "cost_per_q": 0.047329916666666666,
+  "no_answer": 1
+ }
+]

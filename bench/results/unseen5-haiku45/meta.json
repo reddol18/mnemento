@@ -1,0 +1,19 @@
+{
+ "run": "unseen5-haiku45",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20270201,
+ "frozen_hash": "7db5de10f3c67ca0",
+ "git": "3108bd3b5f8b51341740a8827f8d9faaed49cc09+dirty",
+ "started": "2026-10-12T09:11:16.058253+09:00",
+ "adapter": "claude-cli",
+ "plan": null,
+ "plan_description": null,
+ "eval_set": "v3",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "M-claude-haiku-4-5-20251001": [
+   "claude-haiku-4-5-20251001"
+  ]
+ }
+}

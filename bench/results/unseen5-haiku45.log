@@ -1,0 +1,6 @@
+﻿n=100 M-claude-haiku-4-5-20251001 Y1 rep0: OK  ok                                               41.6s in=17674
+n=100 M-claude-haiku-4-5-20251001 Y2 rep0: BAD missing group saramin                           144.6s in=17734
+n=100 M-claude-haiku-4-5-20251001 Y3 rep0: OK  ok                                               82.1s in=17701
+n=100 M-claude-haiku-4-5-20251001 Y4 rep0: BAD number 31.0 != 44.208333333333336                49.8s in=8811
+n=100 M-claude-haiku-4-5-20251001 Y5 rep0: OK  ok                                               56.0s in=8814
+n=100 M-claude-haiku-4-5-20251001 Y6 rep0: OK  ok                                               29.0s in=8822

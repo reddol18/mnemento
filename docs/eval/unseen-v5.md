@@ -28,3 +28,13 @@
 - Y3 정답은 0건(대안도 0건).
 - 현재 기능으로 표현할 수 없는 것: Y4(경과 시간의 합계 측정값 없음), Y2의 주 단위(unit은 hours/days만). 측정 전에 기능을 더하지 않는다.
 - 세트 이름 unseen5, 채점은 작성자 원칙대로 단위 환산을 인정하지 않는다.
+
+## 측정 결과 (Haiku 4.5 고정, 커밋 3108bd3, 2026-10-12) — 4/6, 문항 소진
+- 결과: bench/results/unseen5-haiku45/report.md · 비용 약 $0.28(6문항)
+- Y1 정답: avg_hours_between_events, unit hours → 34.23시간.
+- Y3 정답: elapsed ≤ 48시간, 결과 상태 두 개를 한 번에 → 0건.
+- Y5 정답: 열람 → 결과(passed|rejected), avg_hours_between_events + unit days → 7.53일.
+- Y6 정답: 끝나지 않음 = not_in {passed, rejected, withdrawn}, applied_at 기준 > 21일 → 28건.
+- Y2 오답(clarify): 측정 전에 예상한 주 단위 문제 이전에, 필터 `reached`에 상태 두 개(passed|rejected)를 넣어 검증에서 막혔다. 이벤트 참조는 #16에서 여러 상태를 받지만 `reached` 필터는 아직 한 값만 받는다.
+- Y4 오답: 합계 측정값이 없어 건수(31)를 답했다. 해석문에는 "건수 × 평균"이라 적었지만 계산하지는 않았다(정답 44.21일). 측정 전에 예상한 대로다.
+- 후속 후보: `reached`에 여러 상태 허용, 주 단위(unit weeks), 경과 시간 합계(sum_days_between / sum_hours_between_events).
