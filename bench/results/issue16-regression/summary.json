@@ -1,0 +1,50 @@
+[
+ {
+  "scale": 100,
+  "system": "M-claude-haiku-4-5-20251001",
+  "n": 28,
+  "dev": [
+   27,
+   28
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 24.717021428571428,
+  "time_p95": 71.38510000000001,
+  "time_mean_no_overhead": 23.071307142857144,
+  "time_p95_no_overhead": 69.88170000000001,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 8822.67857142857,
+  "in_per_q_no_overhead": 6296.678571428572,
+  "cache_read_per_q": 6325.0,
+  "out_per_q": 2881.5,
+  "cost_per_q": 0.020025357142857143,
+  "no_answer": 0
+ },
+ {
+  "scale": 100,
+  "system": "M-opus",
+  "n": 28,
+  "dev": [
+   28,
+   28
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 5.906471428571429,
+  "time_p95": 11.351600000000001,
+  "time_mean_no_overhead": 3.9409,
+  "time_p95_no_overhead": 9.648800000000001,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 10580.32142857143,
+  "in_per_q_no_overhead": 8054.321428571428,
+  "cache_read_per_q": 7753.821428571428,
+  "out_per_q": 377.5,
+  "cost_per_q": 0.03170476428571429,
+  "no_answer": 0
+ }
+]
