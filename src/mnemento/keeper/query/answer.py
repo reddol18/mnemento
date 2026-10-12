@@ -89,7 +89,8 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
         used = {f.field for f in spec.filters if f.op not in presence}
         used |= {g.field for g in spec.group_by}
         for m in spec.measures:
-            used |= {x for x in (m.field, m.field_end) if x}
+            used |= {m.field} if m.field else set()
+            used |= {p.field for p in ((m.span.start, m.span.end) if m.span else ()) if p.field}
             used |= {w.field for w in m.where if w.op not in presence}
         for e in [*spec.elapsed, *[x for m in spec.measures for x in m.elapsed]]:
             used |= {p.field for p in (e.start, e.end) if p.field}
@@ -112,8 +113,7 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
                 out.append(f"{r['field']}: for {r['n']} {spec.entity_type} record(s) it comes from fewer than all "
                            f"{r['s']} sources it is kept in, or the sources disagree (as few as {r['m']} of "
                            f"{r['s']}); the import report lists them.")
-        uses_event_time = spec.order_by_event is not None or any(
-            m.agg == "avg_hours_between_events" for m in spec.measures) or any(
+        uses_event_time = spec.order_by_event is not None or bool(_event_points(spec)) or any(
             p.event is not None for e in spec.elapsed for p in (e.start, e.end))
         if uses_event_time:
             rows = fetch("SELECT COUNT(DISTINCT entity_id) AS n FROM events WHERE entity_type = ? "
@@ -122,6 +122,21 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
             if inexact:
                 out.append(f"{inexact} record(s) have events without an exact time; they are left out of "
                            f"time-based ordering and durations (ADR-0013).")
+        # ADR-0029 ⑤: a record that reached the status but has no exact time for it (e.g. imported with only a
+        # date) is left out of the duration, never computed from the date in its place
+        ids = result.evidence[:1000]
+        for statuses in _event_points(spec) if ids else ():
+            marks, smarks = ", ".join("?" for _ in ids), ", ".join("?" for _ in statuses)
+            rows = fetch(
+                f"SELECT COUNT(*) AS n FROM entities WHERE id IN ({marks}) "
+                f"AND EXISTS (SELECT 1 FROM json_each(entities.reached) WHERE json_each.value IN ({smarks})) "
+                f"AND NOT EXISTS (SELECT 1 FROM events ev WHERE ev.entity_id = entities.id "
+                f"AND ev.kind = 'status_changed' AND ev.at_precision = 'time' "
+                f"AND json_extract(ev.payload, '$.to') IN ({smarks}))", [*ids, *statuses, *statuses])
+            n = rows[0]["n"] if rows else 0
+            if n:
+                out.append(f"{n} record(s) reached {'/'.join(statuses)} but have no exact time for it; they are "
+                           f"left out of the time measured (not computed from a date instead).")
     if spec.source == "events" and any(
             f.field == "kind" and set(f.value if isinstance(f.value, list) else [f.value]) - {"created"}
             and "created" not in (f.value if isinstance(f.value, list) else [f.value]) for f in spec.filters):
@@ -157,7 +172,7 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
                 out.append(f"{name}={current[g.bucket]} is still in progress (incomplete period).")
     # immature records: outcome measures over records created in the last few days
     date_field = schema.default_date_field
-    uses_outcome = any(m.agg == "count_if" for m in spec.measures) or any(
+    uses_outcome = any(_conditional_count(m) for m in spec.measures) or any(
         f.field == "status" for f in spec.filters)
     if date_field and uses_outcome and result.evidence:
         cutoff = (today - timedelta(days=RECENT_DAYS - 1)).isoformat()
@@ -182,6 +197,18 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
         out.append("Relative dates resolved as: " +
                    ", ".join(f"{k} = {v}" for k, v in resolved_dates.items()) + f" ({now.tzinfo}).")
     return out
+
+
+def _conditional_count(m) -> bool:
+    """count narrowed by its own conditions — "how many of them" (count_if before ADR-0029)."""
+    return m.agg == "count" and bool(m.where or m.elapsed)
+
+
+def _event_points(spec: QuerySpec) -> list[list[str]]:
+    """Status lists of the status events that spans of this spec measure from or to."""
+    spans = [m.span for m in spec.measures if m.span] + [v.span for v in spec.values if v.span]
+    return [p.event.statuses() for s in spans for p in (s.start, s.end)
+            if p.event is not None and p.event.kind == "status_changed" and p.event.statuses()]
 
 
 def _group_label(group: dict[str, Any], labels: dict[str, str] | None = None) -> str:
@@ -222,7 +249,7 @@ def render_text(spec: QuerySpec, result: QueryResult, notes: list[str],
             ms = []
             for k, v in g["measures"].items():
                 if isinstance(v, (int, float)) and not isinstance(v, bool) and g["n"] and v <= g["n"] \
-                        and any(m.name == k and m.agg == "count_if" for m in spec.measures):
+                        and any(m.name == k and _conditional_count(m) for m in spec.measures):
                     ms.append(f"{k}={v}/{g['n']} ({v / g['n']:.0%})")
                 else:
                     ms.append(f"{k}={v}")

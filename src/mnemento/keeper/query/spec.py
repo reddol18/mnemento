@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ...schema.definition import SchemaDef
 from ...timeutil import is_calendar_date
@@ -17,13 +17,19 @@ from ...timeutil import is_calendar_date
 Scalar = Union[str, int, float, bool]
 
 Op = Literal[
-    "eq", "ne", "in", "not_in", "gt", "gte", "lt", "lte",
+    "eq", "ne", "gt", "gte", "lt", "lte",
     "exists", "missing", "contains", "name_is", "reached",
 ]
+LIST_OPS = ("eq", "ne", "reached")  # ADR-0029 ④: these take one value or a list
 Bucket = Literal["none", "day", "week", "month", "year"]
-Agg = Literal["count", "count_if", "sum", "avg", "min", "max", "avg_days_between",
-              "avg_hours_between_events", "first", "last", "change", "change_pct"]
+Agg = Literal["count", "sum", "avg", "min", "max", "median", "first", "last", "change", "change_pct"]
 SERIES_VALUE_AGGS = ("sum", "avg", "min", "max", "first", "last", "change", "change_pct")
+SPAN_AGGS = ("sum", "avg", "min", "max", "median")
+# ADR-0029 ③: one unit table for spans and elapsed; amount of the unit in one day
+Unit = Literal["hours", "days", "weeks"]
+PER_DAY = {"hours": 24.0, "days": 1.0, "weeks": 1 / 7}
+# ADR-0029 ⑦: older names, rewritten when a spec is read (plan cache, agents, a model's habit)
+_OP_ALIASES = {"in": "eq", "not_in": "ne"}
 SHORT_NAME = re.compile(r"^[^\W\d]\w{0,40}$")
 
 RELATIVE_DATE_RE = re.compile(
@@ -43,17 +49,25 @@ def is_date_token(value: object) -> bool:
 class Filter(BaseModel):
     model_config = ConfigDict(extra="forbid")
     field: str = Field(description="A field of the target schema.")
-    op: Op = Field(description="Comparison. name_is: the field references another entity "
+    op: Op = Field(description="Comparison. eq/ne/reached take one value or a list: eq [a, b] = one of them, "
+                               "ne [a, b] = none of them. name_is: the field references another entity "
                                "(see 'ref'); value is that entity's name, resolved by the Keeper. "
-                               "reached (status only): the record EVER had this status (history), "
-                               "even if its current status is later; eq/in on status = current state.")
+                               "reached (status only): the record EVER had this status (or one of the listed), "
+                               "even if its current status is later; eq on status = current state.")
     value: Scalar | list[Scalar] | None = Field(
         default=None,
-        description="Comparison value. Lists for in/not_in. Dates as YYYY-MM-DD or a token: @today, "
+        description="Comparison value, or a list for eq/ne/reached. Dates as YYYY-MM-DD or a token: @today, "
                     "@today-1d, @this_week_start, @this_month_start, @last_month_start, or for a named "
                     "month @month_start(2026-11), @month_end(2026-11), @last_full_week_start(2026-11), "
                     "@last_full_week_end(2026-11).",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _aliases(cls, d: Any) -> Any:
+        if isinstance(d, dict) and d.get("op") in _OP_ALIASES:
+            d = {**d, "op": _OP_ALIASES[d["op"]]}
+        return d
 
 
 class GroupKey(BaseModel):
@@ -75,18 +89,36 @@ class EventRef(BaseModel):
 class Measure(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(description="Result column name, e.g. 'applications', 'viewed'.")
-    agg: Agg = Field(description="count: rows; count_if: rows matching `where`; "
-                                 "avg_days_between: average days from `field` to `field_end`.")
+    agg: Agg = Field(description="count: rows (narrowed by `where`/`elapsed`); sum/avg/min/max/median: of `field`, "
+                                 "or of `span` (the time between two points of each record) in `unit`.")
     field: str | None = None
-    field_end: str | None = None
-    unit: Literal["days", "hours"] | None = Field(default=None, description="avg_days_between / avg_hours_between_events: "
-                                                  "the unit the question asks for (converted by code).")
-    event_from: EventRef | None = Field(default=None, description="avg_hours_between_events: start event.")
-    event_to: EventRef | None = Field(default=None, description="avg_hours_between_events: end event.")
+    span: "Span | None" = Field(default=None, description="sum/avg/min/max/median of the time between two points "
+                                "of each record, e.g. applying -> viewed. Records missing a point are left out.")
+    unit: Unit | None = Field(default=None, description="With span: the unit the question asks for (converted by "
+                              "code).")
     where: list[Filter] = Field(default_factory=list)
     elapsed: list["Elapsed"] = Field(default_factory=list, description="Time conditions that narrow this measure only "
                                      "(same shape as the spec's elapsed), e.g. the outcome of the applications viewed "
                                      "within a day, next to an average over all of them.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _aliases(cls, d: Any) -> Any:
+        """ADR-0029 ⑦: count_if = count with conditions; the two averages of time = avg over a span."""
+        if not isinstance(d, dict):
+            return d
+        agg = d.get("agg")
+        if agg == "count_if":
+            return {**d, "agg": "count"}
+        if agg == "avg_days_between":
+            rest = {k: v for k, v in d.items() if k not in ("field", "field_end")}
+            return {**rest, "agg": "avg", "unit": d.get("unit") or "days",
+                    "span": {"start": {"field": d.get("field")}, "end": {"field": d.get("field_end")}}}
+        if agg == "avg_hours_between_events":
+            rest = {k: v for k, v in d.items() if k not in ("event_from", "event_to")}
+            return {**rest, "agg": "avg", "unit": d.get("unit") or "hours",
+                    "span": {"start": {"event": d.get("event_from")}, "end": {"event": d.get("event_to")}}}
+        return d
 
 
 class TimePoint(BaseModel):
@@ -103,13 +135,20 @@ class Elapsed(BaseModel):
     start: TimePoint
     end: TimePoint = Field(default_factory=lambda: TimePoint(today=True),
                            description="Defaults to today.")
-    unit: Literal["days", "hours"] = Field(description="days: between dates (date fields, or today); "
-                                                       "hours: between event times (events, or now).")
+    unit: Unit = Field(description="hours need events (exact times) on both sides; days and weeks work with date "
+                                   "fields or events.")
     op: Literal["gt", "gte", "lt", "lte", "eq"]
     value: float = Field(description="Amount of `unit`, e.g. 3 for 'more than three days' with op gt.")
 
 
-Measure.model_rebuild()  # Measure.elapsed refers to Elapsed, defined after it
+class Span(BaseModel):
+    """The time between two points of the same record (ADR-0029 ①), measured instead of compared."""
+    model_config = ConfigDict(extra="forbid")
+    start: TimePoint
+    end: TimePoint = Field(default_factory=lambda: TimePoint(today=True), description="Defaults to today.")
+
+
+Measure.model_rebuild()  # Measure refers to Span and Elapsed, defined after it
 
 
 class Window(BaseModel):
@@ -163,6 +202,9 @@ class Value(BaseModel):
     name: str = Field(description="Column name, e.g. 'last_close', 'unrealized_pnl'.")
     asof: AsOf | None = None
     expr: Expr | None = None
+    span: Span | None = Field(default=None, description="list mode: the time between two points of each record, "
+                              "e.g. to sort by how long each one took (an average or total uses a measure's span).")
+    unit: Unit | None = Field(default=None, description="With span: the unit to show.")
 
 
 class Having(BaseModel):
@@ -217,6 +259,22 @@ class QuerySpec(BaseModel):
     defaults_used: list[str] = Field(
         default_factory=list, description="Vague words read with a default, as 'word = reading' "
                                           "(e.g. '빠르게 = viewed within 1 day of applying'); shown to the user.")
+    asks: "Asks | None" = Field(default=None, description="Written first: the shape of the answer the question asks "
+                                "for. The measures must give it (checked).")
+
+
+class Asks(BaseModel):
+    """ADR-0029 ⑧: what the question asks for, before choosing measures — a mismatch is rejected instead of
+    answered with a near measure (unseen v5 Y4 answered a count for a total of days)."""
+    model_config = ConfigDict(extra="forbid")
+    calc: Literal["count", "list", "sum", "avg", "median", "min", "max", "other"] = Field(
+        description="count: how many; list: which records; sum/avg/median/min/max: that number (\"보통\" = median "
+                    "or avg); other: rates, comparisons, change history and anything else.")
+    unit: Unit | None = Field(default=None, description="A length of time the question asks in (몇 시간 -> hours, "
+                              "며칠 -> days, 몇 주 -> weeks); null otherwise.")
+
+
+QuerySpec.model_rebuild()
 
 
 # ---- validation against the schema dictionary ----------------------------------------------
@@ -283,8 +341,8 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
             rec = schemas[spec.entity_type]
             for i, f in enumerate(spec.record_filters):
                 errs += _check_filter(rec, f, f"record_filters[{i}]")
-    if spec.source == "events" and any(m.agg not in ("count", "count_if") for m in spec.measures):
-        errs.append("source=events supports count/count_if measures only")
+    if spec.source == "events" and any(m.agg != "count" for m in spec.measures):
+        errs.append("source=events supports count measures only")
     for i, f in enumerate(spec.filters):
         errs += _check_filter(schema, f, f"filters[{i}]")
     for i, e in enumerate(spec.elapsed):
@@ -307,39 +365,35 @@ def validate_spec(spec: QuerySpec, schemas: dict[str, SchemaDef]) -> list[str]:
         # works: Korean names from the model are fine
         if not re.match(r"^[^\W\d]\w{0,40}$", m.name):
             errs.append(f"{where}: measure name must be a short word (letters, digits, _), got {m.name!r}")
-        if m.agg == "count_if" and not (m.where or m.elapsed):
-            errs.append(f"{where}: count_if needs `where` or `elapsed`")
         for j, wf in enumerate(m.where):
             errs += _check_filter(schema, wf, f"{where}.where[{j}]")
         for j, e in enumerate(m.elapsed):  # issue #11: a time condition on one measure
             errs += _check_elapsed(spec, schema, e, f"{where}.elapsed[{j}]")
-        if m.agg in ("sum", "avg", "min", "max") and m.field in values:
-            pass  # computed values are numeric
-        elif m.agg in ("sum", "avg", "min", "max"):
+        if m.span is not None:  # ADR-0029 ①②
+            if m.agg not in SPAN_AGGS:
+                errs.append(f"{where}: span works with {'/'.join(SPAN_AGGS)} (count counts records: put a time "
+                            f"condition into elapsed)")
+            elif m.field is not None:
+                errs.append(f"{where}: give one of field, span")
+            elif spec.source != "entities":
+                errs.append(f"{where}: span works on entities")
+            elif m.unit is None:
+                errs.append(f"{where}: span needs the unit the question asks for (hours, days or weeks)")
+            else:
+                errs += _check_points(schema, m.span.start, m.span.end, m.unit, f"{where}.span")
+        elif m.unit is not None:
+            errs.append(f"{where}: unit is for a span (the time between two points)")
+        elif m.agg in SPAN_AGGS and m.field in values:
+            if any(v.span is not None for v in spec.values if v.name == m.field):
+                errs.append(f"{where}: for a total or average of a time, use the measure's span (and unit), "
+                            f"not a value")
+        elif m.agg in SPAN_AGGS:
             fd = schema.fields.get(m.field or "")
             if fd is None:
-                errs.append(f"{where}: unknown field {m.field!r}")
-            elif m.agg in ("sum", "avg") and fd.type not in _NUMERIC:
+                errs.append(f"{where}: unknown field {m.field!r}" + (" (or give a span)" if m.field is None else ""))
+            elif m.agg in ("sum", "avg", "median") and fd.type not in _NUMERIC:
                 errs.append(f"{where}: {m.agg} needs a numeric field")
-        if m.agg == "avg_hours_between_events":
-            if spec.source != "entities" or not (m.event_from and m.event_to):
-                errs.append(f"{where}: avg_hours_between_events needs event_from and event_to on entities")
-            elif "status" in schema.fields:
-                allowed = schema.fields["status"].enum or ()
-                for ref in (m.event_from, m.event_to):
-                    for st in ref.statuses():
-                        if st not in allowed:
-                            errs.append(f"{where}: status {st!r} not allowed; allowed: {list(allowed)}")
-        if m.unit and m.agg not in ("avg_days_between", "avg_hours_between_events"):
-            errs.append(f"{where}: unit is for avg_days_between / avg_hours_between_events")
-        if m.agg == "avg_days_between" and m.unit == "hours":  # same rule as elapsed: dates hold only the day
-            errs.append(f"{where}: date fields hold only the day, so hours from them are off by up to a day; use "
-                        f"avg_hours_between_events with the events (exact times), or unit days")
-        if m.agg == "avg_days_between":
-            for fname in (m.field, m.field_end):
-                fd = schema.fields.get(fname or "")
-                if fd is None or fd.format not in ("date", "date-time"):
-                    errs.append(f"{where}: avg_days_between needs two date fields, got {fname!r}")
+    errs += _check_asks(spec)
     for fname in spec.list_fields:
         if fname not in schema.fields and fname not in values:
             errs.append(f"list_fields: unknown field {fname!r}")
@@ -373,12 +427,17 @@ def _check_values(spec: QuerySpec, schema: SchemaDef, schemas: dict[str, SchemaD
         where = f"values[{i}]"
         if not SHORT_NAME.match(v.name) or v.name in schema.fields or v.name in seen:
             errs.append(f"{where}: name {v.name!r} must be a new short word (not a field, not used before)")
-        if (v.asof is None) == (v.expr is None):
-            errs.append(f"{where}: give exactly one of asof, expr")
+        if sum(x is not None for x in (v.asof, v.expr, v.span)) != 1:
+            errs.append(f"{where}: give exactly one of asof, expr, span")
+        elif v.span is not None:  # ADR-0029: per-record durations, e.g. "the one that took longest"
+            if v.unit is None:
+                errs.append(f"{where}: span needs a unit")
+            else:
+                errs += _check_points(schema, v.span.start, v.span.end, v.unit, f"{where}.span")
         elif v.asof is not None:
             errs += _check_asof(v.asof, schema, schemas, where)
         else:
-            for a in v.expr.args:
+            for a in (v.expr.args if v.expr else ()):
                 if isinstance(a, str) and a not in seen and (
                         a not in schema.fields or schema.fields[a].type not in _NUMERIC):
                     errs.append(f"{where}: {a!r} is not a numeric field or an earlier value")
@@ -451,12 +510,10 @@ def _check_series(spec: QuerySpec, schema: SchemaDef) -> list[str]:
         names.add(m.name)
         if m.agg in SERIES_VALUE_AGGS and m.field not in measures:
             errs.append(f"measures[{i}]: {m.agg} needs a measure field ({sorted(measures)}), got {m.field!r}")
-        elif m.agg not in SERIES_VALUE_AGGS + ("count", "count_if"):
+        elif m.agg not in SERIES_VALUE_AGGS + ("count",):
             errs.append(f"measures[{i}]: {m.agg} does not apply to series")
-        if m.agg == "count_if" and not m.where:
-            errs.append(f"measures[{i}]: count_if needs `where`")
-        if m.elapsed:
-            errs.append(f"measures[{i}]: elapsed is for records, not series points")
+        if m.elapsed or m.span or m.unit:
+            errs.append(f"measures[{i}]: elapsed and span are for records, not series points")
         for j, wf in enumerate(m.where):
             errs += _check_filter(schema, wf, f"measures[{i}].where[{j}]")
     for fname in spec.list_fields:
@@ -479,9 +536,21 @@ def _check_series(spec: QuerySpec, schema: SchemaDef) -> list[str]:
 def _check_elapsed(spec: QuerySpec, schema: SchemaDef, e: Elapsed, where: str) -> list[str]:
     if spec.source != "entities":
         return [f"{where}: elapsed works on entities"]
+    errs = _check_points(schema, e.start, e.end, e.unit, where)
+    if e.value < 0:
+        errs.append(f"{where}: value must not be negative")
+    return errs
+
+
+def point_precision(p: TimePoint) -> str | None:
+    """ADR-0029 ⑤: a date field holds the local day, an event its exact time; today follows the other side."""
+    return "day" if p.field is not None else "time" if p.event is not None else None
+
+
+def _check_points(schema: SchemaDef, start: TimePoint, end: TimePoint, unit: str, where: str) -> list[str]:
+    """The two points of an elapsed condition or a span, checked once for both (ADR-0029 ⑤)."""
     errs: list[str] = []
-    kinds = set()
-    for side, p in (("start", e.start), ("end", e.end)):
+    for side, p in (("start", start), ("end", end)):
         given = [x for x in (p.field, p.event, p.today or None) if x is not None]
         if len(given) != 1:
             errs.append(f"{where}.{side}: give exactly one of field, event, today")
@@ -490,21 +559,37 @@ def _check_elapsed(spec: QuerySpec, schema: SchemaDef, e: Elapsed, where: str) -
             fd = schema.fields.get(p.field)
             if fd is None or fd.format not in ("date", "date-time"):
                 errs.append(f"{where}.{side}: {p.field!r} is not a date field")
-            kinds.add("field")
-        elif p.event is not None:
-            if "status" in schema.fields:
-                for st in p.event.statuses():
-                    if st not in (schema.fields["status"].enum or ()):
-                        errs.append(f"{where}.{side}: status {st!r} not allowed")
-            kinds.add("event")
-    if kinds == {"field", "event"}:
+        elif p.event is not None and "status" in schema.fields:
+            for st in p.event.statuses():
+                if st not in (schema.fields["status"].enum or ()):
+                    errs.append(f"{where}.{side}: status {st!r} not allowed")
+    kinds = {point_precision(start), point_precision(end)} - {None}
+    if kinds == {"day", "time"}:
         errs.append(f"{where}: do not mix a date field with an event time (dates are local days, events "
-                    f"are exact times); use two date fields (unit days) or two events (unit hours)")
-    if e.unit == "hours" and "field" in kinds:
-        errs.append(f"{where}: date fields hold only the day; use unit days, or events for hours")
-    if e.value < 0:
-        errs.append(f"{where}: value must not be negative")
+                    f"are exact times); use two date fields or two events")
+    if unit == "hours" and "day" in kinds:
+        errs.append(f"{where}: date fields hold only the day, so hours from them are off by up to a day; use the "
+                    f"events (exact times) for hours, or unit days")
     return errs
+
+
+def _check_asks(spec: QuerySpec) -> list[str]:
+    """ADR-0029 ⑧: the measures must give what the question asks for; otherwise say it cannot be expressed."""
+    a = spec.asks
+    if a is None or a.calc == "other":
+        return []
+    hint = " If no spec gives it, answer kind=unsupported instead of a near answer."
+    if a.calc == "list":
+        return [] if spec.mode == "list" else ["asks list: use mode list." + hint]
+    if a.calc == "count":
+        ok = spec.mode in ("count", "list") or any(m.agg == "count" for m in spec.measures)
+        return [] if ok else ["asks count: use mode count or a count measure." + hint]
+    main = [m for m in spec.measures if m.agg == a.calc]
+    if not main:
+        return [f"asks {a.calc}: no measure with agg {a.calc} (got {[m.agg for m in spec.measures]})." + hint]
+    if a.unit is not None and not any(m.span is not None and m.unit == a.unit for m in main):
+        return [f"asks {a.calc} in {a.unit}: the {a.calc} measure must be over a span with unit {a.unit}." + hint]
+    return []
 
 
 def _check_filter(schema: SchemaDef, f: Filter, where: str) -> list[str]:
@@ -517,12 +602,12 @@ def _check_filter(schema: SchemaDef, f: Filter, where: str) -> list[str]:
         return []
     if v is None:
         return [f"{where}: op {f.op} needs a value"]
-    if f.op in ("in", "not_in"):
-        if not isinstance(v, list) or not v:
-            return [f"{where}: {f.op} needs a non-empty list"]
+    if isinstance(v, list):
+        if f.op not in LIST_OPS:
+            return [f"{where}: op {f.op} takes a single value (lists: {', '.join(LIST_OPS)})"]
+        if not v:
+            return [f"{where}: the list is empty"]
         values = v
-    elif isinstance(v, list):
-        return [f"{where}: op {f.op} takes a single value"]
     else:
         values = [v]
     if f.op == "reached":

@@ -81,7 +81,7 @@ def test_spec_outside_schema_twice_becomes_clarification(demo):
         ({"entity_type": "application", "mode": "count",
           "filters": [{"field": "platform", "op": "name_is", "value": "x"}]}, "reference fields"),
         ({"entity_type": "application", "mode": "aggregate",
-          "measures": [{"name": "x", "agg": "count_if"}]}, "needs `where`"),
+          "measures": [{"name": "x", "agg": "count", "span": {"start": {"field": "applied_at"}}, "unit": "days"}]}, "count counts records"),
     ],
 )
 def test_validate_spec_errors(demo, spec, needle):
@@ -273,9 +273,9 @@ def test_trace_records_stages(demo):
 @pytest.mark.parametrize(
     "question,total,filters",
     [
-        ("Gasang Tech 예전에 지원한 적 있나?", 1, [("company_id", "in", ["co_gasangtech"])]),
-        ("(주)가상테크 지원 몇 곳?", 1, [("company_id", "in", ["co_gasangtech"])]),
-        ("Sample Labs 지원 몇 번?", 1, [("company_id", "in", ["co_samplelabs"])]),
+        ("Gasang Tech 예전에 지원한 적 있나?", 1, [("company_id", "eq", ["co_gasangtech"])]),
+        ("(주)가상테크 지원 몇 곳?", 1, [("company_id", "eq", ["co_gasangtech"])]),
+        ("Sample Labs 지원 몇 번?", 1, [("company_id", "eq", ["co_samplelabs"])]),
         ("열람된 곳 몇 개?", 7, [("status", "eq", "viewed")]),  # type inferred from the status label
         ("사람인 불합격 목록", 2, [("platform", "eq", "saramin"), ("status", "eq", "rejected")]),
     ],

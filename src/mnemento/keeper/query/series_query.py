@@ -60,9 +60,9 @@ class SeriesCompiler:
             return f"{c} IS NOT NULL"
         if f.op == "missing":
             return f"{c} IS NULL"
-        if f.op in ("in", "not_in"):
+        if f.op in ("eq", "ne") and isinstance(f.value, list):
             marks = ", ".join(self.bind(x) for x in f.value)  # type: ignore[union-attr]
-            return f"{c} IN ({marks})" if f.op == "in" else f"({c} IS NULL OR {c} NOT IN ({marks}))"
+            return f"{c} IN ({marks})" if f.op == "eq" else f"({c} IS NULL OR {c} NOT IN ({marks}))"
         if f.op == "contains":
             self.params.append("%" + str(f.value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
             return f"{c} LIKE ? ESCAPE '\\'"
@@ -130,7 +130,7 @@ class SeriesCompiler:
         for i, m in enumerate(spec.measures):
             cond = " AND ".join(self.cond(w) for w in m.where) if m.where else None
             v = self.col(m.field) if m.field else None
-            if m.agg in ("count", "count_if"):
+            if m.agg == "count":
                 expr = f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)" if cond else "COUNT(*)"
             elif m.agg in ("sum", "avg", "min", "max"):
                 expr = f"{m.agg.upper()}(CASE WHEN {cond} THEN {v} END)" if cond else f"{m.agg.upper()}({v})"

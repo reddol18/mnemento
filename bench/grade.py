@@ -70,6 +70,8 @@ def grade(q: Question, ans: dict[str, Any] | None) -> tuple[bool, str]:
     if not ans:
         return False, "no answer"
     exp = q.expected
+    if q.grader == "unsupported":  # ADR-0029 ⑧: a question no spec can compute; only saying so is right
+        return (True, "ok (said unsupported)") if ans.get("unsupported") else (False, "answered instead of unsupported")
     if q.grader in ("number", "ids"):
         tol = exp.get("tolerance", 0.0)
         num = ans.get("number")

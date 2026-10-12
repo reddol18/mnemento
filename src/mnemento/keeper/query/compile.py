@@ -14,7 +14,7 @@ from ...schema.definition import SchemaDef
 from ...storage.sqlite import column_for
 from .reltime import resolve_relative
 from ...timeutil import utc_sort_key
-from .spec import EVENT_SCHEMA, Elapsed, EventRef, Filter, QuerySpec, TimePoint, is_date_token
+from .spec import EVENT_SCHEMA, PER_DAY, Elapsed, EventRef, Filter, QuerySpec, TimePoint, is_date_token
 
 
 @dataclass
@@ -54,6 +54,8 @@ class Compiler:
 
     def value_sql(self, name: str) -> str:
         v = self.values[name]
+        if v.span is not None:  # ADR-0029: the time each record took
+            return self.span_sql(v.span.start, v.span.end, v.unit)
         if v.asof is not None:
             return self.asof_sql(v.asof, "value")
         sym = {"add": "+", "sub": "-", "mul": "*"}
@@ -110,9 +112,9 @@ class Compiler:
             return f"{c} IS NOT NULL"
         if op == "missing":
             return f"{c} IS NULL"
-        if op in ("in", "not_in"):
-            marks = ", ".join(self.bind(f.field, x) for x in v)  # type: ignore[union-attr]
-            return f"{c} IN ({marks})" if op == "in" else f"({c} IS NULL OR {c} NOT IN ({marks}))"
+        if op in ("eq", "ne") and isinstance(v, list):  # ADR-0029 ④: one of them / none of them
+            marks = ", ".join(self.bind(f.field, x) for x in v)
+            return f"{c} IN ({marks})" if op == "eq" else f"({c} IS NULL OR {c} NOT IN ({marks}))"
         if op == "contains":
             if fd.type == "array":
                 return (f"EXISTS (SELECT 1 FROM json_each(doc, '$.{f.field}') "
@@ -208,37 +210,35 @@ class Compiler:
         # ... and so do time conditions on the measure alone (issue #11: the outcome of the quickly viewed ones)
         parts = [self.cond(f) for f in m.where] + [self.elapsed(e) for e in m.elapsed]
         cond = " AND ".join(parts) if parts else None
-        if m.agg in ("count", "count_if"):
+        if m.agg == "count":
             return f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)" if cond else "COUNT(*)"
-        if m.agg == "avg_days_between":
-            a, b = self.col(m.field), self.col(m.field_end)
-            # dates give days; unit "hours" converts (issue #16: the asked unit does not depend on the source)
-            expr = f"(julianday({b}) - julianday({a})){' * 24' if m.unit == 'hours' else ''}"
-            fn = "AVG"
-        elif m.agg == "avg_hours_between_events":
-            end = self._event_time(m.event_to)  # bind order follows the SQL text: end, then start
-            start = self._event_time(m.event_from)
-            expr = f"(julianday({end}) - julianday({start})){'' if m.unit == 'days' else ' * 24'}"
-            fn = "AVG"
-        else:  # first/last reach here only for date fields (validated): the earliest/latest date
-            expr, fn = self.col(m.field), {"first": "MIN", "last": "MAX"}.get(m.agg, m.agg.upper())
+        # ADR-0029 ②: any aggregate over a field or a span; MEDIAN is registered on the connection (storage)
+        # first/last reach here only for date fields (validated): the earliest/latest date
+        fn = {"first": "MIN", "last": "MAX"}.get(m.agg, m.agg.upper())
+        expr = self.span_sql(m.span.start, m.span.end, m.unit) if m.span is not None else self.col(m.field)
         return f"{fn}(CASE WHEN {cond} THEN {expr} END)" if cond else f"{fn}({expr})"
 
     def elapsed(self, e: Elapsed) -> str:
         """Time between two points of the record; a missing point makes the condition false (NULL)."""
-        end = self._point(e.end, e.unit)  # bind order follows the SQL text: end, start, value
-        start = self._point(e.start, e.unit)
-        scale = " * 24" if e.unit == "hours" else ""
+        span = self.span_sql(e.start, e.end, e.unit)  # bind order follows the SQL text: span, then value
         sql_op = {"eq": "=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}[e.op]
-        return f"((julianday({end}) - julianday({start})){scale}) {sql_op} {self._bind_raw(e.value)}"
+        return f"{span} {sql_op} {self._bind_raw(e.value)}"
 
-    def _point(self, p: TimePoint, unit: str) -> str:
+    def span_sql(self, start: TimePoint, end: TimePoint, unit: str) -> str:
+        """Time from start to end in `unit` (ADR-0029 ③: one unit table); NULL when a point is missing."""
+        e = self._point(end, start)  # bind order follows the SQL text: end, then start
+        s = self._point(start, end)
+        factor = PER_DAY[unit]
+        scale = "" if factor == 1 else f" * {factor!r}"  # from the fixed unit table, not from the spec
+        return f"((julianday({e}) - julianday({s})){scale})"
+
+    def _point(self, p: TimePoint, other: TimePoint) -> str:
         if p.field is not None:
             return self.col(p.field)
         if p.event is not None:
             return self._event_time(p.event)
-        # today: the local day for day counts, the exact UTC instant for hours
-        return self._bind_raw(self.now.date().isoformat() if unit == "days" else utc_sort_key(self.now))
+        # today: the local day against a date field, the exact UTC instant against an event
+        return self._bind_raw(utc_sort_key(self.now) if other.event is not None else self.now.date().isoformat())
 
     def _event_time(self, ref: EventRef, agg: str = "MIN") -> str:
         """Earliest (MIN) or latest (MAX) UTC time of a matching, non-voided event of the entity."""

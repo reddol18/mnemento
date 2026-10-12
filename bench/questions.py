@@ -27,7 +27,7 @@ class Question:
     set: str  # "dev" | "unseen"
     text: str
     format: str  # answer-format hint shown to every system
-    grader: str  # number | ids | rate_groups | count_groups
+    grader: str  # number | ids | rate_groups | count_groups | value_groups | unsupported | ...
     expected: dict[str, Any] = field(default_factory=dict)
 
 

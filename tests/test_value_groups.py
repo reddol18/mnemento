@@ -50,7 +50,7 @@ def test_the_interpreter_sees_the_group_and_the_in_filter_counts_both(k):
     k.add_value_group("watch_item", "status", "주시 중", ["watching", "observe_only"], approved_by="user",
                       user_answer="yes")
     text = render_dictionary([k.ledger.schemas.get("watch_item")], {})
-    assert "phrase groups (op in with all of them): '주시 중' = watching, observe_only" in text
+    assert "phrase groups (op eq with the list of all of them): '주시 중' = watching, observe_only" in text
     ans = k.ask("지금 주시 중인 종목", spec={"entity_type": "watch_item", "mode": "count", "filters": [
         {"field": "status", "op": "in", "value": ["watching", "observe_only"]}]})
     assert ans.result["total"] == 3

@@ -96,7 +96,7 @@ def test_missing_endpoint_is_excluded_and_reported(demo):
     [
         ({"start": {"field": "applied_at"}, "end": {"event": {"kind": "created"}}, "unit": "days", "op": "gt",
           "value": 1}, "do not mix"),
-        ({"start": {"field": "applied_at"}, "unit": "hours", "op": "gt", "value": 1}, "use unit days"),
+        ({"start": {"field": "applied_at"}, "unit": "hours", "op": "gt", "value": 1}, "or unit days"),
         ({"start": {"field": "applied_at", "today": True}, "unit": "days", "op": "gt", "value": 1}, "exactly one"),
         ({"start": {"field": "platform"}, "unit": "days", "op": "gt", "value": 1}, "not a date field"),
         ({"start": {"event": {"kind": "status_changed", "to": "ghosted"}}, "unit": "hours", "op": "gt",
@@ -132,7 +132,7 @@ def test_interpreter_answers_with_a_default_instead_of_asking(demo):
 
 
 def test_interpreter_rules_cover_elapsed_lengths_and_vague_words():
-    for needle in ("uses `elapsed`", "1 month = 30 days", "spec.defaults_used", "never drop the main part"):
+    for needle in ("condition (\"viewed more than 3 days after applying\", \"took less than a day\"): `elapsed`", "1 month = 30 days", "spec.defaults_used", "never drop the main part"):
         assert needle in SYSTEM_PROMPT
 
 

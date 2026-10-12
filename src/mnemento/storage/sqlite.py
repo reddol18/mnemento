@@ -198,6 +198,24 @@ def column_for(field_name: str) -> str:
     return f"f_{field_name}"
 
 
+class _Median:
+    """MEDIAN(x) aggregate: the middle value (mean of the two middle ones), NULLs ignored."""
+
+    def __init__(self) -> None:
+        self.values: list[float] = []
+
+    def step(self, value) -> None:
+        if value is not None:
+            self.values.append(value)
+
+    def finalize(self):
+        v = sorted(self.values)
+        if not v:
+            return None
+        mid = len(v) // 2
+        return v[mid] if len(v) % 2 else (v[mid - 1] + v[mid]) / 2
+
+
 class SQLiteStorage(Storage):
     def __init__(self, path: str | Path = ":memory:"):
         if sqlite3.sqlite_version_info < MIN_SQLITE:
@@ -208,6 +226,7 @@ class SQLiteStorage(Storage):
         # isolation_level=None: we manage transactions explicitly (BEGIN IMMEDIATE).
         self._conn = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        self._conn.create_aggregate("MEDIAN", 1, _Median)  # ADR-0029: SQLite has no median
         self._lock = threading.RLock()
         self._depth = 0
         self._conn.execute("PRAGMA journal_mode=WAL")

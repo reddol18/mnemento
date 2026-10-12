@@ -75,13 +75,20 @@ def run_m(q: Question, keeper: Keeper, now, narrate: bool = False, hint: bool = 
             "wall_ms": ans.trace["totals"]["total_ms"], "trace": ans.trace, "text": ans.text}
 
 
+# ADR-0029: the time averages are avg over a span; the old names stay for results recorded before it
 _AVERAGES = ("avg", "avg_days_between", "avg_hours_between_events")
+
+
+def _conditional_count(m: dict) -> bool:
+    """A count narrowed by its own conditions — "how many of them" (count_if before ADR-0029)."""
+    return m.get("agg") == "count_if" or m.get("agg") == "count" and bool(m.get("where") or m.get("elapsed"))
 
 
 def to_answer(ans, q: Question) -> dict[str, Any]:
     """Mechanical formatting of a KeeperAnswer into the shared answer object (no LLM)."""
     out: dict[str, Any] = {"number": None, "ids": [], "groups": [],
                            "flags": {"small_sample": False, "incomplete_period": False}, "text": ans.text}
+    out["unsupported"] = ans.status == "unsupported"  # graded right only on unexpressible questions
     if ans.status != "answered" or not ans.result:
         return out
     res = ans.result
@@ -110,7 +117,7 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
     measures = (ans.spec or {}).get("measures") or []
     # every measure as computed, for graders that look past the first one (unseen4 rate_pair)
     out["raw_groups"] = [{"n": g["n"], "measures": dict(g["measures"])} for g in groups]
-    count_if = [m["name"] for m in measures if m.get("agg") == "count_if"]
+    count_if = [m["name"] for m in measures if _conditional_count(m)]
     share = "share" in q.format
     # issue #16: a format asking for a mean per group takes the average-type measure, not the first one (from unseen
     # v4 on; v4 X4 was recorded with the old rule)
@@ -134,6 +141,10 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
     avg_name = None
     if "number = average" in q.format:
         avg_name = next((m["name"] for m in measures if m.get("agg") in _AVERAGES), None)
+    elif re.search(r"number = (mean|average|total|sum|median)", q.format):  # ADR-0029: the asked calculation
+        want = {"mean": "avg", "average": "avg", "total": "sum", "sum": "sum", "median": "median"}[
+            re.search(r"number = (mean|average|total|sum|median)", q.format).group(1)]
+        avg_name = next((m["name"] for m in measures if m.get("agg") == want), None)
     if avg_name is None and measures and not count_if:
         avg_name = measures[0]["name"]
     if avg_name:

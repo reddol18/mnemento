@@ -24,12 +24,15 @@ from .spec import QuerySpec, validate_spec
 
 class InterpretOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["query", "clarify"] = Field(
+    kind: Literal["query", "clarify", "unsupported"] = Field(
         description="query if the question can be answered with the schemas (vague words read with a "
                     "default, listed in spec.defaults_used); clarify only if no default reading would give "
-                    "a fair answer (e.g. which of two different records, or information the dictionary lacks)."
+                    "a fair answer (e.g. which of two different records, or information the dictionary lacks); "
+                    "unsupported if the records hold what is needed but no spec can compute what is asked."
     )
-    spec: QuerySpec | None = Field(default=None, description="Required when kind=query.")
+    spec: QuerySpec | None = Field(default=None, description="Required when kind=query; write spec.asks first.")
+    unsupported_reason: str | None = Field(default=None, description="Required when kind=unsupported: what "
+                                           "cannot be computed, in the question's language.")
     clarify_question: str | None = Field(default=None, description="Required when kind=clarify.")
     options: list[str] = Field(default_factory=list, description="2-5 concrete choices for clarify.")
 
@@ -39,6 +42,12 @@ class Clarification:
     question: str
     options: list[str] = field(default_factory=list)
     reason: str = ""
+
+
+@dataclass
+class Unsupported:
+    """ADR-0029 ⑧: the question cannot be computed with a spec — said so instead of a near answer."""
+    reason: str
 
 
 class InterpretError(Exception):
@@ -51,23 +60,28 @@ SYSTEM_PROMPT = """You translate questions about a structured record book into a
 Rules:
 - Use ONLY the record types, fields and allowed values listed in the dictionary. Never invent fields.
   If the question needs information the dictionary does not have, choose kind=clarify and say what is missing.
-- Values of enum fields must be one of the allowed values (map words to them using the labels). A phrase listed
-  under "phrase groups" means all of its values: filter with op "in" and every one of them.
+- Write spec.asks first: what the answer is (calc count / list / sum / avg / median / min / max / other) and, for a
+  length of time, the unit asked (몇 시간 -> hours, 며칠 -> days, 몇 주 -> weeks). Then choose the spec that gives
+  exactly that. If no spec can (e.g. a time between two different records, an average of totals), answer
+  kind=unsupported with the reason — never answer a near measure (a count for a total of days).
+- Values of enum fields must be one of the allowed values (map words to them using the labels). Several values:
+  op "eq" with a list = any of them, op "ne" with a list = none of them (e.g. "not finished" = status ne
+  [passed, rejected, withdrawn]). A phrase listed under "phrase groups" means all of its values: eq with the list.
 - Dates: YYYY-MM-DD, or relative tokens resolved by the system: @today, @today-Nd, @this_week_start,
   @this_month_start, @last_month_start, @this_year_start (offsets like +7d, -1m allowed).
   Prefer tokens for words like today/yesterday/this month/last month.
 - To filter a reference field (one with "ref") by the referenced record's name, use op "name_is" with the name
   exactly as the question writes it, including any code or number given with it (e.g. "바이오주(900001)"):
   the Keeper matches identifiers first.
-- Current state vs history: op "eq"/"in" on status tests the CURRENT status only. Whether a record EVER
+- Current state vs history: op "eq" on status tests the CURRENT status only. Whether a record EVER
   reached a status ("was viewed", "got to", "ever", "~된 적", "~까지 간", "열람된 지원") uses op "reached"
-  on status — e.g. viewed-then-rejected records count as "viewed".
+  on status — e.g. viewed-then-rejected records count as "viewed"; reached with a list = reached any of them.
 - mode: "count" for how-many, "list" for which/what records, "aggregate" for grouped numbers,
-  comparisons and rates (use group_by + measures; count_if with `where` for "how many of them ...").
+  comparisons and rates (use group_by + measures; a count measure with `where` for "how many of them ...").
 - For comparisons over time ("last time", "before", "again", "지난번", "예전에도"), do NOT ask which period:
   group by month of the record's main date (group_by with bucket "month") so every period is shown side by
   side, and say so in `interpretation`.
-- "Viewed first / sooner" can be measured as the share of records with a view date (count_if exists).
+- "Viewed first / sooner" can be measured as the share of records with a view date (count where exists).
 - Order of events ("in the order they were viewed", "most recently rejected", "the first one to ...") is
   ordered by when the event happened: use order_by_event (descending=true for most recent first). Date
   fields hold only the day, so ordering by them ties records of the same day.
@@ -76,14 +90,16 @@ Rules:
   at @this_week_start, "last week" is @this_week_start-1w .. @this_week_start-1d.
 - The event log records corrections (corrected), retractions (retracted) and ordinary edits (updated)
   separately; use the kind whose label matches the question's word.
-- Time BETWEEN two points of the same record as a condition ("viewed more than 3 days after applying",
-  "applied over a month ago and still ...", "took less than a day") uses `elapsed`: start/end are a date
-  field, an event (exact times, e.g. {kind: status_changed, to: viewed}) or today. unit "days" with date
-  fields (or today), unit "hours" with events (or now); never mix a date field with an event.
-  For an average of such a time use the measures avg_days_between / avg_hours_between_events instead, and set
-  the measure's `unit` to the unit the question asks ("몇 시간" -> hours, "며칠" -> days): the code converts.
-  Prefer avg_hours_between_events (exact event times) when the record's events give both points. "Until the
-  result" means any result status: list them all in event_to.to (e.g. ["passed", "rejected"]), one measure.
+- Time BETWEEN two points of the same record: start/end are a date field, an event (exact times, e.g.
+  {kind: status_changed, to: viewed}) or today; never mix a date field with an event. unit hours, days or weeks
+  (the one the question asks: the code converts); hours need events. Prefer events when the record's events give
+  both points. "Until the result" means any result status: list them all in the event's `to` (e.g. ["passed",
+  "rejected"]).
+  - As a condition ("viewed more than 3 days after applying", "took less than a day"): `elapsed`.
+  - As a number: a measure with agg sum / avg / median / min / max and `span` {start, end} plus `unit`
+    ("평균 몇 시간" = avg, "다 합치면 며칠" = sum, "보통" = median, "제일 오래 걸린 시간" = max).
+  - The record itself ("제일 오래 걸린 지원은?"): mode list, a value with `span` and `unit`, order_by that value
+    descending, limit 1 — not a max measure, which gives only the time.
   A time condition that belongs to one part of the answer only goes into that measure's `elapsed` (same shape),
   not into the spec's `elapsed`, which narrows every measure.
 - Lengths of time ("over three days", "more than a week", "한 달 넘게", "두 달 넘은") count days:
@@ -97,7 +113,7 @@ Rules:
   ones viewed quickly?" keeps every viewed application for the average, and puts "quickly" into the outcome
   measures (their `where` / `elapsed`), never into the spec's filters or elapsed.
 - A question with several parts: answer every part you can express in one spec (e.g. the average plus
-  count_if measures for the follow-up part); never drop the main part because a side part is vague.
+  count measures with `where` for the follow-up part); never drop the main part because a side part is vague.
 - Clarify only when no default reading would give a fair answer (e.g. which of two different records, or a
   field the dictionary lacks); then use kind=clarify with 2-5 options.
 - Types marked SERIES (measurements over time, e.g. weight per day, spending per category per day) use
@@ -137,7 +153,7 @@ def _render_field(name: str, fd, observed: list[str] | None) -> str:
         vals = [f"{v}" + (f" [{'/'.join(labels[v])}]" if v in labels else "") for v in registered]
         line += f"\n      allowed: {', '.join(vals)}"
         if fd.value_groups:  # ADR-0028
-            line += "\n      phrase groups (op in with all of them): " + "; ".join(
+            line += "\n      phrase groups (op eq with the list of all of them): " + "; ".join(
                 f"'{p}' = {', '.join(v)}" for p, v in fd.value_groups.items())
         if fd.draft_values:
             line += f"\n      unregistered values in use (draft): {', '.join(map(str, fd.draft_values))}"
@@ -231,7 +247,7 @@ def interpret(
     trace: Trace,
     max_attempts: int = 2,
     hint: str | None = None,
-) -> QuerySpec | Clarification:
+) -> QuerySpec | Clarification | Unsupported:
     relevant = select_schemas(question, schemas)
     dictionary = render_dictionary(relevant, observed)
     base_prompt = (
@@ -241,6 +257,9 @@ def interpret(
     if hint:
         base_prompt += f"\nRequested answer format (choose the spec whose result gives this): {hint}"
     out_schema = InterpretOutput.model_json_schema()
+    # ADR-0029 ⑧: the model states the asked shape first (optional for agents, cached plans and the fast path)
+    qs = out_schema["$defs"]["QuerySpec"]
+    qs["required"] = [*qs.get("required", []), "asks"]
     errors: list[str] = []
     for attempt in range(1, max_attempts + 1):
         prompt = base_prompt
@@ -261,6 +280,11 @@ def interpret(
                 errors = ["kind=clarify requires clarify_question"]
                 continue
             return Clarification(parsed.clarify_question, parsed.options, reason="interpreter")
+        if parsed.kind == "unsupported":
+            if not parsed.unsupported_reason:
+                errors = ["kind=unsupported requires unsupported_reason"]
+                continue
+            return Unsupported(parsed.unsupported_reason)
         if parsed.spec is None:
             errors = ["kind=query requires spec"]
             continue

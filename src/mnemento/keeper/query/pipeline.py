@@ -18,7 +18,7 @@ from .cache import PlanCache
 from .compile import compile_spec
 from .series_query import compile_series, execute_series, series_warnings
 from .log import QueryLog
-from .interpret import (Clarification, InterpretError, dump_spec, interpret, observed_values,
+from .interpret import (Clarification, InterpretError, Unsupported, dump_spec, interpret, observed_values,
                         select_schemas)
 from .rules import parse_simple
 from .spec import EVENT_SCHEMA, Filter, QuerySpec, validate_spec
@@ -26,7 +26,7 @@ from .spec import EVENT_SCHEMA, Filter, QuerySpec, validate_spec
 
 @dataclass
 class KeeperAnswer:
-    status: str  # "answered" | "clarify" | "error"
+    status: str  # "answered" | "clarify" | "unsupported" | "error"
     question: str
     text: str
     spec: dict[str, Any] | None = None
@@ -138,6 +138,11 @@ class QueryPipeline:
                     if isinstance(out, Clarification):
                         return self._done(KeeperAnswer("clarify", question, out.question,
                                                        options=out.options), trace)
+                    if isinstance(out, Unsupported):  # ADR-0029 ⑧: said so, not a near answer
+                        return self._done(KeeperAnswer(
+                            "unsupported", question,
+                            "This question cannot be computed from the records as they are structured: "
+                            + out.reason), trace)
                     spec = out
                     if self.cache is not None and hint is None:
                         to_cache = spec  # stored only once it has found something (issue #5)
@@ -214,7 +219,7 @@ class QueryPipeline:
             target = (spec.entity_type if spec.source == "events" and f.field == "entity_id"
                       else schema.fields[f.field].ref if spec.source == "entities" and f.field in schema.fields
                       else None)
-            if target is None or f.op not in ("eq", "ne", "in", "not_in"):
+            if target is None or f.op not in ("eq", "ne"):
                 filters.append(f)
                 continue
             values = f.value if isinstance(f.value, list) else [f.value]
@@ -230,10 +235,7 @@ class QueryPipeline:
                         f"do you mean?", [])
                 notes.append(f"'{v}' is not a record id; read as {', '.join(found)} ({how}).")
                 ids += found
-            if len(ids) == 1 and f.op in ("eq", "ne"):
-                filters.append(f.model_copy(update={"value": ids[0]}))
-            else:
-                filters.append(f.model_copy(update={"op": "in" if f.op in ("eq", "in") else "not_in", "value": ids}))
+            filters.append(f.model_copy(update={"value": ids[0] if len(ids) == 1 else ids}))
         return spec.model_copy(update={"filters": filters}), notes, None
 
     def _find_ids(self, entity_type: str, value: str) -> tuple[list[str], str]:
@@ -323,7 +325,7 @@ class QueryPipeline:
             if res.status == "match" or (res.status == "ambiguous" and res.rule is not None
                                          and (res.rule == "business_number" or res.rule.startswith("identifier:"))):
                 resolved[str(f.value)] = {"matches": res.matches, "rule": res.rule}
-                new_filters.append(Filter(field=f.field, op="in", value=res.matches))
+                new_filters.append(Filter(field=f.field, op="eq", value=res.matches))
             elif res.status == "ambiguous":
                 return None, Clarification(f"'{f.value}' matches several {ref} records. Which one?", res.matches)
             elif res.status == "candidates":
@@ -332,7 +334,7 @@ class QueryPipeline:
                     [f"{c['id']} ({c['name']})" for c in res.candidates[:5]] + ["none of these"])
             else:
                 resolved[str(f.value)] = {"matches": [], "rule": None}
-                new_filters.append(Filter(field=f.field, op="in", value=["__no_match__"]))
+                new_filters.append(Filter(field=f.field, op="eq", value=["__no_match__"]))
         return new_filters, None
 
     @staticmethod
