@@ -1,0 +1,3 @@
+﻿n=100 M-claude-haiku-4-5-20251001 V3 rep0: BAD number 20 != 4                                   78.6s in=9721
+n=100 M-claude-haiku-4-5-20251001 V3 rep1: OK  ok                                               47.8s in=9719
+n=100 M-claude-haiku-4-5-20251001 V3 rep2: BAD number 20 != 4                                   43.3s in=9721

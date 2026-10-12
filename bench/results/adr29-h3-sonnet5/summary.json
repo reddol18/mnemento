@@ -1,0 +1,26 @@
+[
+ {
+  "scale": 100,
+  "system": "M-sonnet",
+  "n": 5,
+  "dev": [
+   4,
+   5
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 5.1802600000000005,
+  "time_p95": 5.7071000000000005,
+  "time_mean_no_overhead": 3.1296600000000003,
+  "time_p95_no_overhead": 3.6708,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 11685.8,
+  "in_per_q_no_overhead": 9159.8,
+  "cache_read_per_q": 11296.0,
+  "out_per_q": 334.4,
+  "cost_per_q": 0.006028800000000001,
+  "no_answer": 0
+ }
+]

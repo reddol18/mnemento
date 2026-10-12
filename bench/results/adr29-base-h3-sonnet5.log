@@ -1,0 +1,5 @@
+﻿n=100 M-sonnet H3 rep0: OK  ok                                                5.2s in=10596
+n=100 M-sonnet H3 rep1: BAD number 96 != 24                                   4.5s in=10598
+n=100 M-sonnet H3 rep2: OK  ok                                                5.4s in=10595
+n=100 M-sonnet H3 rep3: OK  ok                                                5.3s in=10598
+n=100 M-sonnet H3 rep4: OK  ok                                                5.3s in=10597

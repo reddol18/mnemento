@@ -1,0 +1,19 @@
+{
+ "run": "adr29-v3-h45",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20270201,
+ "frozen_hash": "1de5170749735678",
+ "git": "3c90c8a453fd6f91b4b5c7cbd33bb2d3834581ef+dirty",
+ "started": "2026-10-12T10:33:08.407601+09:00",
+ "adapter": "claude-cli",
+ "plan": null,
+ "plan_description": null,
+ "eval_set": "v3",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "M-claude-haiku-4-5-20251001": [
+   "claude-haiku-4-5-20251001"
+  ]
+ }
+}
