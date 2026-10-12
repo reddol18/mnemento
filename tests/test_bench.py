@@ -538,7 +538,8 @@ def test_eval_set_v3(tmp_path):
     qs = build(ds)
     assert {q.id for q in qs if q.set == "unseen4"} == {"X1", "X2", "X3", "X4", "X5", "X7", "X8"}  # issue #13, X6 dropped
     assert {q.id for q in qs if q.set == "unseen5"} == {f"Y{i}" for i in range(1, 7)}  # issue #16
-    qs = [q for q in qs if q.set not in ("unseen4", "unseen5")]
+    assert {q.id for q in qs if q.set == "unseen6"} == {f"Z{i}" for i in range(1, 10)}  # issue #20
+    qs = [q for q in qs if q.set not in ("unseen4", "unseen5", "unseen6")]
     assert {q.id for q in qs if q.set == "unseen"} == {f"W{i}" for i in range(1, 10)}
     assert all(q.set == "dev" for q in qs if not q.id.startswith("W"))  # v0 + v2 questions are dev
     assert "V6" not in {q.id for q in qs}  # names fixed November 2026 dates

@@ -55,6 +55,7 @@ def build(ds: Dataset) -> list[Question]:
         qs += build_unseen_v3(ds)
         qs += build_unseen_v4(ds)  # set "unseen4" (issue #13)
         qs += build_unseen_v5(ds)  # set "unseen5" (issue #16)
+        qs += build_unseen_v6(ds)  # set "unseen6" (issue #20, ADR-0029)
     return qs
 
 
@@ -260,6 +261,70 @@ def build_unseen_v5(ds: Dataset) -> list[Question]:
     qs.append(Question("Y6", "unseen5", "지원한 지 3주가 넘었는데 아직 끝나지 않은 지원은 몇 건이야?",
                        "number = count; ids = the applications counted", "number",
                        {"number": len(hit), "ids": ids(hit), "alternatives": [len(alt1), len(alt2)]}))
+    return qs
+
+
+def build_unseen_v6(ds: Dataset) -> list[Question]:
+    """Unseen questions "v6" (issue #20: composable measures, ADR-0029) on the v3 data, written by the directing agent
+    without seeing the code (docs/eval/unseen-v6.md). Set "unseen6". As in v5, no unit conversion is accepted. Z8 and
+    Z9 cannot be expressed: only an honest "unsupported" is right."""
+    live = ds.live
+    today = ds.now.date()
+    ids = lambda apps: sorted(a.id for a in apps)  # noqa: E731
+    first = lambda a, sts: next((e.at for e in a.events if e.to in sts), None)  # noqa: E731
+    h = lambda t0, t1: (t1 - t0).total_seconds() / 3600  # noqa: E731
+    result = lambda a: first(a, ("passed", "rejected"))  # noqa: E731
+    res = [a for a in live if result(a)]
+    viewed = [a for a in live if a.viewed_at]
+    qs: list[Question] = []
+
+    qs.append(Question("Z1", "unseen6", "합격이든 불합격이든 서류 결과가 나오기까지 걸린 기간의 중앙값은 며칠이야?",
+                       "number = median days (float)", "number",
+                       {"number": statistics.median(h(a.applied, result(a)) / 24 for a in res), "tolerance": 0.1}))
+
+    took = {a.id: h(a.applied, a.viewed_at) for a in viewed}
+    longest = max(took.values())
+    qs.append(Question("Z2", "unseen6", "열람되기까지 가장 오래 걸린 시간은 몇 시간이었어?", "number = hours (float)",
+                       "number", {"number": longest, "tolerance": 0.5}))
+    top = sorted(i for i, v in took.items() if abs(v - longest) < 1e-9)
+    qs.append(Question("Z3", "unseen6", "열람되기까지 가장 오래 걸린 지원은 어느 회사 거야?",
+                       "number = 1; ids = that application", "ids",
+                       {"number": 1, "ids": top[:1], "alt_ids": [[i] for i in top[1:]]}))  # a tie: any one of them
+
+    wanted = [a for a in res if a.platform == "wanted"]
+    qs.append(Question("Z4", "unseen6", "원티드로 낸 지원은 서류 결과까지 평균 몇 주 걸렸어?", "number = mean weeks (float)",
+                       "number", {"number": statistics.mean(h(a.applied, result(a)) / 168 for a in wanted)
+                                  if wanted else None, "tolerance": 0.05}))
+
+    groups = {}
+    for p in ("saramin", "wanted", "groupby", "jobkorea", "other"):
+        g = [a for a in viewed if a.platform == p]
+        if g:
+            groups[p] = (len(g), sum(took[a.id] for a in g) / 24)
+    qs.append(Question("Z5", "unseen6", "열람될 때까지 기다린 시간을 플랫폼별로 다 합치면 각각 며칠이야?",
+                       "groups = one per platform with category=platform, n = viewed applications, "
+                       "value = total days (float)", "value_groups", {"groups": groups, "tolerance": 0.5}))
+
+    not_decided = [a for a in live if a.status not in ("passed", "rejected")]
+    hit = [a for a in not_decided if (today - a.applied_date).days > 10]
+    alt = [a for a in not_decided if (today - a.applied_date).days >= 10]
+    no_wd = [a for a in hit if a.status != "withdrawn"]
+    qs.append(Question("Z6", "unseen6", "합격이나 불합격 상태가 아닌 지원 중에 지원한 지 열흘 넘은 건 몇 건이야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(hit), "ids": ids(hit), "alternatives": [len(alt)],
+                        # leaving out the withdrawn ones counts only when the answer says it read the words so
+                        "stated_alternatives": [[len(no_wd), ["withdrawn", "철회", "취소"]],
+                                                [len([a for a in alt if a.status != "withdrawn"]),
+                                                 ["withdrawn", "철회", "취소"]]]}))
+
+    ever = [a for a in live if a.platform == "saramin" and (a.viewed_at or first(a, ("viewed", "passed")))]
+    qs.append(Question("Z7", "unseen6", "한 번이라도 열람되거나 합격한 적 있는 사람인 지원은 몇 건이야?",
+                       "number = count; ids = the applications counted", "number",
+                       {"number": len(ever), "ids": ids(ever)}))
+
+    qs.append(Question("Z8", "unseen6", "지원과 다음 지원 사이 간격은 평균 며칠이었어?", "status = unsupported",
+                       "unsupported"))
+    qs.append(Question("Z9", "unseen6", "회사 한 곳당 평균 몇 번 지원했어?", "status = unsupported", "unsupported"))
     return qs
 
 

@@ -79,6 +79,11 @@ def grade(q: Question, ans: dict[str, Any] | None) -> tuple[bool, str]:
             return False, "no number"
         targets = [exp["number"], *exp.get("alternatives", [])]
         if not any(abs(float(num) - float(t)) <= tol + 1e-9 for t in targets):
+            # unseen6 Z6: another reading counts only when the answer says it read the words that way
+            text = (ans.get("text") or "").lower()
+            if any(abs(float(num) - float(n)) <= tol + 1e-9 and any(w.lower() in text for w in words)
+                   for n, words in exp.get("stated_alternatives", [])):
+                return True, "ok (stated reading)"
             return False, f"number {num} != {exp['number']}"
         if q.grader == "ids" and exp.get("ids") is not None and len(exp["ids"]) <= MAX_LISTED_IDS:
             got = set(ans.get("ids") or [])
