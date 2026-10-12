@@ -132,9 +132,11 @@ def test_the_record_that_took_longest_is_a_list_sorted_by_a_span_value(demo):
     ({"calc": "avg", "unit": "weeks"}, [{"name": "a", "agg": "avg", "span": DATES, "unit": "days"}], False),
     ({"calc": "count"}, [{"name": "n", "agg": "count"}], True),
     ({"calc": "other"}, [{"name": "n", "agg": "count"}], True),
+    ({"calc": "list"}, [{"name": "n", "agg": "count"}], True),  # dev V3: which companies = groups (with group_by)
 ])
 def test_the_measures_must_give_what_is_asked(demo, asks, measures, ok):
-    errs = validate_spec(QuerySpec.model_validate(agg(*measures, asks=asks)), schemas_of(demo))
+    extra = {"group_by": [{"field": "company_id"}]} if asks["calc"] == "list" else {}
+    errs = validate_spec(QuerySpec.model_validate(agg(*measures, asks=asks, **extra)), schemas_of(demo))
     assert (not errs) == ok, errs
     if not ok:
         assert "kind=unsupported" in errs[0]

@@ -579,10 +579,11 @@ def _check_asks(spec: QuerySpec) -> list[str]:
     if a is None or a.calc == "other":
         return []
     hint = " If no spec gives it, answer kind=unsupported instead of a near answer."
+    # groups answer "which" and "how many" too: the companies with two applications (group_by + having)
     if a.calc == "list":
-        return [] if spec.mode == "list" else ["asks list: use mode list." + hint]
+        return [] if spec.mode == "list" or spec.group_by else ["asks list: use mode list or groups." + hint]
     if a.calc == "count":
-        ok = spec.mode in ("count", "list") or any(m.agg == "count" for m in spec.measures)
+        ok = spec.mode in ("count", "list") or spec.group_by or any(m.agg == "count" for m in spec.measures)
         return [] if ok else ["asks count: use mode count or a count measure." + hint]
     main = [m for m in spec.measures if m.agg == a.calc]
     if not main:
