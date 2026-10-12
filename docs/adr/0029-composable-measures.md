@@ -1,6 +1,6 @@
 # ADR-0029: 조립식 측정값·조건 — 계산 종류를 이름으로 늘리지 않는다
 
-- 상태: **제안** (지휘부 검토 의견 반영 2026-10-12, 사용자 승인 대기. https://github.com/reddol18/mnemento/issues/17 · https://github.com/reddol18/mnemento/issues/18 · https://github.com/reddol18/mnemento/issues/19 를 대신함)
+- 상태: **승인** (이슈 https://github.com/reddol18/mnemento/issues/20, 지휘부 검토 의견 반영, 사용자 승인 2026-10-12. https://github.com/reddol18/mnemento/issues/17 · https://github.com/reddol18/mnemento/issues/18 · https://github.com/reddol18/mnemento/issues/19 를 대신함)
 
 ## 맥락
 측정값의 계산 종류(`agg`)는 완성된 이름을 하나씩 등록하는 방식이다. `avg_days_between`(날짜 필드 간 평균 일수)과 `avg_hours_between_events`(이벤트 간 평균 시간)가 그렇다. 새 조합이 필요할 때마다 이름이 하나씩 늘었다. 미노출 v5(Haiku 4.5 고정, 4/6)에서 틀린 두 문항이 이 구조 때문이었다.
