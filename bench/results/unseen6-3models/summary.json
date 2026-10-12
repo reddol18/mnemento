@@ -1,0 +1,74 @@
+[
+ {
+  "scale": 100,
+  "system": "M-claude-haiku-4-5-20251001",
+  "n": 9,
+  "dev": [
+   0,
+   0
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 30.029333333333334,
+  "time_p95": 70.86460000000001,
+  "time_mean_no_overhead": 27.694644444444446,
+  "time_p95_no_overhead": 67.36680000000001,
+  "llm_calls_per_q": 1.3333333333333333,
+  "in_per_q": 12964.222222222223,
+  "in_per_q_no_overhead": 9596.222222222223,
+  "cache_read_per_q": 9624.0,
+  "out_per_q": 3359.6666666666665,
+  "cost_per_q": 0.024427844444444447,
+  "no_answer": 2
+ },
+ {
+  "scale": 100,
+  "system": "M-opus",
+  "n": 9,
+  "dev": [
+   0,
+   0
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 6.0912999999999995,
+  "time_p95": 7.7321,
+  "time_mean_no_overhead": 4.0502,
+  "time_p95_no_overhead": 5.7203,
+  "llm_calls_per_q": 1.0,
+  "in_per_q": 11661.666666666666,
+  "in_per_q_no_overhead": 9135.666666666666,
+  "cache_read_per_q": 9130.0,
+  "out_per_q": 395.6666666666667,
+  "cost_per_q": 0.029984666666666666,
+  "no_answer": 2
+ },
+ {
+  "scale": 100,
+  "system": "M-sonnet",
+  "n": 9,
+  "dev": [
+   0,
+   0
+  ],
+  "unseen": [
+   0,
+   0
+  ],
+  "time_mean": 5.708633333333333,
+  "time_p95": 10.3538,
+  "time_mean_no_overhead": 3.1892444444444443,
+  "time_p95_no_overhead": 5.950699999999999,
+  "llm_calls_per_q": 1.2222222222222223,
+  "in_per_q": 14271.0,
+  "in_per_q_no_overhead": 11183.666666666666,
+  "cache_read_per_q": 11158.888888888889,
+  "out_per_q": 340.77777777777777,
+  "cost_per_q": 0.01696722222222222,
+  "no_answer": 2
+ }
+]

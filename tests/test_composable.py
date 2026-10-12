@@ -187,3 +187,18 @@ def test_bench_credits_only_an_honest_unsupported():
     q = Question("Z1", "unseen6", "마감 사흘 전에 낸 지원은?", "number = count", "unsupported")
     assert grade(q, {"number": None, "unsupported": True})[0]
     assert not grade(q, {"number": 3, "unsupported": False})[0]
+
+
+def test_bench_group_value_takes_the_total_when_asked():
+    from types import SimpleNamespace
+
+    from bench.questions import Question
+    from bench.runners import to_answer
+
+    q = Question("Z5", "unseen6", "q", "groups = one per platform with category=platform, n = viewed applications, "
+                 "value = total days (float)", "value_groups")
+    ans = SimpleNamespace(status="answered", text="", warnings=[], evidence=[], spec={"measures": [
+        {"name": "n", "agg": "count"}, {"name": "total", "agg": "sum", "span": {}, "unit": "days"}]},
+        result={"mode": "aggregate", "total": 15, "groups": [
+            {"group": {"platform": "saramin"}, "n": 15, "measures": {"n": 15, "total": 29.0}, "ids": []}]})
+    assert to_answer(ans, q)["groups"][0]["value"] == 29.0

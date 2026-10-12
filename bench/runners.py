@@ -123,6 +123,8 @@ def to_answer(ans, q: Question) -> dict[str, Any]:
     # v4 on; v4 X4 was recorded with the old rule)
     mean_name = (next((m["name"] for m in measures if m.get("agg") in _AVERAGES), None)
                  if re.search(r"value = (mean|average)", q.format) else None)
+    if re.search(r"value = (total|sum)", q.format):  # ADR-0029 (after unseen6 Z5, recorded with the old rule)
+        mean_name = next((m["name"] for m in measures if m.get("agg") == "sum"), None)
     for g in groups:
         keys = g["group"]
         period = next((v for k, v in keys.items() if k.endswith("_month")), None)

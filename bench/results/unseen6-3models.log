@@ -1,0 +1,27 @@
+﻿n=100 M-claude-haiku-4-5-20251001 Z1 rep0: OK  ok                                               53.3s in=19486
+n=100 M-claude-haiku-4-5-20251001 Z2 rep0: OK  ok                                               41.1s in=19462
+n=100 M-claude-haiku-4-5-20251001 Z3 rep0: OK  ok                                               19.0s in=9705
+n=100 M-claude-haiku-4-5-20251001 Z4 rep0: OK  ok                                               70.9s in=19469
+n=100 M-claude-haiku-4-5-20251001 Z5 rep0: BAD saramin: 15 != 27.167                            24.1s in=9727
+n=100 M-claude-haiku-4-5-20251001 Z6 rep0: OK  ok                                               15.0s in=9723
+n=100 M-claude-haiku-4-5-20251001 Z7 rep0: OK  ok                                               10.8s in=9714
+n=100 M-claude-haiku-4-5-20251001 Z8 rep0: OK  ok (said unsupported)                            11.7s in=9698
+n=100 M-claude-haiku-4-5-20251001 Z9 rep0: OK  ok (said unsupported)                            24.4s in=9694
+n=100 M-sonnet Z1 rep0: OK  ok                                               10.4s in=23410
+n=100 M-sonnet Z2 rep0: OK  ok                                                4.3s in=11659
+n=100 M-sonnet Z3 rep0: OK  ok                                                8.9s in=23368
+n=100 M-sonnet Z4 rep0: OK  ok                                                4.7s in=11665
+n=100 M-sonnet Z5 rep0: BAD saramin: 15 != 27.167                             4.8s in=11688
+n=100 M-sonnet Z6 rep0: OK  ok                                                5.2s in=11679
+n=100 M-sonnet Z7 rep0: OK  ok                                                4.5s in=11668
+n=100 M-sonnet Z8 rep0: OK  ok (said unsupported)                             4.4s in=11653
+n=100 M-sonnet Z9 rep0: OK  ok (said unsupported)                             4.3s in=11649
+n=100 M-opus Z1 rep0: OK  ok                                                7.7s in=11668
+n=100 M-opus Z2 rep0: OK  ok                                                6.5s in=11654
+n=100 M-opus Z3 rep0: OK  ok                                                6.1s in=11658
+n=100 M-opus Z4 rep0: OK  ok                                                6.5s in=11660
+n=100 M-opus Z5 rep0: BAD saramin: 15 != 27.167                             6.5s in=11684
+n=100 M-opus Z6 rep0: OK  ok                                                5.9s in=11674
+n=100 M-opus Z7 rep0: OK  ok                                                5.3s in=11666
+n=100 M-opus Z8 rep0: OK  ok (said unsupported)                             5.0s in=11648
+n=100 M-opus Z9 rep0: OK  ok (said unsupported)                             5.4s in=11643
