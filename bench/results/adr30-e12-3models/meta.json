@@ -1,0 +1,25 @@
+{
+ "run": "adr30-e12-3models",
+ "model": "haiku",
+ "thinking_tokens": null,
+ "seed": 20270201,
+ "frozen_hash": "2b354d5721ff00fc",
+ "git": "10edf7062f29df9d29f90f8a0696d298244365a3+dirty",
+ "started": "2026-10-12T12:35:27.470976+09:00",
+ "adapter": "claude-cli",
+ "plan": null,
+ "plan_description": null,
+ "eval_set": "v3",
+ "hint": "same format hint for every system",
+ "resolved_models": {
+  "M-claude-haiku-4-5-20251001": [
+   "claude-haiku-4-5-20251001"
+  ],
+  "M-opus": [
+   "claude-opus-5-5"
+  ],
+  "M-sonnet": [
+   "claude-sonnet-5-5"
+  ]
+ }
+}
