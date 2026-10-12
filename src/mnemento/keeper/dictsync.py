@@ -77,6 +77,10 @@ def diff_items(db: SchemaDef, file_def: dict[str, Any]) -> tuple[list[dict[str, 
                 {"field_description": [name, ff.description]})
         if ff.indexed and not dbf.indexed:
             add(f"index:{name}", True, f"index {name}", {"index": name})
+        if ff.event and ff.event != dbf.event and (ff.event[1] is None or ff.event[1] in (
+                (db.fields.get("status") and db.fields["status"].enum) or ())):  # ADR-0030
+            what = f"{name} is the day of the {ff.event[0]}" + (f" -> {ff.event[1]}" if ff.event[1] else "") + " event"
+            add(f"event:{name}", dbf.event is None, what, {"event": [name, ff.to_dict()["event"]]})
         if ff.identifier and not dbf.identifier and dbf.type == "string" and not dbf.enum:
             add(f"identifier:{name}", True, f"{name} is an external identifier", {"identifier": name})
         if ff.enum is not None and dbf.enum is not None:
@@ -210,3 +214,6 @@ def _apply_change(d: dict[str, Any], c: dict[str, Any]) -> None:
     elif "implies" in c:
         f, v, earlier = c["implies"]
         fields[f].setdefault("implies", {})[v] = list(earlier)
+    elif "event" in c:
+        f, ev = c["event"]
+        fields[f]["event"] = dict(ev)

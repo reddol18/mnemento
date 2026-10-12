@@ -96,3 +96,27 @@ def test_nothing_without_approval_or_with_unknown_items(k):
         k.apply_schema_proposal(p["id"], approved_by="", user_answer="")
     with pytest.raises(SchemaDefinitionError, match="unknown item keys"):
         k.apply_schema_proposal(p["id"], approved_by="user", user_answer="yes", items=["field:nope"])
+
+
+def test_the_event_of_a_date_field_is_offered(tmp_path):
+    """ADR-0030: an organized database gets the date -> event tie from the repository file as an additive item."""
+    led = Ledger.open(tmp_path / "e.db")
+    v1 = json.loads(json.dumps(V1))
+    v1["fields"]["done_on"] = {"type": "string", "format": "date", "description": "Day it was done."}
+    led.schemas.register(v1)
+    keeper = Keeper(led, ScriptedLLM())
+    keeper.record({"entity_type": "task", "kind": "created", "payload": {"title": "가상의 일", "tag": "x"}}, by="a")
+    prop = next(p for p in keeper.propose_schema("task") if p["kind"] == "organize_schema")
+    keeper.apply_schema_proposal(prop["id"], approved_by="user", user_answer="응", descriptions={"tag": "A tag."})
+    f = json.loads(json.dumps(v1))
+    f["version"] = 2
+    f["fields"]["done_on"]["event"] = {"kind": "status_changed", "to": "done"}
+    d = tmp_path / "schemas"
+    d.mkdir()
+    (d / "task.json").write_text(json.dumps(f, ensure_ascii=False), encoding="utf-8")
+    led.schemas.load_dir(d)
+    p = dict_prop(keeper)
+    assert [(i["key"], i["default"]) for i in p["items"]] == [("event:done_on", True)]
+    keeper.apply_schema_proposal(p["id"], approved_by="user", user_answer="넣어")
+    assert led.schemas.get("task").fields["done_on"].event == ("status_changed", "done")
+    led.close()

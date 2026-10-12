@@ -206,14 +206,17 @@ def event_span_warnings(compiled, result: QueryResult, fetch) -> list[str]:
     ids = result.evidence[:1000]
     for s in compiled.event_spans:
         ev = lambda e: e.kind if not e.to else e.to  # noqa: E731
-        line = (f"The time from {s['start']} to {s['end']} is measured from the exact event times "
-                f"({ev(s['start_event'])} -> {ev(s['end_event'])}) instead of the dates")
+        events = f"({ev(s['start_event'])} -> {ev(s['end_event'])})"
+        line = f"The time from {s['start']} to {s['end']} is measured from the exact event times {events} instead "                f"of the dates"
         if ids:
             marks = ", ".join("?" for _ in ids)
-            rows = fetch(f"SELECT COUNT(*) AS n FROM entities WHERE id IN ({marks}) AND {s['check']}",
-                         [*ids, *s["params"]])
-            kept = rows[0]["n"] if rows else 0
-            if kept:
+            rows = fetch(f"SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN {s['check']} THEN 1 ELSE 0 END), 0) AS kept "
+                         f"FROM entities WHERE id IN ({marks}) AND {s['dated']}", [*s["params"], *ids])
+            n, kept = (rows[0]["n"], rows[0]["kept"]) if rows else (0, 0)
+            if n and kept == n:
+                line = (f"The time from {s['start']} to {s['end']} is measured from the dates: none of these records "
+                        f"has the exact event times {events} on its recorded days")
+            elif kept:
                 line += (f"; {kept} record(s) have no event time on the recorded day and are measured from "
                          f"the dates")
         out.append(line + ".")

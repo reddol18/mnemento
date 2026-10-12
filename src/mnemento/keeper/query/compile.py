@@ -27,7 +27,7 @@ class CompiledQuery:
     resolved_dates: dict[str, str] = field(default_factory=dict)  # token -> YYYY-MM-DD
     value_names: list[str] = field(default_factory=list)  # list mode: computed columns v0, v1 ... (ADR-0022)
     # ADR-0030: spans over date fields measured from event times; each has `check`, an SQL condition on
-    # `entities` (with `params`) that is true for the records with both dates that are still measured from them
+    # `entities` (with `params`) that is true for the records still measured from the dates; `dated`: both dates exist
     event_spans: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -254,8 +254,9 @@ class Compiler:
             saved, self.params = self.params, check_params
             self.event_spans.append({"start": start.field, "end": end.field, "start_event": events[0],
                                      "end_event": events[1],
-                                     "check": f"{self.qcol(start.field)} IS NOT NULL AND {self.qcol(end.field)} "
-                                              f"IS NOT NULL AND NOT ({self._agree(start, events[0], end, events[1], outer=True)})",
+                                     "dated": f"{self.qcol(start.field)} IS NOT NULL AND {self.qcol(end.field)} "
+                                              f"IS NOT NULL",  # a missing event makes the check NULL: not exact
+                                     "check": f"NOT COALESCE(({self._agree(start, events[0], end, events[1], outer=True)}), 0)",
                                      "params": check_params})
             self.params = saved
         return f"(CASE WHEN {agree} THEN {exact} ELSE {dated} END)"

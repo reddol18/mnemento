@@ -287,3 +287,26 @@ def test_schema_event_of_a_date_field(fdef, needle):
         "done_at": {"type": "string", "format": "date", "description": "d",
                     "event": {"kind": "status_changed", "to": "done"}}}})
     assert ok.to_dict()["fields"]["done_at"]["event"] == {"kind": "status_changed", "to": "done"}
+
+
+def test_records_without_exact_event_times_are_said_to_be_measured_from_the_dates(tmp_path):
+    """Real imported data: events known only by the day (at_precision date) — nothing is swapped, and the answer
+    says so instead of claiming event times (found on a scratch copy of the real ledger)."""
+    from mnemento import Ledger
+    from mnemento.demo import SCHEMA_DIR
+
+    led = Ledger.open(tmp_path / "day.db")
+    try:
+        led.schemas.load_dir(SCHEMA_DIR)
+        led.record_event("app_d1", "created", {"company_id": "co_x", "platform": "saramin", "status": "applied",
+                                               "applied_at": "2026-10-05"}, "2026-10-05T00:00:00+09:00", "test",
+                         "import", entity_type="application", at_precision="date")
+        led.record_event("app_d1", "status_changed", {"to": "viewed"}, "2026-10-07T00:00:00+09:00", "test", "import",
+                         at_precision="date")
+        led.record_event("app_d1", "updated", {"viewed_at": "2026-10-07"}, "2026-10-07T00:00:00+09:00", "test",
+                         "import", at_precision="date")
+        ans = ask(led, agg({"name": "s", "agg": "sum", "span": SWAPPED, "unit": "days"}))
+        assert ans.result["groups"][0]["measures"]["s"] == 2
+        assert any("measured from the dates: none of these records" in w for w in ans.warnings), ans.warnings
+    finally:
+        led.close()
