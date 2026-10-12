@@ -5,7 +5,7 @@ Configuration (environment variables):
   MNEMENTO_SCHEMAS  directory of schema definitions to register at start (default: ./schemas of
                     this repository, if present)
   MNEMENTO_LLM      "claude-cli" (default) or "none" (fast path + structured queries only)
-  MNEMENTO_MODEL    model alias for the LLM adapter (default: haiku)
+  MNEMENTO_MODEL    model alias for the LLM adapter (default: sonnet — ADR-0029 measurements)
   MNEMENTO_EFFORT   CLI effort level (low|medium|high...; default: CLI default)
   MNEMENTO_THINKING_TOKENS  thinking budget for the LLM (0 disables thinking)
   MNEMENTO_TZ       user time zone (default: Asia/Seoul)
@@ -74,7 +74,7 @@ def build_keeper() -> Keeper:
             print(f"mnemento: {note}", file=sys.stderr)
     llm = None
     if os.environ.get("MNEMENTO_LLM", "claude-cli") == "claude-cli":
-        llm = ClaudeCLIAdapter(model=os.environ.get("MNEMENTO_MODEL", "haiku"),
+        llm = ClaudeCLIAdapter(model=os.environ.get("MNEMENTO_MODEL", "sonnet"),
                                effort=os.environ.get("MNEMENTO_EFFORT") or None,
                                max_thinking_tokens=_int_env("MNEMENTO_THINKING_TOKENS"))
     return Keeper(ledger, llm)

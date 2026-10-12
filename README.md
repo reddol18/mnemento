@@ -247,7 +247,7 @@ claude mcp add mnemento -e MNEMENTO_DB="$HOME/.mnemento/mnemento.db" -- uv --dir
 ```
 
 Tools: `query`, `record`, `record_series`, `revert_series_batch`, `get_entity`, `history`, `list_schemas`, `propose_schema`, `apply_schema_proposal`, `query_log`, `purge_query_log`.
-Natural-language interpretation uses the Claude Code CLI you are already logged into (`MNEMENTO_LLM=claude-cli`, default model `haiku`; set `MNEMENTO_MODEL` to change). With `MNEMENTO_LLM=none` only the fast path and structured `QuerySpec`s are answered.
+Natural-language interpretation uses the Claude Code CLI you are already logged into (`MNEMENTO_LLM=claude-cli`, default model `sonnet`; set `MNEMENTO_MODEL` to change, e.g. `haiku`). With `MNEMENTO_LLM=none` only the fast path and structured `QuerySpec`s are answered.
 
 For Claude Desktop, add the same command to `claude_desktop_config.json`:
 
