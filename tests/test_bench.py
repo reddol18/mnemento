@@ -50,6 +50,14 @@ REF = {
     "D7": lambda q: {"entity_type": "application", "mode": "list", "filters": [
         {"field": "reason", "op": "contains", "value": "서치펌"},
         {"field": "status", "op": "eq", "value": "withdrawn"}]},
+    # issue #21: written with the date fields, as all three models wrote unseen v6 Z5 — the event times are used
+    "E1": lambda q: {"entity_type": "application", "mode": "aggregate", "measures": [
+        {"name": "days", "agg": "sum", "unit": "days",
+         "span": {"start": {"field": "applied_at"}, "end": {"field": "viewed_at"}}}]},
+    "E2": lambda q: {"entity_type": "application", "mode": "aggregate",
+                     "filters": [{"field": "platform", "op": "eq", "value": "saramin"}], "measures": [
+        {"name": "days", "agg": "avg", "unit": "days",
+         "span": {"start": {"field": "applied_at"}, "end": {"field": "viewed_at"}}}]},
     "U1": lambda q: {"entity_type": "application", "mode": "count", "filters": [
         {"field": "platform", "op": "eq", "value": "wanted"},
         {"field": "applied_at", "op": "gte", "value": "@last_month_start"},

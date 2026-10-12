@@ -26,6 +26,9 @@ class CompiledQuery:
     measure_names: list[str] = field(default_factory=list)
     resolved_dates: dict[str, str] = field(default_factory=dict)  # token -> YYYY-MM-DD
     value_names: list[str] = field(default_factory=list)  # list mode: computed columns v0, v1 ... (ADR-0022)
+    # ADR-0030: spans over date fields measured from event times; each has `check`, an SQL condition on
+    # `entities` (with `params`) that is true for the records with both dates that are still measured from them
+    event_spans: list[dict[str, Any]] = field(default_factory=list)
 
 
 class Compiler:
@@ -36,6 +39,7 @@ class Compiler:
         self.params: list[Any] = []
         self.resolved: dict[str, str] = {}
         self.values: dict[str, Any] = {}  # name -> Value (ADR-0022)
+        self.event_spans: list[dict[str, Any]] = []
 
     # ---- expressions ----------------------------------------------------------------------
 
@@ -55,7 +59,7 @@ class Compiler:
     def value_sql(self, name: str) -> str:
         v = self.values[name]
         if v.span is not None:  # ADR-0029: the time each record took
-            return self.span_sql(v.span.start, v.span.end, v.unit)
+            return self.measured_span(v.span.start, v.span.end, v.unit)
         if v.asof is not None:
             return self.asof_sql(v.asof, "value")
         sym = {"add": "+", "sub": "-", "mul": "*"}
@@ -170,7 +174,8 @@ class Compiler:
             sql = (f"SELECT {cols}, COUNT(*) OVER () AS _total FROM {self.table} "
                    f"WHERE {where_sql} ORDER BY {order} LIMIT ?")
             return CompiledQuery(sql, [*value_params, *where_params, *order_params, spec.limit or 100], "list",
-                                 resolved_dates=self.resolved, value_names=[v.name for v in spec.values])
+                                 resolved_dates=self.resolved, value_names=[v.name for v in spec.values],
+                                 event_spans=self.event_spans)
 
         selects, groups, gnames = [], [], []
         for i, g in enumerate(spec.group_by):
@@ -203,7 +208,7 @@ class Compiler:
                 sql += " HAVING " + " AND ".join(conds)
             sql += f" ORDER BY {self._order(spec, default=', '.join(groups), groups=gnames, measures=mnames)}"
         return CompiledQuery(sql, params, spec.mode if groups or measures else "count",
-                             gnames, mnames, self.resolved)
+                             gnames, mnames, self.resolved, event_spans=self.event_spans)
 
     def _measure(self, m) -> str:
         # `where` narrows any measure, not only count_if (avg of top10 vs avg of top30 in one row)
@@ -215,7 +220,7 @@ class Compiler:
         # ADR-0029 ②: any aggregate over a field or a span; MEDIAN is registered on the connection (storage)
         # first/last reach here only for date fields (validated): the earliest/latest date
         fn = {"first": "MIN", "last": "MAX"}.get(m.agg, m.agg.upper())
-        expr = self.span_sql(m.span.start, m.span.end, m.unit) if m.span is not None else self.col(m.field)
+        expr = self.measured_span(m.span.start, m.span.end, m.unit) if m.span is not None else self.col(m.field)
         return f"{fn}(CASE WHEN {cond} THEN {expr} END)" if cond else f"{fn}({expr})"
 
     def elapsed(self, e: Elapsed) -> str:
@@ -232,6 +237,44 @@ class Compiler:
         scale = "" if factor == 1 else f" * {factor!r}"  # from the fixed unit table, not from the spec
         return f"((julianday({e}) - julianday({s})){scale})"
 
+    def measured_span(self, start: TimePoint, end: TimePoint, unit: str) -> str:
+        """A span that is measured (not an elapsed condition). ADR-0030: when both ends are date fields that the
+        dictionary ties to an event, each record whose two events fall on its recorded dates is measured from the
+        exact event times; the others keep the dates (e.g. imported records, created when they were imported)."""
+        events = [self._date_event(p) for p in (start, end)]
+        if None in events:
+            return self.span_sql(start, end, unit)
+        s_ev, e_ev = (TimePoint(event=ev) for ev in events)
+        # bind order follows the SQL text: the check, then the event span, then the date span
+        agree = self._agree(start, events[0], end, events[1])
+        exact = self.span_sql(s_ev, e_ev, unit)
+        dated = self.span_sql(start, end, unit)
+        if not any((s["start"], s["end"]) == (start.field, end.field) for s in self.event_spans):
+            check_params: list[Any] = []
+            saved, self.params = self.params, check_params
+            self.event_spans.append({"start": start.field, "end": end.field, "start_event": events[0],
+                                     "end_event": events[1],
+                                     "check": f"{self.qcol(start.field)} IS NOT NULL AND {self.qcol(end.field)} "
+                                              f"IS NOT NULL AND NOT ({self._agree(start, events[0], end, events[1], outer=True)})",
+                                     "params": check_params})
+            self.params = saved
+        return f"(CASE WHEN {agree} THEN {exact} ELSE {dated} END)"
+
+    def _date_event(self, p: TimePoint) -> EventRef | None:
+        if p.field is None or p.as_dated or p.field in self.values:
+            return None
+        fd = self.schema.fields.get(p.field)
+        if fd is None or fd.event is None:
+            return None
+        kind, to = fd.event
+        return EventRef(kind=kind, to=to)
+
+    def _agree(self, start: TimePoint, s_ev: EventRef, end: TimePoint, e_ev: EventRef, outer: bool = False) -> str:
+        """Both events exist and happened on the recorded days (their local date as written)."""
+        col = self.qcol if outer else self.col
+        return (f"{self._event_time(s_ev, day=True)} = {col(start.field)} "
+                f"AND {self._event_time(e_ev, day=True)} = {col(end.field)}")
+
     def _point(self, p: TimePoint, other: TimePoint) -> str:
         if p.field is not None:
             return self.col(p.field)
@@ -240,8 +283,9 @@ class Compiler:
         # today: the local day against a date field, the exact UTC instant against an event
         return self._bind_raw(utc_sort_key(self.now) if other.event is not None else self.now.date().isoformat())
 
-    def _event_time(self, ref: EventRef, agg: str = "MIN") -> str:
-        """Earliest (MIN) or latest (MAX) UTC time of a matching, non-voided event of the entity."""
+    def _event_time(self, ref: EventRef, agg: str = "MIN", day: bool = False) -> str:
+        """Earliest (MIN) or latest (MAX) UTC time of a matching, non-voided event of the entity; day=True: the
+        local date (as written) of the earliest one."""
         conds = ["ev.entity_id = entities.id", f"ev.kind = {self._bind_raw(ref.kind)}",
                  "ev.id IN (SELECT value FROM json_each(entities.event_ids))",
                  "ev.at_precision = 'time'"]  # only exact event times (ADR-0013)
@@ -250,6 +294,8 @@ class Compiler:
             conds.append(f"json_extract(ev.payload, '$.to') = {self._bind_raw(statuses[0])}")
         elif statuses:  # e.g. "until the result": passed or rejected (issue #16)
             conds.append(f"json_extract(ev.payload, '$.to') IN ({', '.join(self._bind_raw(s) for s in statuses)})")
+        if day:
+            return f"(SELECT substr(ev.at, 1, 10) FROM events ev WHERE {' AND '.join(conds)} ORDER BY ev.at_utc LIMIT 1)"
         return f"(SELECT {agg}(ev.at_utc) FROM events ev WHERE {' AND '.join(conds)})"
 
     def _bind_raw(self, v: Any) -> str:

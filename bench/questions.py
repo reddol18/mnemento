@@ -56,6 +56,7 @@ def build(ds: Dataset) -> list[Question]:
         qs += build_unseen_v4(ds)  # set "unseen4" (issue #13)
         qs += build_unseen_v5(ds)  # set "unseen5" (issue #16)
         qs += build_unseen_v6(ds)  # set "unseen6" (issue #20, ADR-0029)
+        qs += build_dev_spans(ds)  # set "dev" (issue #21, ADR-0030)
     return qs
 
 
@@ -326,6 +327,21 @@ def build_unseen_v6(ds: Dataset) -> list[Question]:
                        "unsupported"))
     qs.append(Question("Z9", "unseen6", "회사 한 곳당 평균 몇 번 지원했어?", "status = unsupported", "unsupported"))
     return qs
+
+
+def build_dev_spans(ds: Dataset) -> list[Question]:
+    """dev questions for issue #21 (ADR-0030, from the directing agent's check): a total and an average of the time
+    from applying to the first view, worded without naming the dates. The answer is from the exact event times;
+    the whole days between the dates miss the tolerance (all: 47 vs about 44.2; saramin mean: 1.93 vs 1.81)."""
+    viewed = [a for a in ds.live if a.viewed_at]
+    days = lambda a: (a.viewed_at - a.applied).total_seconds() / 86400  # noqa: E731
+    saramin = [days(a) for a in viewed if a.platform == "saramin"]
+    return [
+        Question("E1", "dev", "지원하고 열람될 때까지 기다린 시간을 전부 합치면 며칠이야?", "number = total days (float)",
+                 "number", {"number": sum(days(a) for a in viewed), "tolerance": 0.5}),
+        Question("E2", "dev", "사람인으로 낸 지원은 열람까지 평균 며칠 걸렸어?", "number = mean days (float)", "number",
+                 {"number": statistics.mean(saramin) if saramin else None, "tolerance": 0.05}),
+    ]
 
 
 def build_unseen_v2(ds: Dataset) -> list[Question]:

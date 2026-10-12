@@ -37,7 +37,7 @@ FIELD_TYPES = {"string", "integer", "number", "boolean", "array"}
 ITEM_TYPES = {"string", "integer", "number", "boolean"}
 FORMATS = {"date", "date-time"}
 _FIELD_KEYS = {"type", "description", "enum", "format", "required", "indexed", "items", "ref", "labels",
-               "implies", "identifier", "value_groups"}
+               "implies", "identifier", "value_groups", "event"}
 _SCHEMA_KEYS = {"name", "version", "description", "fields", "examples", "keywords", "default_date_field",
                 "vague_terms", "relations", "kind", "series_key", "time_field", "granularity", "measures",
                 "status", "proposal"}
@@ -68,6 +68,8 @@ class FieldDef:
     identifier: bool = False  # external identifier (stock code, business number): same value = same entity
     # ADR-0028: a phrase that means several enum values at once, e.g. {"주시 중": ("watching", "observe_only")}
     value_groups: dict[str, tuple[str, ...]] | None = None
+    # ADR-0030: a date field that is the day of an event of the record, e.g. ("status_changed", "viewed")
+    event: tuple[str, str | None] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"type": self.type, "description": self.description}
@@ -91,6 +93,8 @@ class FieldDef:
             d["identifier"] = True
         if self.value_groups:
             d["value_groups"] = {k: list(v) for k, v in self.value_groups.items()}
+        if self.event:
+            d["event"] = {"kind": self.event[0], **({"to": self.event[1]} if self.event[1] else {})}
         return d
 
     def json_schema(self) -> dict[str, Any]:
@@ -163,6 +167,10 @@ class SchemaDef:
         if status == "draft" and (raw_fields or data.get("kind", "entity") != "entity"):
             raise SchemaDefinitionError(f"{name}: a draft type is an entity type without fields (they are drafts)")
         fields = {fname: _parse_field(name, fname, fdef) for fname, fdef in raw_fields.items()}
+        for f in fields.values():
+            if f.event and f.event[1] is not None and (
+                    "status" not in fields or f.event[1] not in (fields["status"].enum or ())):
+                raise SchemaDefinitionError(f"{name}.{f.name}: event.to must be an allowed status")
         examples = data.get("examples", [])
         if not isinstance(examples, list):
             raise SchemaDefinitionError(f"{name}: examples must be a list")
@@ -402,5 +410,13 @@ def _parse_field(schema_name: str, fname: str, fdef: Any) -> FieldDef:
                 for k, v in groups.items()):
             raise SchemaDefinitionError(f"{where}: value_groups must map phrases to two or more enum values")
         groups = {k: tuple(v) for k, v in groups.items()}
+    event = fdef.get("event")
+    if event is not None:
+        kind, to = (event.get("kind"), event.get("to")) if isinstance(event, dict) else (None, None)
+        if (fmt not in FORMATS or not isinstance(event, dict) or set(event) - {"kind", "to"}
+                or kind not in ("created", "status_changed") or (kind == "status_changed") != isinstance(to, str)):
+            raise SchemaDefinitionError(f"{where}: event is {{kind: created}} or {{kind: status_changed, to: "
+                                        f"<status>}} on a date field")
+        event = (kind, to)
     return FieldDef(fname, ftype, description, enum, fmt, required, indexed, items, ref, labels, implies,
-                    identifier=identifier, value_groups=groups)
+                    identifier=identifier, value_groups=groups, event=event)

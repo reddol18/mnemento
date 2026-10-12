@@ -161,8 +161,10 @@ def test_measure_where_applies_to_every_aggregate(demo):
     }
     ans = keeper(demo)[0].ask("Q", spec=spec, now=NOW)
     sep = next(g["measures"] for g in ans.result["groups"] if g["group"]["applied_at_month"] == "2026-09")
-    # Sept top10 viewed after 1,2,1 days; top30 after 1,2,1,1 days
-    assert sep == {"days_top10": 1.33, "days_top30": 1.25, "n_top30": 6}
+    # Sept top10 viewed after 1,2,1 days; top30 after 1,2,1,1 days — plus 7 hours each, since the dates are
+    # measured from the event times (created 10:00 -> viewed 17:00, ADR-0030)
+    assert sep["n_top30"] == 6
+    assert abs(sep["days_top10"] - (4 / 3 + 7 / 24)) < 0.01 and abs(sep["days_top30"] - (5 / 4 + 7 / 24)) < 0.01
     octo = next(g["measures"] for g in ans.result["groups"] if g["group"]["applied_at_month"] == "2026-10")
     assert octo["days_top30"] is None and octo["n_top30"] == 9
 

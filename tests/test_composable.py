@@ -12,7 +12,8 @@ from mnemento.keeper.query.interpret import SYSTEM_PROMPT, InterpretOutput
 from mnemento.keeper.query.spec import QuerySpec, validate_spec
 
 NOW = datetime.fromisoformat(DEMO_NOW)
-DATES = {"start": {"field": "applied_at"}, "end": {"field": "viewed_at"}}
+DATES = {"start": {"field": "applied_at", "as_dated": True}, "end": {"field": "viewed_at", "as_dated": True}}
+SWAPPED = {"start": {"field": "applied_at"}, "end": {"field": "viewed_at"}}  # ADR-0030: event times where known
 EVENTS = {"start": {"event": {"kind": "created"}}, "end": {"event": {"kind": "status_changed", "to": "viewed"}}}
 
 
@@ -202,3 +203,87 @@ def test_bench_group_value_takes_the_total_when_asked():
         result={"mode": "aggregate", "total": 15, "groups": [
             {"group": {"platform": "saramin"}, "n": 15, "measures": {"n": 15, "total": 29.0}, "ids": []}]})
     assert to_answer(ans, q)["groups"][0]["value"] == 29.0
+
+
+def event_days_to_view(led):
+    """Exact days from the created event to the first viewed event, per record (demo: 10:00 -> 17:00)."""
+    out = {}
+    for e in led.find("application"):
+        evs = led.storage.fetch_all("SELECT kind, payload, at_utc FROM events WHERE entity_id = ? ORDER BY at_utc",
+                                    [e.id])
+        created = next((r["at_utc"] for r in evs if r["kind"] == "created"), None)
+        viewed = next((r["at_utc"] for r in evs if r["kind"] == "status_changed" and '"viewed"' in r["payload"]),
+                      None)
+        if created and viewed:
+            out[e.id] = (datetime.fromisoformat(viewed) - datetime.fromisoformat(created)).total_seconds() / 86400
+    return out
+
+
+def test_a_span_over_dates_is_measured_from_the_matching_event_times(demo):
+    exact = event_days_to_view(demo)
+    ans = ask(demo, agg({"name": "s", "agg": "sum", "span": SWAPPED, "unit": "days"},
+                        {"name": "a", "agg": "avg", "span": SWAPPED, "unit": "days"}))
+    assert ans.status == "answered", ans.text
+    m = ans.result["groups"][0]["measures"]
+    assert abs(m["s"] - sum(exact.values())) < 0.01 and abs(m["a"] - sum(exact.values()) / len(exact)) < 0.01
+    assert any("measured from the exact event times (created -> viewed)" in w for w in ans.warnings), ans.warnings
+    assert not any("measured from the dates" in w for w in ans.warnings)
+    assert ans.spec["measures"][0]["span"]["start"] == {"field": "applied_at"}  # the spec is not rewritten
+
+
+def test_the_question_naming_the_date_keeps_it(demo):
+    ans = ask(demo, agg({"name": "s", "agg": "sum", "span": DATES, "unit": "days"}))
+    assert ans.result["groups"][0]["measures"]["s"] == sum(days_to_view(demo))
+    assert not any("exact event times" in w for w in ans.warnings)
+
+
+def test_conditions_keep_the_dates(demo):
+    """"지원한 지 2주 넘은" asks a difference of days: elapsed conditions are not swapped (ADR-0030 ②)."""
+    ans = ask(demo, {"entity_type": "application", "mode": "count", "elapsed": [
+        {**SWAPPED, "unit": "days", "op": "gte", "value": 2}]})
+    assert ans.result["total"] == sum(1 for x in days_to_view(demo) if x >= 2)
+    assert not any("exact event times" in w for w in ans.warnings)
+
+
+def test_a_record_whose_events_are_not_on_its_dates_keeps_the_dates():
+    led = open_demo()
+    try:  # imported: created when imported (10/8), applied 10/5, viewed 10/7, no exact time of the view
+        led.record_event("app_import1", "created", {"company_id": "co_v23", "platform": "saramin",
+                                                     "status": "viewed", "applied_at": "2026-10-05",
+                                                     "viewed_at": "2026-10-07"},
+                         "2026-10-08T09:00:00+09:00", "test", "import", entity_type="application")
+        exact = event_days_to_view(led)
+        ans = ask(led, agg({"name": "s", "agg": "sum", "span": SWAPPED, "unit": "days"}))
+        assert abs(ans.result["groups"][0]["measures"]["s"] - (sum(exact.values()) + 2)) < 0.01
+        assert any("1 record(s) have no event time on the recorded day" in w for w in ans.warnings), ans.warnings
+    finally:
+        led.close()
+
+
+def test_the_longest_wait_by_dates_uses_the_event_times(demo):
+    exact = event_days_to_view(demo)
+    ans = ask(demo, {"entity_type": "application", "mode": "list", "limit": 1, "order_by": "took",
+                     "descending": True, "values": [{"name": "took", "span": SWAPPED, "unit": "days"}]})
+    assert ans.status == "answered", ans.text
+    assert abs(ans.result["rows"][0]["took"] - max(exact.values())) < 0.01
+    assert any("exact event times" in w for w in ans.warnings)
+
+
+@pytest.mark.parametrize("fdef,needle", [
+    ({"type": "string", "description": "d", "event": {"kind": "created"}}, "on a date field"),
+    ({"type": "string", "format": "date", "description": "d", "event": {"kind": "status_changed"}}, "on a date field"),
+    ({"type": "string", "format": "date", "description": "d", "event": {"kind": "status_changed", "to": "lost"}},
+     "allowed status"),
+])
+def test_schema_event_of_a_date_field(fdef, needle):
+    from mnemento.errors import SchemaDefinitionError
+    from mnemento.schema.definition import SchemaDef
+
+    with pytest.raises(SchemaDefinitionError, match=needle):
+        SchemaDef.from_dict({"name": "thing", "description": "d", "fields": {
+            "status": {"type": "string", "description": "s", "enum": ["open", "done"]}, "seen_at": fdef}})
+    ok = SchemaDef.from_dict({"name": "thing", "description": "d", "fields": {
+        "status": {"type": "string", "description": "s", "enum": ["open", "done"]},
+        "done_at": {"type": "string", "format": "date", "description": "d",
+                    "event": {"kind": "status_changed", "to": "done"}}}})
+    assert ok.to_dict()["fields"]["done_at"]["event"] == {"kind": "status_changed", "to": "done"}

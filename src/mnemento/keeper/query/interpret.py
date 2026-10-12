@@ -98,6 +98,8 @@ Rules:
   - As a condition ("viewed more than 3 days after applying", "took less than a day"): `elapsed`.
   - As a number: a measure with agg sum / avg / median / min / max and `span` {start, end} plus `unit`
     ("평균 몇 시간" = avg, "다 합치면 며칠" = sum, "보통" = median, "제일 오래 걸린 시간" = max).
+    A span between date fields is measured from the matching event times where the records have them; set
+    `as_dated: true` on a point only when the question names the date itself ("지원일 기준 며칠").
   - The record itself ("제일 오래 걸린 지원은?"): mode list, a value with `span` and `unit`, order_by that value
     descending, limit 1 — not a max measure, which gives only the time.
   A time condition that belongs to one part of the answer only goes into that measure's `elapsed` (same shape),

@@ -127,6 +127,8 @@ class TimePoint(BaseModel):
     event: EventRef | None = Field(default=None, description="When this event of the record happened "
                                                              "(exact times only).")
     today: bool = Field(default=False, description="Now / today.")
+    as_dated: bool = Field(default=False, description="With field: the question names this date itself (e.g. "
+                           "'지원일 기준'), so a span keeps the date even where the matching event time is known.")
 
 
 class Elapsed(BaseModel):

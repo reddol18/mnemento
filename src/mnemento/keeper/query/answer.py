@@ -199,6 +199,27 @@ def warnings_for(spec: QuerySpec, schema: SchemaDef, result: QueryResult, now: d
     return out
 
 
+def event_span_warnings(compiled, result: QueryResult, fetch) -> list[str]:
+    """ADR-0030: say that a span over dates was measured from the exact event times, and how many records of
+    the answer kept the dates (their events are missing or fall on other days, e.g. imported records)."""
+    out = []
+    ids = result.evidence[:1000]
+    for s in compiled.event_spans:
+        ev = lambda e: e.kind if not e.to else e.to  # noqa: E731
+        line = (f"The time from {s['start']} to {s['end']} is measured from the exact event times "
+                f"({ev(s['start_event'])} -> {ev(s['end_event'])}) instead of the dates")
+        if ids:
+            marks = ", ".join("?" for _ in ids)
+            rows = fetch(f"SELECT COUNT(*) AS n FROM entities WHERE id IN ({marks}) AND {s['check']}",
+                         [*ids, *s["params"]])
+            kept = rows[0]["n"] if rows else 0
+            if kept:
+                line += (f"; {kept} record(s) have no event time on the recorded day and are measured from "
+                         f"the dates")
+        out.append(line + ".")
+    return out
+
+
 def _conditional_count(m) -> bool:
     """count narrowed by its own conditions — "how many of them" (count_if before ADR-0029)."""
     return m.agg == "count" and bool(m.where or m.elapsed)

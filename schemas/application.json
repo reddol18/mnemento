@@ -1,6 +1,6 @@
 {
   "name": "application",
-  "version": 4,
+  "version": 5,
   "description": "One job application the user submitted to one posting (e.g. id app_saramin_10000001). Status moves applied -> viewed -> passed/rejected, or withdrawn.",
   "keywords": [
     "지원",
@@ -100,13 +100,20 @@
       "type": "string",
       "format": "date",
       "description": "Date the application was submitted, YYYY-MM-DD in the user's time zone. Empty when it was not recorded (such records are left out of date filters, and answers say how many).",
-      "indexed": true
+      "indexed": true,
+      "event": {
+        "kind": "created"
+      }
     },
     "viewed_at": {
       "type": "string",
       "format": "date",
       "description": "Date the company first viewed the application, YYYY-MM-DD in the user's time zone.",
-      "indexed": true
+      "indexed": true,
+      "event": {
+        "kind": "status_changed",
+        "to": "viewed"
+      }
     },
     "expected_rate": {
       "type": "string",
