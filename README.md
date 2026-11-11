@@ -257,6 +257,26 @@ For Claude Desktop, add the same command to `claude_desktop_config.json`:
     "env": { "MNEMENTO_DB": "/path/to/mnemento.db" } } } }
 ```
 
+## Look at the data without an LLM (`mnemento-db`)
+
+The raw database keeps each record as a JSON document with codes and ids. `mnemento-db` finds your databases and
+builds a readable copy from the schema dictionary — no LLM, the source is opened read-only
+([ADR-0031](docs/adr/0031-readable-view-export.md)).
+
+```bash
+uv --directory /path/to/mnemento run mnemento-db list              # databases named by MNEMENTO_DB in MCP configs, ~/.mnemento/*.db
+uv --directory /path/to/mnemento run mnemento-db view mnemento     # build <db dir>/views/mnemento-view.db and open it
+uv --directory /path/to/mnemento run mnemento-db open 2            # open the raw database (list number, name or path)
+```
+
+- One table per record type: schema fields as columns, enum codes as labels (`saramin` → 사람인), references as
+  names (`company_id` becomes a `company` column with the company's name), draft fields at the end.
+- `_summary` (counts per type), `_fields` (descriptions, labels, schema or draft), `_history` (every event, labelled),
+  `_meta` (source and build time). Series types get one row per point.
+- Opens with VS Code's `code` command when present (pair it with a SQLite viewer extension), otherwise the system's
+  default app. `list` shows when each view was built and marks it `(stale)` once the database changed;
+  `--scan DIR` also finds Mnemento databases under a folder (backups, benchmark runs).
+
 ## Development
 
 ```bash
@@ -267,7 +287,7 @@ uv run python examples/demo_queries.py     # real LLM calls via the claude CLI, 
 
 Agents use the MCP server from a separate runtime worktree that is updated only when an issue is finished, so development never breaks their connection ([docs/RUNTIME.md](docs/RUNTIME.md)).
 
-Layout: `src/mnemento/` — `storage/` (SQLite, WAL, append-only events), `schema/` (dictionary + JSON Schema validation), `ledger.py` (record/replay API), `keeper/` (query pipeline, record tool, identity resolution, schema proposals, LLM adapters), `mcp_server.py`. Domain schemas live in `schemas/`. All example data is fictional.
+Layout: `src/mnemento/` — `storage/` (SQLite, WAL, append-only events), `schema/` (dictionary + JSON Schema validation), `ledger.py` (record/replay API), `keeper/` (query pipeline, record tool, identity resolution, schema proposals, LLM adapters), `mcp_server.py`, `viewdb.py` (`mnemento-db`: find databases, readable views). Domain schemas live in `schemas/`. All example data is fictional.
 
 ---
 
@@ -288,6 +308,8 @@ LLM 에이전트는 세션이 끝나면 잊습니다. Mnemento는 여러 에이�
   - 기록 100건에서는 Claude Code 자체 메모리(B1)가 더 정확했다(28 대 23/36). 대신 Mnemento가 3.6배 빠르고 입력 토큰은 약 1/23이었다.
   - 기록이 1,000·10,000건으로 늘어도 Mnemento는 문항당 약 15초·약 4천 토큰으로 일정했다. 반면 파일 검색 방식은 느려지고 비싸지면서 정확도도 떨어졌다(78% → 50% → 42%, 10,000건은 1회 측정).
   - 한계: D4는 형식 힌트가 B0·B1에만 주어진 하네스 편향이 있다. 10,000건에서는 생성기 별칭이 중복된다. 자세한 내용은 위 표와 [결과 노트](bench/results/v0-reduced-haiku/NOTES.md)에 있다.
+
+- **LLM 없이 데이터 보기(`mnemento-db`)**: 원본 DB는 기록이 JSON 문서 한 칸에 코드·id로 들어 있어 읽기 어렵다. `mnemento-db list`는 MCP 설정의 `MNEMENTO_DB`와 `~/.mnemento/*.db`에서 DB를 찾는다. `mnemento-db view <이름|번호>`는 스키마 사전으로 보기용 DB(`<DB 폴더>/views/<이름>-view.db`)를 만들어 연다. 이 DB에는 기록 종류마다 표가 하나씩 있다. 필드가 컬럼이고, 코드는 라벨(`saramin` → 사람인), 참조는 이름(`company_id` → 회사명이 든 `company` 컬럼)으로 보인다. 함께 들어 있는 표는 `_summary`(종류별 건수), `_fields`(필드 설명, schema/draft), `_history`(모든 이벤트), `_meta`다. 원본은 읽기 전용으로 열고 LLM은 쓰지 않는다. `mnemento-db open`은 원본을 연다. 뷰어는 VS Code `code` 명령(SQLite 뷰어 확장과 함께), 없으면 시스템 기본 앱이다([ADR-0031](docs/adr/0031-readable-view-export.md)).
 
 설치(Claude Code): 위 `claude mcp add ...` 한 줄. 개발: `uv sync && uv run pytest`.
 현재 상태: v1.3(벤치마크 3회는 v1.1 기준). v1.2는 실제 기록으로 써 보며 나온 개선(답에 회사명 표시, 날짜·시각 정밀도)이고, v1.3은 "먼저 저장하고 나중에 정리"(스키마에 없는 필드·값도 저장하고 바로 조회, 정리는 사용자 승인)이다. v1.3은 회귀 측정만 했다. 이후 변경(작업 0008)도 회귀로만 확인하며, 그 ② 단계에서 벤치 답 변환기의 결함(평균을 묻는 질문에 개수 측정값이 함께 있으면 레코드 수를 기록)을 고쳤다. 이 결함 때문에 위 v3 표의 1,000건 M-haiku D5 오답 중 2건이 생겼다. frozen hash는 바뀌었고, 표의 점수는 측정한 그대로 둔다. 기획서는 [docs/PLAN.md](docs/PLAN.md), 설계 결정은 [docs/adr/](docs/adr/).
