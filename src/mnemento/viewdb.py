@@ -421,15 +421,16 @@ def _table(entries: list[DbEntry]) -> str:
 
 
 def _choose(entries: list[DbEntry], query: str | None) -> list[DbEntry]:
-    if not entries:
-        raise SystemExit("No Mnemento databases found (no MNEMENTO_DB in MCP configs, nothing in ~/.mnemento).")
-    if query:
+    if query:  # a path works even when nothing was discovered
+
         chosen = select(entries, query)
         if not chosen:
             raise SystemExit(f"No database matches {query!r}. See `mnemento-db list`.")
         if len(chosen) > 1:
             raise SystemExit(f"{query!r} matches several databases; give the number:\n" + _table(chosen))
         return chosen
+    if not entries:
+        raise SystemExit("No Mnemento databases found (no MNEMENTO_DB in MCP configs, nothing in ~/.mnemento).")
     if len(entries) == 1:
         return entries
     print(_table(entries))

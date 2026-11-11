@@ -134,9 +134,28 @@ def test_select_by_number_name_part_and_path(tmp_path):
     assert len(select(entries, "mnemento @")) == 2               # ambiguous: caller asks for a number
 
 
-def test_cli_view_builds_next_to_the_database_and_reports_stale(demo_db, tmp_path, monkeypatch, capsys):
+@pytest.fixture
+def empty_home(tmp_path, monkeypatch):
+    """No MCP configs and no ~/.mnemento: nothing is discovered."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("APPDATA", str(home / "AppData" / "Roaming"))
     monkeypatch.delenv("MNEMENTO_DB", raising=False)
-    assert main(["view", str(demo_db), "--no-open"]) == 0
+    monkeypatch.chdir(home)
+    return home
+
+
+def test_cli_with_nothing_discovered(empty_home, capsys):
+    assert main(["list"]) == 0
+    assert "No Mnemento databases found." in capsys.readouterr().out
+    with pytest.raises(SystemExit, match="No database matches 'missing'"):
+        main(["view", "missing", "--no-open"])
+
+
+def test_cli_view_builds_next_to_the_database_and_reports_stale(demo_db, tmp_path, empty_home, capsys):
+    assert main(["view", str(demo_db), "--no-open"]) == 0  # a path works with nothing discovered
     view = tmp_path / "views" / "demo-view.db"
     assert view.is_file() and f"Built view: {view}" in capsys.readouterr().out
     entry = DbEntry(demo_db.resolve(), "path")
